@@ -18,6 +18,13 @@ export function useActiveNotes() {
   });
 }
 
+export function useMyParticipations() {
+  return useQuery<ParticipationWithNote[]>({
+    queryKey: ["my-participations"],
+    queryFn: () => fetchJSON("/api/my-participations"),
+  });
+}
+
 export function useOpportunities() {
   return useQuery<Note[]>({
     queryKey: ["notes", "opportunities"],
@@ -56,6 +63,16 @@ export function formatCurrency(amount: string | number): string {
     currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
+  }).format(num);
+}
+
+export function formatCurrencyPrecise(amount: string | number): string {
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(num);
 }
 

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Area, AreaChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useActiveNotes, formatCurrency } from "@/lib/api";
+import { useMyParticipations, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const chartData = [
@@ -19,14 +19,14 @@ const chartData = [
 ];
 
 export default function DashboardPage() {
-  const { data: notes, isLoading } = useActiveNotes();
+  const { data: participations, isLoading } = useMyParticipations();
 
-  const totalInvested = notes?.reduce((sum, note) => sum + parseFloat(note.principal), 0) || 0;
-  const activeNotes = notes?.length || 0;
-  const avgRate = notes?.length 
-    ? notes.reduce((sum, note) => sum + parseFloat(note.rate), 0) / notes.length 
+  const totalInvested = participations?.reduce((sum, p) => sum + parseFloat(p.investedAmount), 0) || 0;
+  const activeNotes = participations?.length || 0;
+  const weightedRate = totalInvested > 0 && participations?.length
+    ? participations.reduce((sum, p) => sum + parseFloat(p.investedAmount) * parseFloat(p.note.rate), 0) / totalInvested
     : 0;
-  const estimatedMonthlyReturn = (totalInvested * (avgRate / 100)) / 12;
+  const estimatedMonthlyReturn = (totalInvested * (weightedRate / 100)) / 12;
 
   return (
     <Layout>
@@ -34,7 +34,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-serif font-bold text-foreground" data-testid="text-dashboard-title">Dashboard</h1>
-            <p className="text-muted-foreground" data-testid="text-welcome">Welcome back. Here's your portfolio overview.</p>
+            <p className="text-muted-foreground" data-testid="text-welcome">Welcome back, Haley. Here's your portfolio overview.</p>
           </div>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-sm gap-2" data-testid="button-browse-opportunities">
             <Link href="/opportunities">
@@ -67,9 +67,9 @@ export default function DashboardPage() {
               />
               <StatCard
                 title="Est. Monthly Return"
-                value={formatCurrency(estimatedMonthlyReturn)}
+                value={formatCurrencyPrecise(estimatedMonthlyReturn)}
                 icon={TrendingUp}
-                description={`Average yield of ${avgRate.toFixed(1)}%`}
+                description={`Blended yield of ${weightedRate.toFixed(4)}%`}
               />
             </>
           )}
@@ -163,8 +163,8 @@ export default function DashboardPage() {
                   <Skeleton className="h-48" />
                 </>
               ) : (
-                notes?.slice(0, 2).map((note) => (
-                  <NoteCard key={note.id} note={note} />
+                participations?.slice(0, 2).map((participation) => (
+                  <NoteCard key={participation.id} note={participation.note} participation={participation} />
                 ))
               )}
             </div>

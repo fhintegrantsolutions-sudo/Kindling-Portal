@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, DollarSign, Percent, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import type { Note, Participation } from "@shared/schema";
-import { formatCurrency, formatRate, formatTerm } from "@/lib/api";
+import { formatCurrency, formatCurrencyPrecise, formatRate, formatTerm } from "@/lib/api";
 
 interface NoteCardProps {
   note: Note;
@@ -12,13 +12,17 @@ interface NoteCardProps {
 }
 
 export function NoteCard({ note, participation }: NoteCardProps) {
-  const principal = participation 
+  const investedAmount = participation 
     ? parseFloat(participation.investedAmount) 
     : parseFloat(note.principal);
+  const notePrincipal = parseFloat(note.principal);
   const rate = parseFloat(note.rate);
-  const monthlyPayment = note.monthlyPayment ? parseFloat(note.monthlyPayment) : 0;
+  const noteMonthlyPayment = note.monthlyPayment ? parseFloat(note.monthlyPayment) : 0;
   
-  const estimatedMonthlyInterest = (principal * (rate / 100)) / 12;
+  const participationShare = notePrincipal > 0 ? investedAmount / notePrincipal : 0;
+  const monthlyPayment = participation ? noteMonthlyPayment * participationShare : noteMonthlyPayment;
+  
+  const estimatedMonthlyInterest = (investedAmount * (rate / 100)) / 12;
   const estimatedMonthlyPrincipal = monthlyPayment > 0 
     ? Math.max(0, monthlyPayment - estimatedMonthlyInterest) 
     : 0;
@@ -57,7 +61,7 @@ export function NoteCard({ note, participation }: NoteCardProps) {
               <DollarSign className="w-3 h-3" /> {participation ? "Invested" : "Principal"}
             </span>
             <span className="font-semibold text-lg text-foreground" data-testid={`text-principal-${note.id}`}>
-              {formatCurrency(principal)}
+              {formatCurrency(investedAmount)}
             </span>
           </div>
           <div className="flex flex-col gap-1">
@@ -93,7 +97,7 @@ export function NoteCard({ note, participation }: NoteCardProps) {
               <div className="flex-1 space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Principal</span>
-                  <span>{formatCurrency(estimatedMonthlyPrincipal)}</span>
+                  <span>{formatCurrencyPrecise(estimatedMonthlyPrincipal)}</span>
                 </div>
                 <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                   <div 
@@ -105,7 +109,7 @@ export function NoteCard({ note, participation }: NoteCardProps) {
               <div className="flex-1 space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Interest</span>
-                  <span>{formatCurrency(estimatedMonthlyInterest)}</span>
+                  <span>{formatCurrencyPrecise(estimatedMonthlyInterest)}</span>
                 </div>
                 <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                   <div 

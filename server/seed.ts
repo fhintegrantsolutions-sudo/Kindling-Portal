@@ -3,14 +3,14 @@ import { storage } from "./storage";
 async function seed() {
   console.log("🌱 Seeding database...");
 
-  // Create a demo user
+  // Create demo user - Haley Davidshofer
   const user = await storage.createUser({
-    username: "demo",
+    username: "hdavidsh",
     password: "demo123",
-    name: "Alex Johnson",
-    email: "alex.j@example.com",
+    name: "Haley Davidshofer",
+    email: "hdavidsh@gmail.com",
   });
-  console.log("✓ Created demo user");
+  console.log("✓ Created demo user: Haley Davidshofer");
 
   // Create real notes from CSV data
   const note1 = await storage.createNote({
@@ -151,56 +151,44 @@ async function seed() {
 
   console.log("✓ Created notes from CSV data");
 
-  // Create participations for demo user (sample investments)
-  await storage.createParticipation({
-    userId: user.id,
-    noteId: note1.id,
-    investedAmount: "15000.00",
-    purchaseDate: new Date("2024-08-15"),
-    status: "Active",
-  });
-
+  // Create Haley Davidshofer's participations from CSV data
+  // K24002: $10,000 at 9.50% = $210.02/month
   await storage.createParticipation({
     userId: user.id,
     noteId: note2.id,
-    investedAmount: "25000.00",
+    investedAmount: "10000.00",
     purchaseDate: new Date("2024-11-30"),
     status: "Active",
   });
 
+  // K25001: $5,000 at 10.75% = $108.09/month
   await storage.createParticipation({
     userId: user.id,
     noteId: note3.id,
-    investedAmount: "35000.00",
+    investedAmount: "5000.00",
     purchaseDate: new Date("2025-02-20"),
     status: "Active",
   });
 
+  // K25002: $5,000 at 9.50% = $105.01/month
   await storage.createParticipation({
     userId: user.id,
     noteId: note4.id,
-    investedAmount: "50000.00",
+    investedAmount: "5000.00",
     purchaseDate: new Date("2025-05-15"),
     status: "Active",
   });
 
-  console.log("✓ Created participations");
+  console.log("✓ Created Haley's participations: K24002 ($10,000), K25001 ($5,000), K25002 ($5,000)");
 
-  // Create beneficiaries
+  // Create sample beneficiary
   await storage.createBeneficiary({
     userId: user.id,
-    name: "Sarah Johnson",
-    relation: "Spouse",
-    percentage: 50,
+    name: "Sample Beneficiary",
+    relation: "Family",
+    percentage: 100,
   });
-
-  await storage.createBeneficiary({
-    userId: user.id,
-    name: "Michael Johnson",
-    relation: "Son",
-    percentage: 50,
-  });
-  console.log("✓ Created beneficiaries");
+  console.log("✓ Created beneficiary");
 
   // Create sample document
   await storage.createDocument({
@@ -213,7 +201,7 @@ async function seed() {
   console.log("✓ Created sample document");
 
   console.log("✅ Database seeded successfully!");
-  console.log(`\nDemo credentials:\nUsername: demo\nPassword: demo123`);
+  console.log(`\nDemo credentials:\nUsername: hdavidsh\nPassword: demo123\nTotal Invested: $20,000`);
 }
 
 seed().catch(console.error);

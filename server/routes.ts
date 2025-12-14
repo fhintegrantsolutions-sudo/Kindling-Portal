@@ -78,6 +78,20 @@ export async function registerRoutes(
     }
   });
 
+  // Get demo user's participations (for now, hardcoded demo user)
+  app.get("/api/my-participations", async (req, res) => {
+    try {
+      const demoUser = await storage.getUserByUsername("hdavidsh");
+      if (!demoUser) {
+        return res.status(404).json({ error: "Demo user not found" });
+      }
+      const participations = await storage.getParticipationsByUser(demoUser.id);
+      res.json(participations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch participations" });
+    }
+  });
+
   app.post("/api/participations", async (req, res) => {
     try {
       const validatedParticipation = insertParticipationSchema.parse(req.body);
