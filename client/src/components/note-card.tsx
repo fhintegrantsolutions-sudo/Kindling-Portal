@@ -19,11 +19,15 @@ function getNextPaymentDisplay(note: Note, participation?: Participation): strin
   
   let paymentDay = 25;
   if (note.paymentStartDate) {
-    paymentDay = new Date(note.paymentStartDate).getDate();
+    const dateStr = note.paymentStartDate.toString();
+    const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      paymentDay = parseInt(match[3], 10);
+    }
   } else if (note.firstPaymentDate) {
-    const parsed = new Date(note.firstPaymentDate);
-    if (!isNaN(parsed.getTime())) {
-      paymentDay = parsed.getDate();
+    const dayMatch = note.firstPaymentDate.match(/(\d+)(st|nd|rd|th)/);
+    if (dayMatch) {
+      paymentDay = parseInt(dayMatch[1], 10);
     }
   }
   
