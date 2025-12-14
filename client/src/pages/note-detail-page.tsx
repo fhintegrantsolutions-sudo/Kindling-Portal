@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 export default function NoteDetailPage() {
   const [, params] = useRoute("/notes/:id");
@@ -171,6 +172,59 @@ export default function NoteDetailPage() {
             </CardContent>
           </Card>
         </div>
+
+        {(totalPaidPrincipal > 0 || totalPaidInterest > 0) && (
+          <Card data-testid="card-earnings-chart">
+            <CardHeader>
+              <CardTitle className="font-serif text-xl flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Earnings Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "Principal Returned", value: totalPaidPrincipal, color: "#64748b" },
+                        { name: "Interest Earned", value: totalPaidInterest, color: "#16a34a" },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      dataKey="value"
+                      label={({ name, value }) => `${formatCurrencyPrecise(value)}`}
+                      labelLine={false}
+                    >
+                      <Cell fill="#64748b" />
+                      <Cell fill="#16a34a" />
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrencyPrecise(value)}
+                    />
+                    <Legend 
+                      verticalAlign="bottom"
+                      formatter={(value) => <span className="text-sm">{value}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4 text-center">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Principal Returned</p>
+                  <p className="text-xl font-bold">{formatCurrencyPrecise(totalPaidPrincipal)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Interest Earned</p>
+                  <p className="text-xl font-bold text-emerald-600">{formatCurrencyPrecise(totalPaidInterest)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2" data-testid="card-payment-history">
