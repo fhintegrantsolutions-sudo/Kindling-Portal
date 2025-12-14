@@ -156,7 +156,7 @@ export default function NoteDetailPage() {
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
                 <Calendar className="w-4 h-4" />
-                Est. Monthly Payment
+                Monthly Payment
               </div>
               <p className="text-2xl font-bold">{formatCurrencyPrecise(monthlyPayment)}</p>
             </CardContent>
