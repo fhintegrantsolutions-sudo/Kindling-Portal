@@ -9,12 +9,12 @@ import { Area, AreaChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } f
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const chartData = [
-  { month: "Jan", return: 950 },
-  { month: "Feb", return: 1100 },
-  { month: "Mar", return: 1050 },
-  { month: "Apr", return: 1200 },
-  { month: "May", return: 1250 },
-  { month: "Jun", return: 1250 },
+  { month: "Jan", interest: 850, principal: 100 },
+  { month: "Feb", interest: 900, principal: 200 },
+  { month: "Mar", interest: 880, principal: 170 },
+  { month: "Apr", interest: 950, principal: 250 },
+  { month: "May", interest: 980, principal: 270 },
+  { month: "Jun", interest: 950, principal: 300 },
 ];
 
 export default function DashboardPage() {
@@ -58,17 +58,31 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Chart */}
           <Card className="lg:col-span-2 border-none shadow-sm">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="font-serif">Portfolio Performance</CardTitle>
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[hsl(var(--primary))]" />
+                  <span>Interest</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[hsl(var(--secondary-foreground))]" />
+                  <span>Principal Repaid</span>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorReturn" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorInterest" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
                         <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorPrincipal" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
@@ -86,15 +100,27 @@ export default function DashboardPage() {
                         borderRadius: "var(--radius)",
                         boxShadow: "var(--shadow-md)" 
                       }}
-                      itemStyle={{ color: "hsl(var(--primary))", fontWeight: "bold" }}
+                      itemStyle={{ fontWeight: "bold" }}
                     />
                     <Area 
                       type="monotone" 
-                      dataKey="return" 
+                      dataKey="principal" 
+                      stackId="1"
+                      stroke="hsl(var(--secondary-foreground))" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorPrincipal)" 
+                      name="Principal Repaid"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="interest" 
+                      stackId="1"
                       stroke="hsl(var(--primary))" 
                       strokeWidth={2}
                       fillOpacity={1} 
-                      fill="url(#colorReturn)" 
+                      fill="url(#colorInterest)" 
+                      name="Interest Income"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
