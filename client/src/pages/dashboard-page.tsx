@@ -26,7 +26,25 @@ export default function DashboardPage() {
   const weightedRate = totalInvested > 0 && participations?.length
     ? participations.reduce((sum, p) => sum + parseFloat(p.investedAmount) * parseFloat(p.note.rate), 0) / totalInvested
     : 0;
-  const estimatedMonthlyReturn = (totalInvested * (weightedRate / 100)) / 12;
+  
+  // Calculate monthly interest and principal for all participations
+  const monthlyInterest = participations?.reduce((sum, p) => {
+    const invested = parseFloat(p.investedAmount);
+    const rate = parseFloat(p.note.rate);
+    return sum + (invested * (rate / 100)) / 12;
+  }, 0) || 0;
+  
+  const monthlyPrincipal = participations?.reduce((sum, p) => {
+    const invested = parseFloat(p.investedAmount);
+    const notePrincipal = parseFloat(p.note.principal);
+    const noteMonthlyPayment = p.note.monthlyPayment ? parseFloat(p.note.monthlyPayment) : 0;
+    const share = notePrincipal > 0 ? invested / notePrincipal : 0;
+    const scaledPayment = noteMonthlyPayment * share;
+    const interest = (invested * (parseFloat(p.note.rate) / 100)) / 12;
+    return sum + Math.max(0, scaledPayment - interest);
+  }, 0) || 0;
+  
+  const totalMonthlyPayment = monthlyInterest + monthlyPrincipal;
 
   return (
     <Layout>
@@ -65,12 +83,26 @@ export default function DashboardPage() {
                 icon={PieChart}
                 description="Currently generating returns"
               />
-              <StatCard
-                title="Est. Monthly Return"
-                value={formatCurrencyPrecise(estimatedMonthlyReturn)}
-                icon={TrendingUp}
-                description={`Blended yield of ${weightedRate.toFixed(4)}%`}
-              />
+              <Card className="border-none shadow-sm" data-testid="card-monthly-return">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <p className="text-sm font-medium text-muted-foreground">Est. Monthly Return</p>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrencyPrecise(totalMonthlyPayment)}</div>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Interest</span>
+                      <span className="font-medium text-primary">{formatCurrencyPrecise(monthlyInterest)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Principal</span>
+                      <span className="font-medium">{formatCurrencyPrecise(monthlyPrincipal)}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">Blended yield of {weightedRate.toFixed(2)}%</p>
+                </CardContent>
+              </Card>
             </>
           )}
         </div>
