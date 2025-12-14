@@ -26,10 +26,20 @@ export async function registerRoutes(
 
   app.get("/api/notes/opportunities", async (req, res) => {
     try {
-      const opportunities = await storage.getNotesByStatus("Opportunity");
-      res.json(opportunities);
+      const funding = await storage.getNotesByStatus("Funding");
+      const opportunity = await storage.getNotesByStatus("Opportunity");
+      res.json([...funding, ...opportunity]);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch opportunities" });
+    }
+  });
+
+  app.get("/api/notes/active", async (req, res) => {
+    try {
+      const activeNotes = await storage.getNotesByStatus("Active");
+      res.json(activeNotes);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active notes" });
     }
   });
 

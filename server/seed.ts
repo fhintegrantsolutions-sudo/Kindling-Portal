@@ -127,25 +127,25 @@ async function seed() {
     description: "Bridge loan for Crossroads Business Consulting - 60 month term at 9.50% interest.",
   });
 
-  // Funding opportunity
+  // Funding opportunity - projected terms based on prior notes
   await storage.createNote({
     noteId: "K26001",
     borrower: "Crossroads Business Consulting",
     title: "Crossroads Bridge Loan K26001",
     principal: "0",
-    rate: "0",
-    termMonths: 0,
+    rate: "9.50",
+    termMonths: 60,
     contractDate: new Date("2026-02-13"),
     paymentStartDate: new Date("2026-03-25"),
-    maturityDate: new Date("2026-03-25"),
+    maturityDate: new Date("2031-03-25"),
     status: "Funding",
     type: "Bridge Loan",
     interestType: "Amortized",
     fundingStartDate: new Date("2025-11-17"),
     fundingEndDate: new Date("2026-02-06"),
     firstPaymentDate: "March 25th",
-    description: "Currently in funding phase - Bridge loan opportunity for Crossroads Business Consulting.",
-    targetRaise: "500000.00",
+    description: "Currently in funding phase - Bridge loan opportunity for Crossroads Business Consulting. Projected 60-month term at 9.50% interest based on prior note terms.",
+    targetRaise: "750000.00",
     minInvestment: "10000.00",
   });
 

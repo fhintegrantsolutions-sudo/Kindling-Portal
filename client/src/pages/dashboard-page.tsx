@@ -1,12 +1,13 @@
 import Layout from "@/components/layout";
 import { StatCard } from "@/components/stat-card";
 import { NoteCard } from "@/components/note-card";
-import { MOCK_USER, MOCK_NOTES } from "@/lib/mock-data";
 import { DollarSign, PieChart, TrendingUp, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Area, AreaChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useActiveNotes, formatCurrency } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const chartData = [
   { month: "Jan", interest: 850, principal: 100 },
@@ -18,15 +19,24 @@ const chartData = [
 ];
 
 export default function DashboardPage() {
+  const { data: notes, isLoading } = useActiveNotes();
+
+  const totalInvested = notes?.reduce((sum, note) => sum + parseFloat(note.principal), 0) || 0;
+  const activeNotes = notes?.length || 0;
+  const avgRate = notes?.length 
+    ? notes.reduce((sum, note) => sum + parseFloat(note.rate), 0) / notes.length 
+    : 0;
+  const estimatedMonthlyReturn = (totalInvested * (avgRate / 100)) / 12;
+
   return (
     <Layout>
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-serif font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {MOCK_USER.name}. Here's your portfolio overview.</p>
+            <h1 className="text-3xl font-serif font-bold text-foreground" data-testid="text-dashboard-title">Dashboard</h1>
+            <p className="text-muted-foreground" data-testid="text-welcome">Welcome back. Here's your portfolio overview.</p>
           </div>
-          <Button asChild className="bg-primary hover:bg-primary/90 shadow-sm gap-2">
+          <Button asChild className="bg-primary hover:bg-primary/90 shadow-sm gap-2" data-testid="button-browse-opportunities">
             <Link href="/opportunities">
               Browse Opportunities <ArrowRight className="w-4 h-4" />
             </Link>
@@ -35,24 +45,34 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard
-            title="Total Invested"
-            value={`$${MOCK_USER.totalInvested.toLocaleString()}`}
-            icon={DollarSign}
-            description="+15% from last month"
-          />
-          <StatCard
-            title="Active Notes"
-            value={MOCK_USER.activeNotes}
-            icon={PieChart}
-            description="Across 3 distinct sectors"
-          />
-          <StatCard
-            title="Est. Monthly Return"
-            value={`$${MOCK_USER.monthlyReturn.toLocaleString()}`}
-            icon={TrendingUp}
-            description="Average yield of 10.5%"
-          />
+          {isLoading ? (
+            <>
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+              <Skeleton className="h-32" />
+            </>
+          ) : (
+            <>
+              <StatCard
+                title="Total Invested"
+                value={formatCurrency(totalInvested)}
+                icon={DollarSign}
+                description={`Across ${activeNotes} active notes`}
+              />
+              <StatCard
+                title="Active Notes"
+                value={activeNotes}
+                icon={PieChart}
+                description="Currently generating returns"
+              />
+              <StatCard
+                title="Est. Monthly Return"
+                value={formatCurrency(estimatedMonthlyReturn)}
+                icon={TrendingUp}
+                description={`Average yield of ${avgRate.toFixed(1)}%`}
+              />
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -132,14 +152,21 @@ export default function DashboardPage() {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="font-serif font-bold text-lg">Active Notes</h3>
-              <Button variant="link" asChild className="h-auto p-0 text-primary">
+              <Button variant="link" asChild className="h-auto p-0 text-primary" data-testid="link-view-all-notes">
                 <Link href="/notes">View All</Link>
               </Button>
             </div>
             <div className="space-y-4">
-              {MOCK_NOTES.slice(0, 2).map((note) => (
-                <NoteCard key={note.id} note={note} />
-              ))}
+              {isLoading ? (
+                <>
+                  <Skeleton className="h-48" />
+                  <Skeleton className="h-48" />
+                </>
+              ) : (
+                notes?.slice(0, 2).map((note) => (
+                  <NoteCard key={note.id} note={note} />
+                ))
+              )}
             </div>
           </div>
         </div>
