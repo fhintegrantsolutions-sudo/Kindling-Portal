@@ -38,6 +38,11 @@ export const MOCK_NOTES = [
     nextPayment: "2024-06-15",
     status: "Active",
     type: "Real Estate",
+    interestType: "Amortized",
+    nextPaymentBreakdown: {
+      principal: 1250.00,
+      interest: 416.67
+    }
   },
   {
     id: 2,
@@ -49,6 +54,11 @@ export const MOCK_NOTES = [
     nextPayment: "2024-06-01",
     status: "Active",
     type: "Venture Debt",
+    interestType: "Simple Interest",
+    nextPaymentBreakdown: {
+      principal: 0,
+      interest: 250.00
+    }
   },
   {
     id: 3,
@@ -60,6 +70,11 @@ export const MOCK_NOTES = [
     nextPayment: "2024-06-20",
     status: "Active",
     type: "Infrastructure",
+    interestType: "Amortized",
+    nextPaymentBreakdown: {
+      principal: 1100.00,
+      interest: 395.83
+    }
   },
 ];
 
