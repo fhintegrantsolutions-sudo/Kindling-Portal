@@ -15,18 +15,25 @@ export const users = pgTable("users", {
 
 export const notes = pgTable("notes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  noteId: text("note_id").notNull().unique(),
+  borrower: text("borrower").notNull(),
   title: text("title").notNull(),
   principal: decimal("principal", { precision: 12, scale: 2 }).notNull(),
   rate: decimal("rate", { precision: 5, scale: 2 }).notNull(),
   termMonths: integer("term_months").notNull(),
-  startDate: timestamp("start_date").notNull(),
+  contractDate: timestamp("contract_date"),
+  paymentStartDate: timestamp("payment_start_date"),
+  maturityDate: timestamp("maturity_date"),
+  monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }),
   status: text("status").notNull().default("Active"),
   type: text("type").notNull(),
-  interestType: text("interest_type").notNull(),
+  interestType: text("interest_type").notNull().default("Amortized"),
   description: text("description"),
   targetRaise: decimal("target_raise", { precision: 12, scale: 2 }),
   minInvestment: decimal("min_investment", { precision: 12, scale: 2 }),
-  closingDate: timestamp("closing_date"),
+  fundingStartDate: timestamp("funding_start_date"),
+  fundingEndDate: timestamp("funding_end_date"),
+  firstPaymentDate: text("first_payment_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

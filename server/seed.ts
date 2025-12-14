@@ -12,82 +12,151 @@ async function seed() {
   });
   console.log("✓ Created demo user");
 
-  // Create active notes
+  // Create real notes from CSV data
   const note1 = await storage.createNote({
-    title: "Austin Multi-Family Fund II",
-    principal: "50000.00",
-    rate: "10.00",
-    termMonths: 24,
-    startDate: new Date("2024-01-15"),
+    noteId: "K24001",
+    borrower: "Crossroads Business Consulting",
+    title: "Crossroads Bridge Loan K24001",
+    principal: "105000.00",
+    rate: "7.50",
+    termMonths: 60,
+    contractDate: new Date("2024-08-15"),
+    paymentStartDate: new Date("2024-09-25"),
+    maturityDate: new Date("2029-09-25"),
+    monthlyPayment: "2103.98",
     status: "Active",
-    type: "Real Estate",
+    type: "Bridge Loan",
     interestType: "Amortized",
-    description: "Senior secured debt for multi-family residential development in Austin metro area.",
+    firstPaymentDate: "September 25th",
+    description: "Bridge loan for Crossroads Business Consulting - 60 month term at 7.50% interest.",
   });
 
   const note2 = await storage.createNote({
-    title: "Tech Growth Bridge Loan",
-    principal: "25000.00",
-    rate: "12.00",
-    termMonths: 12,
-    startDate: new Date("2024-03-01"),
+    noteId: "K24002",
+    borrower: "Crossroads Business Consulting",
+    title: "Crossroads Bridge Loan K24002",
+    principal: "356000.00",
+    rate: "9.50",
+    termMonths: 60,
+    contractDate: new Date("2024-11-30"),
+    paymentStartDate: new Date("2024-12-25"),
+    maturityDate: new Date("2029-12-25"),
+    monthlyPayment: "7476.66",
     status: "Active",
-    type: "Venture Debt",
-    interestType: "Simple Interest",
-    description: "Short-term bridge financing for Series A growth-stage technology company.",
+    type: "Bridge Loan",
+    interestType: "Amortized",
+    firstPaymentDate: "December 25th",
+    description: "Bridge loan for Crossroads Business Consulting - 60 month term at 9.50% interest.",
   });
 
   const note3 = await storage.createNote({
-    title: "Green Energy Infrastructure",
-    principal: "50000.00",
-    rate: "9.50",
-    termMonths: 36,
-    startDate: new Date("2023-11-20"),
+    noteId: "K25001",
+    borrower: "Crossroads Business Consulting",
+    title: "Crossroads Bridge Loan K25001",
+    principal: "595000.00",
+    rate: "10.75",
+    termMonths: 60,
+    contractDate: new Date("2025-02-20"),
+    paymentStartDate: new Date("2025-03-25"),
+    maturityDate: new Date("2030-03-25"),
+    monthlyPayment: "12862.68",
     status: "Active",
-    type: "Infrastructure",
+    type: "Bridge Loan",
     interestType: "Amortized",
-    description: "Infrastructure financing for commercial solar installation projects.",
+    firstPaymentDate: "March 25th",
+    description: "Bridge loan for Crossroads Business Consulting - 60 month term at 10.75% interest.",
   });
-  console.log("✓ Created active notes");
 
-  // Create opportunities
-  await storage.createNote({
-    title: "Miami Residential Redevelopment",
-    principal: "0",
-    rate: "11.00",
-    termMonths: 18,
-    startDate: new Date("2024-07-15"),
-    status: "Opportunity",
-    type: "Real Estate",
+  const note4 = await storage.createNote({
+    noteId: "K25002",
+    borrower: "Crossroads Business Consulting",
+    title: "Crossroads Bridge Loan K25002",
+    principal: "1158666.00",
+    rate: "9.50",
+    termMonths: 60,
+    contractDate: new Date("2025-05-15"),
+    paymentStartDate: new Date("2025-06-25"),
+    maturityDate: new Date("2030-06-25"),
+    monthlyPayment: "24334.14",
+    status: "Active",
+    type: "Bridge Loan",
     interestType: "Amortized",
-    description: "Senior secured debt for the renovation of a 12-unit apartment complex in Little Havana.",
-    targetRaise: "2000000.00",
-    minInvestment: "25000.00",
-    closingDate: new Date("2024-07-15"),
+    fundingStartDate: new Date("2025-04-15"),
+    fundingEndDate: new Date("2025-05-09"),
+    firstPaymentDate: "June 25th",
+    description: "Bridge loan for Crossroads Business Consulting - 60 month term at 9.50% interest.",
   });
 
+  const note5 = await storage.createNote({
+    noteId: "K25003",
+    borrower: "Crossroads Business Consulting",
+    title: "Crossroads Bridge Loan K25003",
+    principal: "621101.00",
+    rate: "9.50",
+    termMonths: 60,
+    contractDate: new Date("2025-08-15"),
+    paymentStartDate: new Date("2025-09-25"),
+    maturityDate: new Date("2030-09-25"),
+    monthlyPayment: "13044.28",
+    status: "Active",
+    type: "Bridge Loan",
+    interestType: "Amortized",
+    fundingStartDate: new Date("2025-06-16"),
+    fundingEndDate: new Date("2025-08-08"),
+    firstPaymentDate: "September 25th",
+    description: "Bridge loan for Crossroads Business Consulting - 60 month term at 9.50% interest.",
+  });
+
+  const note6 = await storage.createNote({
+    noteId: "K25004",
+    borrower: "Crossroads Business Consulting",
+    title: "Crossroads Bridge Loan K25004",
+    principal: "563158.10",
+    rate: "9.50",
+    termMonths: 60,
+    contractDate: new Date("2025-11-14"),
+    paymentStartDate: new Date("2025-12-25"),
+    maturityDate: new Date("2030-12-25"),
+    monthlyPayment: "11827.37",
+    status: "Active",
+    type: "Bridge Loan",
+    interestType: "Amortized",
+    fundingStartDate: new Date("2025-09-01"),
+    fundingEndDate: new Date("2025-11-07"),
+    firstPaymentDate: "December 25th",
+    description: "Bridge loan for Crossroads Business Consulting - 60 month term at 9.50% interest.",
+  });
+
+  // Funding opportunity
   await storage.createNote({
-    title: "SaaS Revenue Financing Series A",
+    noteId: "K26001",
+    borrower: "Crossroads Business Consulting",
+    title: "Crossroads Bridge Loan K26001",
     principal: "0",
-    rate: "13.00",
-    termMonths: 24,
-    startDate: new Date("2024-08-01"),
-    status: "Opportunity",
-    type: "Venture Debt",
-    interestType: "Simple Interest",
-    description: "Revenue-based financing for a high-growth logistics software company reaching $5M ARR.",
-    targetRaise: "5000000.00",
-    minInvestment: "50000.00",
-    closingDate: new Date("2024-08-01"),
+    rate: "0",
+    termMonths: 0,
+    contractDate: new Date("2026-02-13"),
+    paymentStartDate: new Date("2026-03-25"),
+    maturityDate: new Date("2026-03-25"),
+    status: "Funding",
+    type: "Bridge Loan",
+    interestType: "Amortized",
+    fundingStartDate: new Date("2025-11-17"),
+    fundingEndDate: new Date("2026-02-06"),
+    firstPaymentDate: "March 25th",
+    description: "Currently in funding phase - Bridge loan opportunity for Crossroads Business Consulting.",
+    targetRaise: "500000.00",
+    minInvestment: "10000.00",
   });
-  console.log("✓ Created opportunities");
 
-  // Create participations
+  console.log("✓ Created notes from CSV data");
+
+  // Create participations for demo user (sample investments)
   await storage.createParticipation({
     userId: user.id,
     noteId: note1.id,
-    investedAmount: "50000.00",
-    purchaseDate: new Date("2024-01-15"),
+    investedAmount: "15000.00",
+    purchaseDate: new Date("2024-08-15"),
     status: "Active",
   });
 
@@ -95,17 +164,26 @@ async function seed() {
     userId: user.id,
     noteId: note2.id,
     investedAmount: "25000.00",
-    purchaseDate: new Date("2024-03-01"),
+    purchaseDate: new Date("2024-11-30"),
     status: "Active",
   });
 
   await storage.createParticipation({
     userId: user.id,
     noteId: note3.id,
-    investedAmount: "50000.00",
-    purchaseDate: new Date("2023-11-20"),
+    investedAmount: "35000.00",
+    purchaseDate: new Date("2025-02-20"),
     status: "Active",
   });
+
+  await storage.createParticipation({
+    userId: user.id,
+    noteId: note4.id,
+    investedAmount: "50000.00",
+    purchaseDate: new Date("2025-05-15"),
+    status: "Active",
+  });
+
   console.log("✓ Created participations");
 
   // Create beneficiaries
@@ -128,7 +206,7 @@ async function seed() {
   await storage.createDocument({
     userId: user.id,
     type: "W9",
-    fileName: "2023_W9_Form.pdf",
+    fileName: "2024_W9_Form.pdf",
     fileUrl: "/documents/sample-w9.pdf",
     status: "Verified",
   });
