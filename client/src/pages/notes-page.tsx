@@ -2,18 +2,18 @@ import Layout from "@/components/layout";
 import { NoteCard } from "@/components/note-card";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { useActiveNotes } from "@/lib/api";
+import { useMyParticipations } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 
 export default function NotesPage() {
-  const { data: notes, isLoading } = useActiveNotes();
+  const { data: participations, isLoading } = useMyParticipations();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredNotes = notes?.filter(note => 
-    note.noteId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.borrower.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.type.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredParticipations = participations?.filter(p => 
+    p.note.noteId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.note.borrower.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.note.type.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
 
   return (
@@ -43,14 +43,14 @@ export default function NotesPage() {
               <Skeleton className="h-64" />
               <Skeleton className="h-64" />
             </>
-          ) : filteredNotes.length > 0 ? (
-            filteredNotes.map((note) => (
-              <NoteCard key={note.id} note={note} />
+          ) : filteredParticipations.length > 0 ? (
+            filteredParticipations.map((participation) => (
+              <NoteCard key={participation.id} note={participation.note} participation={participation} />
             ))
           ) : (
             <div className="col-span-full text-center py-12">
               <p className="text-muted-foreground" data-testid="text-no-notes">
-                {searchQuery ? "No notes match your search." : "No active notes found."}
+                {searchQuery ? "No notes match your search." : "You have no active investments."}
               </p>
             </div>
           )}
