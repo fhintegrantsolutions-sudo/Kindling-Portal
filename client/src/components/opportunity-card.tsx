@@ -51,7 +51,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-lg border border-secondary">
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium flex items-center gap-1">
-              <Percent className="w-3 h-3" /> Annual Rate
+              <Percent className="w-3 h-3" /> Est. Annual Rate
             </p>
             <p className="text-2xl font-bold text-primary" data-testid={`text-rate-${opportunity.id}`}>
               {rate > 0 ? formatRate(rate) : "TBD"}
