@@ -82,7 +82,7 @@ export async function registerRoutes(
   // Get demo user's participations (for now, hardcoded demo user)
   app.get("/api/my-participations", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("hdavidsh");
+      const demoUser = await storage.getUserByUsername("kdavidsh");
       if (!demoUser) {
         return res.status(404).json({ error: "Demo user not found" });
       }
@@ -96,7 +96,7 @@ export async function registerRoutes(
   // Get current user profile (demo user for now)
   app.get("/api/me", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("hdavidsh");
+      const demoUser = await storage.getUserByUsername("kdavidsh");
       if (!demoUser) {
         return res.status(404).json({ error: "Demo user not found" });
       }
@@ -110,7 +110,7 @@ export async function registerRoutes(
   // Get current user's beneficiaries
   app.get("/api/my-beneficiaries", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("hdavidsh");
+      const demoUser = await storage.getUserByUsername("kdavidsh");
       if (!demoUser) {
         return res.status(404).json({ error: "Demo user not found" });
       }
@@ -124,7 +124,7 @@ export async function registerRoutes(
   // Get current user's documents
   app.get("/api/my-documents", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("hdavidsh");
+      const demoUser = await storage.getUserByUsername("kdavidsh");
       if (!demoUser) {
         return res.status(404).json({ error: "Demo user not found" });
       }

@@ -3,19 +3,19 @@ import { storage } from "./storage";
 async function seed() {
   console.log("🌱 Seeding database...");
 
-  // Create demo user - Haley Davidshofer
+  // Create demo user - Karen Davidshofer
   const user = await storage.createUser({
-    username: "hdavidsh",
+    username: "kdavidsh",
     password: "demo123",
-    name: "Haley Davidshofer",
-    email: "hdavidsh@gmail.com",
+    name: "Karen Davidshofer",
+    email: "kdavidsh@gmail.com",
     phone: "(555) 123-4567",
     address: "123 Main Street",
     city: "San Francisco",
     state: "CA",
     zipCode: "94102",
   });
-  console.log("✓ Created demo user: Haley Davidshofer");
+  console.log("✓ Created demo user: Karen Davidshofer");
 
   // Create real notes from CSV data
   const note1 = await storage.createNote({
@@ -303,7 +303,7 @@ async function seed() {
   console.log("✓ Created sample document");
 
   console.log("✅ Database seeded successfully!");
-  console.log(`\nDemo credentials:\nUsername: hdavidsh\nPassword: demo123\nTotal Invested: $35,750`);
+  console.log(`\nDemo credentials:\nUsername: kdavidsh\nPassword: demo123\nTotal Invested: $35,750`);
 }
 
 seed().catch(console.error);
