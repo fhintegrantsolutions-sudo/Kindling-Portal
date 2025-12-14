@@ -84,21 +84,11 @@ export default function DashboardPage() {
               />
               <Card className="border-none shadow-sm" data-testid="card-monthly-return">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <p className="text-sm font-medium text-muted-foreground">Est. Monthly Return</p>
+                  <p className="text-sm font-medium text-muted-foreground">Monthly Payment</p>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrencyPrecise(totalMonthlyPayment)}</div>
-                  <div className="mt-3 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Interest</span>
-                      <span className="font-medium text-primary">{formatCurrencyPrecise(monthlyInterest)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Principal</span>
-                      <span className="font-medium">{formatCurrencyPrecise(monthlyPrincipal)}</span>
-                    </div>
-                  </div>
                   <p className="text-xs text-muted-foreground mt-2">Blended yield of {weightedRate.toFixed(2)}%</p>
                 </CardContent>
               </Card>
