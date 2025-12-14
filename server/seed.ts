@@ -156,70 +156,70 @@ async function seed() {
 
   console.log("✓ Created notes from CSV data");
 
-  // Create Haley Davidshofer's participations from CSV data
-  // K24002: $10,000 at 9.50% = $210.02/month
+  // Create Karen Davidshofer's participations from CSV data
+  // K24002: $20,000 at 9.50% = $420.04/month
   const participation1 = await storage.createParticipation({
     userId: user.id,
     noteId: note2.id,
-    investedAmount: "10000.00",
+    investedAmount: "20000.00",
     purchaseDate: new Date("2024-11-30"),
     status: "Active",
   });
 
-  // K25001: $5,000 at 10.75% = $108.09/month
+  // K25001: $20,000 at 10.75% = $432.36/month
   const participation2 = await storage.createParticipation({
     userId: user.id,
     noteId: note3.id,
-    investedAmount: "5000.00",
+    investedAmount: "20000.00",
     purchaseDate: new Date("2025-02-20"),
     status: "Active",
   });
 
-  // K25002: $5,000 at 9.50% = $105.01/month
+  // K25002: $20,000 at 9.50% = $420.04/month
   const participation3 = await storage.createParticipation({
     userId: user.id,
     noteId: note4.id,
-    investedAmount: "5000.00",
+    investedAmount: "20000.00",
     purchaseDate: new Date("2025-05-15"),
     status: "Active",
   });
 
-  // K25003: $10,750 at 9.50% = $225.77/month
+  // K25003: $10,000 at 9.50% = $210.02/month
   const participation4 = await storage.createParticipation({
     userId: user.id,
     noteId: note5.id,
-    investedAmount: "10750.00",
+    investedAmount: "10000.00",
     purchaseDate: new Date("2025-08-15"),
     status: "Active",
   });
 
-  // K25004: $5,000 at 9.50% = $105.01/month
+  // K25004: $20,000 at 9.50% = $420.04/month
   const participation5 = await storage.createParticipation({
     userId: user.id,
     noteId: note6.id,
-    investedAmount: "5000.00",
+    investedAmount: "20000.00",
     purchaseDate: new Date("2025-11-14"),
     status: "Active",
   });
 
-  console.log("✓ Created Haley's 5 participations: K24002 ($10,000), K25001 ($5,000), K25002 ($5,000), K25003 ($10,750), K25004 ($5,000)");
+  console.log("✓ Created Karen's 5 participations: K24002 ($20,000), K25001 ($20,000), K25002 ($20,000), K25003 ($10,000), K25004 ($20,000)");
 
-  // Create sample payment history for participation1 (K24002 - oldest, started Dec 2024)
-  // Monthly payment ~$210.02 split between principal and interest
+  // Create sample payment history for participation1 (K24002 - Karen's $20,000, started Dec 2024)
+  // Monthly payment ~$420.04 split between principal and interest
   const paymentData = [
-    { date: new Date("2024-12-25"), principal: "130.85", interest: "79.17", status: "Completed" },
-    { date: new Date("2025-01-25"), principal: "131.89", interest: "78.13", status: "Completed" },
-    { date: new Date("2025-02-25"), principal: "132.94", interest: "77.08", status: "Completed" },
-    { date: new Date("2025-03-25"), principal: "133.99", interest: "76.03", status: "Completed" },
-    { date: new Date("2025-04-25"), principal: "135.05", interest: "74.97", status: "Completed" },
-    { date: new Date("2025-05-25"), principal: "136.12", interest: "73.90", status: "Completed" },
-    { date: new Date("2025-06-25"), principal: "137.20", interest: "72.82", status: "Completed" },
-    { date: new Date("2025-07-25"), principal: "138.28", interest: "71.74", status: "Completed" },
-    { date: new Date("2025-08-25"), principal: "139.37", interest: "70.65", status: "Completed" },
-    { date: new Date("2025-09-25"), principal: "140.47", interest: "69.55", status: "Completed" },
-    { date: new Date("2025-10-25"), principal: "141.58", interest: "68.44", status: "Completed" },
-    { date: new Date("2025-11-25"), principal: "142.70", interest: "67.32", status: "Completed" },
-    { date: new Date("2025-12-25"), principal: "143.83", interest: "66.19", status: "Scheduled" },
+    { date: new Date("2024-12-25"), principal: "261.70", interest: "158.34", status: "Completed" },
+    { date: new Date("2025-01-25"), principal: "263.78", interest: "156.26", status: "Completed" },
+    { date: new Date("2025-02-25"), principal: "265.88", interest: "154.16", status: "Completed" },
+    { date: new Date("2025-03-25"), principal: "267.98", interest: "152.06", status: "Completed" },
+    { date: new Date("2025-04-25"), principal: "270.10", interest: "149.94", status: "Completed" },
+    { date: new Date("2025-05-25"), principal: "272.24", interest: "147.80", status: "Completed" },
+    { date: new Date("2025-06-25"), principal: "274.40", interest: "145.64", status: "Completed" },
+    { date: new Date("2025-07-25"), principal: "276.56", interest: "143.48", status: "Completed" },
+    { date: new Date("2025-08-25"), principal: "278.74", interest: "141.30", status: "Completed" },
+    { date: new Date("2025-09-25"), principal: "280.94", interest: "139.10", status: "Completed" },
+    { date: new Date("2025-10-25"), principal: "283.16", interest: "136.88", status: "Completed" },
+    { date: new Date("2025-11-25"), principal: "285.40", interest: "134.64", status: "Completed" },
+    { date: new Date("2025-12-25"), principal: "287.66", interest: "132.38", status: "Scheduled" },
   ];
 
   for (const payment of paymentData) {
@@ -233,18 +233,19 @@ async function seed() {
   }
   console.log("✓ Created 13 payment records for K24002");
 
-  // Create sample payments for participation2 (K25001 - started March 2025)
+  // Create sample payments for participation2 (K25001 - Karen's $20,000, started March 2025)
+  // Monthly payment ~$432.36 split between principal and interest
   const payment2Data = [
-    { date: new Date("2025-03-25"), principal: "63.27", interest: "44.82", status: "Completed" },
-    { date: new Date("2025-04-25"), principal: "63.84", interest: "44.25", status: "Completed" },
-    { date: new Date("2025-05-25"), principal: "64.41", interest: "43.68", status: "Completed" },
-    { date: new Date("2025-06-25"), principal: "64.99", interest: "43.10", status: "Completed" },
-    { date: new Date("2025-07-25"), principal: "65.57", interest: "42.52", status: "Completed" },
-    { date: new Date("2025-08-25"), principal: "66.16", interest: "41.93", status: "Completed" },
-    { date: new Date("2025-09-25"), principal: "66.75", interest: "41.34", status: "Completed" },
-    { date: new Date("2025-10-25"), principal: "67.35", interest: "40.74", status: "Completed" },
-    { date: new Date("2025-11-25"), principal: "67.96", interest: "40.13", status: "Completed" },
-    { date: new Date("2025-12-25"), principal: "68.57", interest: "39.52", status: "Scheduled" },
+    { date: new Date("2025-03-25"), principal: "253.03", interest: "179.33", status: "Completed" },
+    { date: new Date("2025-04-25"), principal: "255.29", interest: "177.07", status: "Completed" },
+    { date: new Date("2025-05-25"), principal: "257.58", interest: "174.78", status: "Completed" },
+    { date: new Date("2025-06-25"), principal: "259.88", interest: "172.48", status: "Completed" },
+    { date: new Date("2025-07-25"), principal: "262.21", interest: "170.15", status: "Completed" },
+    { date: new Date("2025-08-25"), principal: "264.55", interest: "167.81", status: "Completed" },
+    { date: new Date("2025-09-25"), principal: "266.92", interest: "165.44", status: "Completed" },
+    { date: new Date("2025-10-25"), principal: "269.31", interest: "163.05", status: "Completed" },
+    { date: new Date("2025-11-25"), principal: "271.72", interest: "160.64", status: "Completed" },
+    { date: new Date("2025-12-25"), principal: "274.15", interest: "158.21", status: "Scheduled" },
   ];
 
   for (const payment of payment2Data) {
@@ -303,7 +304,7 @@ async function seed() {
   console.log("✓ Created sample document");
 
   console.log("✅ Database seeded successfully!");
-  console.log(`\nDemo credentials:\nUsername: kdavidsh\nPassword: demo123\nTotal Invested: $35,750`);
+  console.log(`\nDemo credentials:\nUsername: kdavidsh\nPassword: demo123\nTotal Invested: $90,000`);
 }
 
 seed().catch(console.error);
