@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, decimal, timestamp, boolean } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -7,12 +8,154 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+export const notes = pgTable("notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  principal: decimal("principal", { precision: 12, scale: 2 }).notNull(),
+  rate: decimal("rate", { precision: 5, scale: 2 }).notNull(),
+  termMonths: integer("term_months").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  status: text("status").notNull().default("Active"),
+  type: text("type").notNull(),
+  interestType: text("interest_type").notNull(),
+  description: text("description"),
+  targetRaise: decimal("target_raise", { precision: 12, scale: 2 }),
+  minInvestment: decimal("min_investment", { precision: 12, scale: 2 }),
+  closingDate: timestamp("closing_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const participations = pgTable("participations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  noteId: varchar("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
+  investedAmount: decimal("invested_amount", { precision: 12, scale: 2 }).notNull(),
+  purchaseDate: timestamp("purchase_date").notNull(),
+  status: text("status").notNull().default("Active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  participationId: varchar("participation_id").notNull().references(() => participations.id, { onDelete: "cascade" }),
+  paymentDate: timestamp("payment_date").notNull(),
+  principalAmount: decimal("principal_amount", { precision: 12, scale: 2 }).notNull(),
+  interestAmount: decimal("interest_amount", { precision: 12, scale: 2 }).notNull(),
+  status: text("status").notNull().default("Scheduled"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const beneficiaries = pgTable("beneficiaries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  relation: text("relation").notNull(),
+  percentage: integer("percentage").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const documents = pgTable("documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  status: text("status").notNull().default("Pending"),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export const usersRelations = relations(users, ({ many }) => ({
+  participations: many(participations),
+  beneficiaries: many(beneficiaries),
+  documents: many(documents),
+}));
+
+export const notesRelations = relations(notes, ({ many }) => ({
+  participations: many(participations),
+}));
+
+export const participationsRelations = relations(participations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [participations.userId],
+    references: [users.id],
+  }),
+  note: one(notes, {
+    fields: [participations.noteId],
+    references: [notes.id],
+  }),
+  payments: many(payments),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  participation: one(participations, {
+    fields: [payments.participationId],
+    references: [participations.id],
+  }),
+}));
+
+export const beneficiariesRelations = relations(beneficiaries, ({ one }) => ({
+  user: one(users, {
+    fields: [beneficiaries.userId],
+    references: [users.id],
+  }),
+}));
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  user: one(users, {
+    fields: [documents.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNoteSchema = createInsertSchema(notes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertParticipationSchema = createInsertSchema(participations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBeneficiarySchema = createInsertSchema(beneficiaries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDocumentSchema = createInsertSchema(documents).omit({
+  id: true,
+  uploadedAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type Note = typeof notes.$inferSelect;
+
+export type InsertParticipation = z.infer<typeof insertParticipationSchema>;
+export type Participation = typeof participations.$inferSelect;
+
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
+
+export type InsertBeneficiary = z.infer<typeof insertBeneficiarySchema>;
+export type Beneficiary = typeof beneficiaries.$inferSelect;
+
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type Document = typeof documents.$inferSelect;

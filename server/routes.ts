@@ -1,16 +1,152 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { 
+  insertNoteSchema, 
+  insertParticipationSchema,
+  insertBeneficiarySchema,
+  insertDocumentSchema 
+} from "@shared/schema";
+import { z } from "zod";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  
+  // Notes
+  app.get("/api/notes", async (req, res) => {
+    try {
+      const notes = await storage.getNotes();
+      res.json(notes);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch notes" });
+    }
+  });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  app.get("/api/notes/opportunities", async (req, res) => {
+    try {
+      const opportunities = await storage.getNotesByStatus("Opportunity");
+      res.json(opportunities);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch opportunities" });
+    }
+  });
+
+  app.get("/api/notes/:id", async (req, res) => {
+    try {
+      const note = await storage.getNote(req.params.id);
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      res.json(note);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch note" });
+    }
+  });
+
+  app.post("/api/notes", async (req, res) => {
+    try {
+      const validatedNote = insertNoteSchema.parse(req.body);
+      const note = await storage.createNote(validatedNote);
+      res.status(201).json(note);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
+  // Participations
+  app.get("/api/participations/user/:userId", async (req, res) => {
+    try {
+      const participations = await storage.getParticipationsByUser(req.params.userId);
+      res.json(participations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch participations" });
+    }
+  });
+
+  app.post("/api/participations", async (req, res) => {
+    try {
+      const validatedParticipation = insertParticipationSchema.parse(req.body);
+      const participation = await storage.createParticipation(validatedParticipation);
+      res.status(201).json(participation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create participation" });
+    }
+  });
+
+  // Beneficiaries
+  app.get("/api/beneficiaries/user/:userId", async (req, res) => {
+    try {
+      const beneficiaries = await storage.getBeneficiariesByUser(req.params.userId);
+      res.json(beneficiaries);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch beneficiaries" });
+    }
+  });
+
+  app.post("/api/beneficiaries", async (req, res) => {
+    try {
+      const validatedBeneficiary = insertBeneficiarySchema.parse(req.body);
+      const beneficiary = await storage.createBeneficiary(validatedBeneficiary);
+      res.status(201).json(beneficiary);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create beneficiary" });
+    }
+  });
+
+  app.delete("/api/beneficiaries/:id", async (req, res) => {
+    try {
+      await storage.deleteBeneficiary(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete beneficiary" });
+    }
+  });
+
+  // Documents
+  app.get("/api/documents/user/:userId", async (req, res) => {
+    try {
+      const documents = await storage.getDocumentsByUser(req.params.userId);
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
+  app.post("/api/documents", async (req, res) => {
+    try {
+      const validatedDocument = insertDocumentSchema.parse(req.body);
+      const document = await storage.createDocument(validatedDocument);
+      res.status(201).json(document);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create document" });
+    }
+  });
+
+  app.patch("/api/documents/:id", async (req, res) => {
+    try {
+      const document = await storage.updateDocument(req.params.id, req.body);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update document" });
+    }
+  });
 
   return httpServer;
 }
