@@ -26,7 +26,17 @@ export function useMyParticipations() {
 }
 
 export function useCurrentUser() {
-  return useQuery<{ id: string; username: string; name: string; email: string }>({
+  return useQuery<{ 
+    id: string; 
+    username: string; 
+    name: string; 
+    email: string;
+    phone?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zipCode?: string | null;
+  }>({
     queryKey: ["me"],
     queryFn: () => fetchJSON("/api/me"),
   });

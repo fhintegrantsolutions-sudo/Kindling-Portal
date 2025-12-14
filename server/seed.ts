@@ -9,6 +9,11 @@ async function seed() {
     password: "demo123",
     name: "Haley Davidshofer",
     email: "hdavidsh@gmail.com",
+    phone: "(555) 123-4567",
+    address: "123 Main Street",
+    city: "San Francisco",
+    state: "CA",
+    zipCode: "94102",
   });
   console.log("✓ Created demo user: Haley Davidshofer");
 

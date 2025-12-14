@@ -66,14 +66,40 @@ export default function ProfilePage() {
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Full Name</Label>
-                      <Input defaultValue={user?.name || ""} data-testid="input-name" />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Full Name</Label>
+                        <Input defaultValue={user?.name || ""} data-testid="input-name" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input defaultValue={user?.email || ""} data-testid="input-email" />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input defaultValue={user?.email || ""} data-testid="input-email" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Phone</Label>
+                        <Input defaultValue={user?.phone || ""} placeholder="(555) 123-4567" data-testid="input-phone" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Street Address</Label>
+                        <Input defaultValue={user?.address || ""} placeholder="123 Main Street" data-testid="input-address" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>City</Label>
+                        <Input defaultValue={user?.city || ""} placeholder="City" data-testid="input-city" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>State</Label>
+                        <Input defaultValue={user?.state || ""} placeholder="State" data-testid="input-state" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>ZIP Code</Label>
+                        <Input defaultValue={user?.zipCode || ""} placeholder="12345" data-testid="input-zip" />
+                      </div>
                     </div>
                   </div>
                 )}
