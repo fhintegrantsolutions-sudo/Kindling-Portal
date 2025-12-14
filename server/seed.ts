@@ -179,7 +179,25 @@ async function seed() {
     status: "Active",
   });
 
-  console.log("✓ Created Haley's participations: K24002 ($10,000), K25001 ($5,000), K25002 ($5,000)");
+  // K25003: $10,750 at 9.50% = $225.77/month
+  await storage.createParticipation({
+    userId: user.id,
+    noteId: note5.id,
+    investedAmount: "10750.00",
+    purchaseDate: new Date("2025-08-15"),
+    status: "Active",
+  });
+
+  // K25004: $5,000 at 9.50% = $105.01/month
+  await storage.createParticipation({
+    userId: user.id,
+    noteId: note6.id,
+    investedAmount: "5000.00",
+    purchaseDate: new Date("2025-11-14"),
+    status: "Active",
+  });
+
+  console.log("✓ Created Haley's 5 participations: K24002 ($10,000), K25001 ($5,000), K25002 ($5,000), K25003 ($10,750), K25004 ($5,000)");
 
   // Create sample beneficiary
   await storage.createBeneficiary({
@@ -201,7 +219,7 @@ async function seed() {
   console.log("✓ Created sample document");
 
   console.log("✅ Database seeded successfully!");
-  console.log(`\nDemo credentials:\nUsername: hdavidsh\nPassword: demo123\nTotal Invested: $20,000`);
+  console.log(`\nDemo credentials:\nUsername: hdavidsh\nPassword: demo123\nTotal Invested: $35,750`);
 }
 
 seed().catch(console.error);
