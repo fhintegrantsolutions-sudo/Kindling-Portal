@@ -6,6 +6,7 @@ import {
   beneficiaries,
   documents,
   participationDocuments,
+  noteRegistrations,
   type User, 
   type InsertUser,
   type Note,
@@ -20,6 +21,8 @@ import {
   type InsertDocument,
   type ParticipationDocument,
   type InsertParticipationDocument,
+  type NoteRegistration,
+  type InsertNoteRegistration,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -67,6 +70,11 @@ export interface IStorage {
   
   // Get single participation with note
   getParticipation(id: string): Promise<(Participation & { note: Note }) | undefined>;
+  
+  // Note Registrations
+  createNoteRegistration(registration: InsertNoteRegistration): Promise<NoteRegistration>;
+  getNoteRegistrationsByNote(noteId: string): Promise<NoteRegistration[]>;
+  getNoteRegistrationsByUser(userId: string): Promise<NoteRegistration[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -262,6 +270,23 @@ export class DatabaseStorage implements IStorage {
       ...results[0].participations,
       note: results[0].notes,
     };
+  }
+
+  // Note Registrations
+  async createNoteRegistration(insertRegistration: InsertNoteRegistration): Promise<NoteRegistration> {
+    const [registration] = await db
+      .insert(noteRegistrations)
+      .values(insertRegistration)
+      .returning();
+    return registration;
+  }
+
+  async getNoteRegistrationsByNote(noteId: string): Promise<NoteRegistration[]> {
+    return await db.select().from(noteRegistrations).where(eq(noteRegistrations.noteId, noteId)).orderBy(desc(noteRegistrations.createdAt));
+  }
+
+  async getNoteRegistrationsByUser(userId: string): Promise<NoteRegistration[]> {
+    return await db.select().from(noteRegistrations).where(eq(noteRegistrations.userId, userId)).orderBy(desc(noteRegistrations.createdAt));
   }
 }
 

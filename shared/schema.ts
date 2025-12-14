@@ -90,14 +90,52 @@ export const participationDocuments = pgTable("participation_documents", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const noteRegistrations = pgTable("note_registrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  noteId: varchar("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email").notNull(),
+  entityType: text("entity_type").notNull(),
+  nameForAgreement: text("name_for_agreement").notNull(),
+  mailingAddress: text("mailing_address").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  zipCode: text("zip_code").notNull(),
+  investmentAmount: decimal("investment_amount", { precision: 12, scale: 2 }).notNull(),
+  bankName: text("bank_name").notNull(),
+  bankAccountType: text("bank_account_type").notNull(),
+  bankAccountNumber: text("bank_account_number").notNull(),
+  bankRoutingNumber: text("bank_routing_number").notNull(),
+  bankAccountAddress: text("bank_account_address"),
+  acknowledgeLender: boolean("acknowledge_lender").notNull().default(false),
+  status: text("status").notNull().default("Pending"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const noteRegistrationsRelations = relations(noteRegistrations, ({ one }) => ({
+  note: one(notes, {
+    fields: [noteRegistrations.noteId],
+    references: [notes.id],
+  }),
+  user: one(users, {
+    fields: [noteRegistrations.userId],
+    references: [users.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   participations: many(participations),
   beneficiaries: many(beneficiaries),
   documents: many(documents),
+  registrations: many(noteRegistrations),
 }));
 
 export const notesRelations = relations(notes, ({ many }) => ({
   participations: many(participations),
+  registrations: many(noteRegistrations),
 }));
 
 export const participationsRelations = relations(participations, ({ one, many }) => ({
@@ -176,6 +214,11 @@ export const insertParticipationDocumentSchema = createInsertSchema(participatio
   createdAt: true,
 });
 
+export const insertNoteRegistrationSchema = createInsertSchema(noteRegistrations).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -196,3 +239,6 @@ export type Document = typeof documents.$inferSelect;
 
 export type InsertParticipationDocument = z.infer<typeof insertParticipationDocumentSchema>;
 export type ParticipationDocument = typeof participationDocuments.$inferSelect;
+
+export type InsertNoteRegistration = z.infer<typeof insertNoteRegistrationSchema>;
+export type NoteRegistration = typeof noteRegistrations.$inferSelect;

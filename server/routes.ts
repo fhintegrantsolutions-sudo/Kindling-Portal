@@ -6,7 +6,8 @@ import {
   insertParticipationSchema,
   insertBeneficiarySchema,
   insertDocumentSchema,
-  insertParticipationDocumentSchema
+  insertParticipationDocumentSchema,
+  insertNoteRegistrationSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -245,6 +246,27 @@ export async function registerRoutes(
       res.json(document);
     } catch (error) {
       res.status(500).json({ error: "Failed to update document" });
+    }
+  });
+
+  // Note Registrations
+  app.post("/api/registrations", async (req, res) => {
+    try {
+      const demoUser = await storage.getUserByUsername("kdavidsh");
+      const registrationData = {
+        ...req.body,
+        userId: demoUser?.id || null,
+        investmentAmount: String(req.body.investmentAmount),
+      };
+      const validatedRegistration = insertNoteRegistrationSchema.parse(registrationData);
+      const registration = await storage.createNoteRegistration(validatedRegistration);
+      res.status(201).json(registration);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Failed to create registration" });
     }
   });
 
