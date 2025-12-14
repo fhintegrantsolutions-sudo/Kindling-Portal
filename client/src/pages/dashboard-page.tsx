@@ -51,7 +51,7 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
           <div>
             <h1 className="text-3xl font-serif font-bold text-foreground" data-testid="text-dashboard-title">Dashboard</h1>
-            <p className="text-muted-foreground" data-testid="text-welcome">Welcome back, Haley. Here's your portfolio overview.</p>
+            <p className="text-muted-foreground" data-testid="text-welcome">Welcome back, Karen. Here's your portfolio overview.</p>
           </div>
           <Button asChild className="bg-primary hover:bg-primary/90 shadow-sm gap-2" data-testid="button-browse-opportunities">
             <Link href="/opportunities">
