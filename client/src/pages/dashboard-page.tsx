@@ -1,6 +1,5 @@
 import Layout from "@/components/layout";
 import { StatCard } from "@/components/stat-card";
-import { NoteCard } from "@/components/note-card";
 import { DollarSign, PieChart, TrendingUp, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -107,9 +106,9 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div>
           {/* Main Chart */}
-          <Card className="lg:col-span-2 border-none shadow-sm">
+          <Card className="border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="font-serif">Portfolio Performance</CardTitle>
               <div className="flex items-center gap-4 text-xs">
@@ -179,28 +178,6 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Recent/Featured Note */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-serif font-bold text-lg">Active Notes</h3>
-              <Button variant="link" asChild className="h-auto p-0 text-primary" data-testid="link-view-all-notes">
-                <Link href="/notes">View All</Link>
-              </Button>
-            </div>
-            <div className="space-y-4">
-              {isLoading ? (
-                <>
-                  <Skeleton className="h-48" />
-                  <Skeleton className="h-48" />
-                </>
-              ) : (
-                participations?.slice(0, 2).map((participation) => (
-                  <NoteCard key={participation.id} note={participation.note} participation={participation} />
-                ))
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </Layout>
