@@ -22,12 +22,6 @@ export function NoteCard({ note, participation }: NoteCardProps) {
   
   const participationShare = notePrincipal > 0 ? investedAmount / notePrincipal : 0;
   const monthlyPayment = participation ? noteMonthlyPayment * participationShare : noteMonthlyPayment;
-  
-  const estimatedMonthlyInterest = (investedAmount * (rate / 100)) / 12;
-  const estimatedMonthlyPrincipal = monthlyPayment > 0 
-    ? Math.max(0, monthlyPayment - estimatedMonthlyInterest) 
-    : 0;
-  const totalPayment = estimatedMonthlyPrincipal + estimatedMonthlyInterest;
 
   const nextPaymentDate = note.paymentStartDate 
     ? new Date(note.paymentStartDate)
@@ -91,34 +85,13 @@ export function NoteCard({ note, participation }: NoteCardProps) {
           </div>
         </div>
 
-        {totalPayment > 0 && (
+        {monthlyPayment > 0 && (
           <div className="pt-3 border-t border-border/50">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Est. Monthly Breakdown</p>
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex-1 space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Principal</span>
-                  <span>{formatCurrencyPrecise(estimatedMonthlyPrincipal)}</span>
-                </div>
-                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-foreground/70" 
-                    style={{ width: `${(estimatedMonthlyPrincipal / totalPayment) * 100}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex-1 space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Interest</span>
-                  <span>{formatCurrencyPrecise(estimatedMonthlyInterest)}</span>
-                </div>
-                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary" 
-                    style={{ width: `${(estimatedMonthlyInterest / totalPayment) * 100}%` }}
-                  />
-                </div>
-              </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Monthly Payment</span>
+              <span className="font-semibold text-lg text-primary" data-testid={`text-monthly-payment-${note.id}`}>
+                {formatCurrencyPrecise(monthlyPayment)}
+              </span>
             </div>
           </div>
         )}
