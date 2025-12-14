@@ -76,6 +76,15 @@ export const documents = pgTable("documents", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+export const participationDocuments = pgTable("participation_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  participationId: varchar("participation_id").notNull().references(() => participations.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const usersRelations = relations(users, ({ many }) => ({
   participations: many(participations),
   beneficiaries: many(beneficiaries),
@@ -96,6 +105,14 @@ export const participationsRelations = relations(participations, ({ one, many })
     references: [notes.id],
   }),
   payments: many(payments),
+  documents: many(participationDocuments),
+}));
+
+export const participationDocumentsRelations = relations(participationDocuments, ({ one }) => ({
+  participation: one(participations, {
+    fields: [participationDocuments.participationId],
+    references: [participations.id],
+  }),
 }));
 
 export const paymentsRelations = relations(payments, ({ one }) => ({
@@ -149,6 +166,11 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   uploadedAt: true,
 });
 
+export const insertParticipationDocumentSchema = createInsertSchema(participationDocuments).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -166,3 +188,6 @@ export type Beneficiary = typeof beneficiaries.$inferSelect;
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
+
+export type InsertParticipationDocument = z.infer<typeof insertParticipationDocumentSchema>;
+export type ParticipationDocument = typeof participationDocuments.$inferSelect;

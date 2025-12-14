@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
 import NotesPage from "@/pages/notes-page";
+import NoteDetailPage from "@/pages/note-detail-page";
 import OpportunitiesPage from "@/pages/opportunities-page";
 import ProfilePage from "@/pages/profile-page";
 import { useEffect } from "react";
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/" component={DashboardPage} />
       <Route path="/notes" component={NotesPage} />
+      <Route path="/notes/:id" component={NoteDetailPage} />
       <Route path="/opportunities" component={OpportunitiesPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />

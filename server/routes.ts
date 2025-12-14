@@ -5,7 +5,8 @@ import {
   insertNoteSchema, 
   insertParticipationSchema,
   insertBeneficiarySchema,
-  insertDocumentSchema 
+  insertDocumentSchema,
+  insertParticipationDocumentSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -144,6 +145,39 @@ export async function registerRoutes(
         return res.status(400).json({ error: error.errors });
       }
       res.status(500).json({ error: "Failed to create participation" });
+    }
+  });
+
+  // Get single participation with note details
+  app.get("/api/participations/:id", async (req, res) => {
+    try {
+      const participation = await storage.getParticipation(req.params.id);
+      if (!participation) {
+        return res.status(404).json({ error: "Participation not found" });
+      }
+      res.json(participation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch participation" });
+    }
+  });
+
+  // Get payments for a participation
+  app.get("/api/participations/:id/payments", async (req, res) => {
+    try {
+      const payments = await storage.getPaymentsByParticipation(req.params.id);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch payments" });
+    }
+  });
+
+  // Get documents for a participation
+  app.get("/api/participations/:id/documents", async (req, res) => {
+    try {
+      const documents = await storage.getDocumentsByParticipation(req.params.id);
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch participation documents" });
     }
   });
 

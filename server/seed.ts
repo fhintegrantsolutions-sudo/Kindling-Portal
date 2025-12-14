@@ -153,7 +153,7 @@ async function seed() {
 
   // Create Haley Davidshofer's participations from CSV data
   // K24002: $10,000 at 9.50% = $210.02/month
-  await storage.createParticipation({
+  const participation1 = await storage.createParticipation({
     userId: user.id,
     noteId: note2.id,
     investedAmount: "10000.00",
@@ -162,7 +162,7 @@ async function seed() {
   });
 
   // K25001: $5,000 at 10.75% = $108.09/month
-  await storage.createParticipation({
+  const participation2 = await storage.createParticipation({
     userId: user.id,
     noteId: note3.id,
     investedAmount: "5000.00",
@@ -171,7 +171,7 @@ async function seed() {
   });
 
   // K25002: $5,000 at 9.50% = $105.01/month
-  await storage.createParticipation({
+  const participation3 = await storage.createParticipation({
     userId: user.id,
     noteId: note4.id,
     investedAmount: "5000.00",
@@ -180,7 +180,7 @@ async function seed() {
   });
 
   // K25003: $10,750 at 9.50% = $225.77/month
-  await storage.createParticipation({
+  const participation4 = await storage.createParticipation({
     userId: user.id,
     noteId: note5.id,
     investedAmount: "10750.00",
@@ -189,7 +189,7 @@ async function seed() {
   });
 
   // K25004: $5,000 at 9.50% = $105.01/month
-  await storage.createParticipation({
+  const participation5 = await storage.createParticipation({
     userId: user.id,
     noteId: note6.id,
     investedAmount: "5000.00",
@@ -198,6 +198,85 @@ async function seed() {
   });
 
   console.log("✓ Created Haley's 5 participations: K24002 ($10,000), K25001 ($5,000), K25002 ($5,000), K25003 ($10,750), K25004 ($5,000)");
+
+  // Create sample payment history for participation1 (K24002 - oldest, started Dec 2024)
+  // Monthly payment ~$210.02 split between principal and interest
+  const paymentData = [
+    { date: new Date("2024-12-25"), principal: "130.85", interest: "79.17", status: "Completed" },
+    { date: new Date("2025-01-25"), principal: "131.89", interest: "78.13", status: "Completed" },
+    { date: new Date("2025-02-25"), principal: "132.94", interest: "77.08", status: "Completed" },
+    { date: new Date("2025-03-25"), principal: "133.99", interest: "76.03", status: "Completed" },
+    { date: new Date("2025-04-25"), principal: "135.05", interest: "74.97", status: "Completed" },
+    { date: new Date("2025-05-25"), principal: "136.12", interest: "73.90", status: "Completed" },
+    { date: new Date("2025-06-25"), principal: "137.20", interest: "72.82", status: "Completed" },
+    { date: new Date("2025-07-25"), principal: "138.28", interest: "71.74", status: "Completed" },
+    { date: new Date("2025-08-25"), principal: "139.37", interest: "70.65", status: "Completed" },
+    { date: new Date("2025-09-25"), principal: "140.47", interest: "69.55", status: "Completed" },
+    { date: new Date("2025-10-25"), principal: "141.58", interest: "68.44", status: "Completed" },
+    { date: new Date("2025-11-25"), principal: "142.70", interest: "67.32", status: "Completed" },
+    { date: new Date("2025-12-25"), principal: "143.83", interest: "66.19", status: "Scheduled" },
+  ];
+
+  for (const payment of paymentData) {
+    await storage.createPayment({
+      participationId: participation1.id,
+      paymentDate: payment.date,
+      principalAmount: payment.principal,
+      interestAmount: payment.interest,
+      status: payment.status,
+    });
+  }
+  console.log("✓ Created 13 payment records for K24002");
+
+  // Create sample payments for participation2 (K25001 - started March 2025)
+  const payment2Data = [
+    { date: new Date("2025-03-25"), principal: "63.27", interest: "44.82", status: "Completed" },
+    { date: new Date("2025-04-25"), principal: "63.84", interest: "44.25", status: "Completed" },
+    { date: new Date("2025-05-25"), principal: "64.41", interest: "43.68", status: "Completed" },
+    { date: new Date("2025-06-25"), principal: "64.99", interest: "43.10", status: "Completed" },
+    { date: new Date("2025-07-25"), principal: "65.57", interest: "42.52", status: "Completed" },
+    { date: new Date("2025-08-25"), principal: "66.16", interest: "41.93", status: "Completed" },
+    { date: new Date("2025-09-25"), principal: "66.75", interest: "41.34", status: "Completed" },
+    { date: new Date("2025-10-25"), principal: "67.35", interest: "40.74", status: "Completed" },
+    { date: new Date("2025-11-25"), principal: "67.96", interest: "40.13", status: "Completed" },
+    { date: new Date("2025-12-25"), principal: "68.57", interest: "39.52", status: "Scheduled" },
+  ];
+
+  for (const payment of payment2Data) {
+    await storage.createPayment({
+      participationId: participation2.id,
+      paymentDate: payment.date,
+      principalAmount: payment.principal,
+      interestAmount: payment.interest,
+      status: payment.status,
+    });
+  }
+  console.log("✓ Created 10 payment records for K25001");
+
+  // Create lender documents for each participation
+  const participationDocData = [
+    { participationId: participation1.id, noteId: "K24002" },
+    { participationId: participation2.id, noteId: "K25001" },
+    { participationId: participation3.id, noteId: "K25002" },
+    { participationId: participation4.id, noteId: "K25003" },
+    { participationId: participation5.id, noteId: "K25004" },
+  ];
+
+  for (const doc of participationDocData) {
+    await storage.createParticipationDocument({
+      participationId: doc.participationId,
+      type: "Amortization Schedule",
+      fileName: `${doc.noteId}_Amortization_Schedule.pdf`,
+      fileUrl: `/documents/${doc.noteId.toLowerCase()}_amortization.pdf`,
+    });
+    await storage.createParticipationDocument({
+      participationId: doc.participationId,
+      type: "Acknowledgement Letter",
+      fileName: `${doc.noteId}_Acknowledgement_Letter.pdf`,
+      fileUrl: `/documents/${doc.noteId.toLowerCase()}_acknowledgement.pdf`,
+    });
+  }
+  console.log("✓ Created lender documents (amortization schedules and acknowledgement letters) for all participations");
 
   // Create sample beneficiary
   await storage.createBeneficiary({

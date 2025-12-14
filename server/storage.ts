@@ -5,6 +5,7 @@ import {
   payments,
   beneficiaries,
   documents,
+  participationDocuments,
   type User, 
   type InsertUser,
   type Note,
@@ -17,6 +18,8 @@ import {
   type InsertBeneficiary,
   type Document,
   type InsertDocument,
+  type ParticipationDocument,
+  type InsertParticipationDocument,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -57,6 +60,13 @@ export interface IStorage {
   getDocumentsByUser(userId: string): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocument(id: string, document: Partial<InsertDocument>): Promise<Document | undefined>;
+  
+  // Participation Documents
+  getDocumentsByParticipation(participationId: string): Promise<ParticipationDocument[]>;
+  createParticipationDocument(document: InsertParticipationDocument): Promise<ParticipationDocument>;
+  
+  // Get single participation with note
+  getParticipation(id: string): Promise<(Participation & { note: Note }) | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -223,6 +233,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(documents.id, id))
       .returning();
     return document || undefined;
+  }
+
+  // Participation Documents
+  async getDocumentsByParticipation(participationId: string): Promise<ParticipationDocument[]> {
+    return await db.select().from(participationDocuments).where(eq(participationDocuments.participationId, participationId)).orderBy(desc(participationDocuments.createdAt));
+  }
+
+  async createParticipationDocument(insertDoc: InsertParticipationDocument): Promise<ParticipationDocument> {
+    const [doc] = await db
+      .insert(participationDocuments)
+      .values(insertDoc)
+      .returning();
+    return doc;
+  }
+
+  // Get single participation with note
+  async getParticipation(id: string): Promise<(Participation & { note: Note }) | undefined> {
+    const results = await db
+      .select()
+      .from(participations)
+      .leftJoin(notes, eq(participations.noteId, notes.id))
+      .where(eq(participations.id, id));
+    
+    if (results.length === 0 || !results[0].notes) return undefined;
+    
+    return {
+      ...results[0].participations,
+      note: results[0].notes,
+    };
   }
 }
 

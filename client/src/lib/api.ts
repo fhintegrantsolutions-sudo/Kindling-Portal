@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Note, Participation, Beneficiary, Document } from "@shared/schema";
+import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument } from "@shared/schema";
 
 export type ParticipationWithNote = Participation & { note: Note };
 
@@ -74,6 +74,30 @@ export function useUserDocuments(userId: string) {
     queryKey: ["documents", userId],
     queryFn: () => fetchJSON(`/api/documents/user/${userId}`),
     enabled: !!userId,
+  });
+}
+
+export function useParticipation(id: string) {
+  return useQuery<ParticipationWithNote>({
+    queryKey: ["participation", id],
+    queryFn: () => fetchJSON(`/api/participations/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useParticipationPayments(participationId: string) {
+  return useQuery<Payment[]>({
+    queryKey: ["participation-payments", participationId],
+    queryFn: () => fetchJSON(`/api/participations/${participationId}/payments`),
+    enabled: !!participationId,
+  });
+}
+
+export function useParticipationDocuments(participationId: string) {
+  return useQuery<ParticipationDocument[]>({
+    queryKey: ["participation-documents", participationId],
+    queryFn: () => fetchJSON(`/api/participations/${participationId}/documents`),
+    enabled: !!participationId,
   });
 }
 

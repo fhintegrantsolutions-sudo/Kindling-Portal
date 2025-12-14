@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, DollarSign, Percent, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
+import { Link } from "wouter";
 import type { Note, Participation } from "@shared/schema";
 import { formatCurrency, formatCurrencyPrecise, formatRate, formatTerm } from "@/lib/api";
 
@@ -123,9 +124,17 @@ export function NoteCard({ note, participation }: NoteCardProps) {
         )}
       </CardContent>
       <CardFooter className="pt-2 border-t border-border/50 bg-secondary/20">
-        <Button variant="ghost" className="w-full justify-between hover:bg-transparent hover:text-primary p-0 h-auto font-medium text-sm group-hover:translate-x-1 transition-transform" data-testid={`button-view-details-${note.id}`}>
-          View Details <ArrowRight className="w-4 h-4 ml-2" />
-        </Button>
+        {participation ? (
+          <Link href={`/notes/${participation.id}`} className="w-full">
+            <Button variant="ghost" className="w-full justify-between hover:bg-transparent hover:text-primary p-0 h-auto font-medium text-sm group-hover:translate-x-1 transition-transform" data-testid={`button-view-details-${note.id}`}>
+              View Details <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+        ) : (
+          <Button variant="ghost" className="w-full justify-between hover:bg-transparent text-muted-foreground p-0 h-auto font-medium text-sm cursor-default" disabled data-testid={`button-view-details-${note.id}`}>
+            View Details <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
