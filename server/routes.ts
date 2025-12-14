@@ -92,6 +92,48 @@ export async function registerRoutes(
     }
   });
 
+  // Get current user profile (demo user for now)
+  app.get("/api/me", async (req, res) => {
+    try {
+      const demoUser = await storage.getUserByUsername("hdavidsh");
+      if (!demoUser) {
+        return res.status(404).json({ error: "Demo user not found" });
+      }
+      const { password, ...userWithoutPassword } = demoUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
+  // Get current user's beneficiaries
+  app.get("/api/my-beneficiaries", async (req, res) => {
+    try {
+      const demoUser = await storage.getUserByUsername("hdavidsh");
+      if (!demoUser) {
+        return res.status(404).json({ error: "Demo user not found" });
+      }
+      const beneficiaries = await storage.getBeneficiariesByUser(demoUser.id);
+      res.json(beneficiaries);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch beneficiaries" });
+    }
+  });
+
+  // Get current user's documents
+  app.get("/api/my-documents", async (req, res) => {
+    try {
+      const demoUser = await storage.getUserByUsername("hdavidsh");
+      if (!demoUser) {
+        return res.status(404).json({ error: "Demo user not found" });
+      }
+      const documents = await storage.getDocumentsByUser(demoUser.id);
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+
   app.post("/api/participations", async (req, res) => {
     try {
       const validatedParticipation = insertParticipationSchema.parse(req.body);

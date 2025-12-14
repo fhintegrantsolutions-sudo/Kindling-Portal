@@ -25,6 +25,27 @@ export function useMyParticipations() {
   });
 }
 
+export function useCurrentUser() {
+  return useQuery<{ id: string; username: string; name: string; email: string }>({
+    queryKey: ["me"],
+    queryFn: () => fetchJSON("/api/me"),
+  });
+}
+
+export function useMyBeneficiaries() {
+  return useQuery<Beneficiary[]>({
+    queryKey: ["my-beneficiaries"],
+    queryFn: () => fetchJSON("/api/my-beneficiaries"),
+  });
+}
+
+export function useMyDocuments() {
+  return useQuery<Document[]>({
+    queryKey: ["my-documents"],
+    queryFn: () => fetchJSON("/api/my-documents"),
+  });
+}
+
 export function useOpportunities() {
   return useQuery<Note[]>({
     queryKey: ["notes", "opportunities"],
