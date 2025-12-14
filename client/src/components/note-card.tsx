@@ -1,6 +1,7 @@
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar, DollarSign, Percent, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -139,11 +140,25 @@ export function NoteCard({ note, participation }: NoteCardProps) {
       </CardContent>
       <CardFooter className="pt-2 border-t border-border/50 bg-secondary/20">
         {participation ? (
-          <Link href={`/notes/${participation.id}`} className="w-full">
-            <Button variant="ghost" className="w-full justify-between hover:bg-transparent hover:text-primary p-0 h-auto font-medium text-sm group-hover:translate-x-1 transition-transform" data-testid={`button-view-details-${note.id}`}>
-              View Details <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href={`/notes/${participation.id}`} className="w-full">
+                  <Button variant="ghost" className="w-full justify-between hover:bg-transparent hover:text-primary p-0 h-auto font-medium text-sm group-hover:translate-x-1 transition-transform" data-testid={`button-view-details-${note.id}`}>
+                    View Details <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-sm">
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Earnings Summary</li>
+                  <li>Payment History</li>
+                  <li>Lender Documents</li>
+                  <li>Note Details</li>
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         ) : (
           <Button variant="ghost" className="w-full justify-between hover:bg-transparent text-muted-foreground p-0 h-auto font-medium text-sm cursor-default" disabled data-testid={`button-view-details-${note.id}`}>
             View Details <ArrowRight className="w-4 h-4 ml-2" />
