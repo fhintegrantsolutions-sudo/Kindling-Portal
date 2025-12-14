@@ -1,15 +1,19 @@
 import { Link, useLocation } from "wouter";
-import { NAV_ITEMS, MOCK_USER } from "@/lib/mock-data";
+import { NAV_ITEMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useCurrentUser } from "@/lib/api";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { data: user } = useCurrentUser();
+  
+  const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
 
   const NavContent = () => (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
@@ -52,11 +56,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3 mb-6">
           <Avatar className="h-10 w-10 border border-sidebar-border">
             <AvatarImage src="" />
-            <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground">AJ</AvatarFallback>
+            <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground">{initials}</AvatarFallback>
           </Avatar>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-medium truncate text-sidebar-foreground">{MOCK_USER.name}</p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">{MOCK_USER.email}</p>
+            <p className="text-sm font-medium truncate text-sidebar-foreground">{user?.name || 'Loading...'}</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || ''}</p>
           </div>
         </div>
         <Link href="/auth" className="w-full">
