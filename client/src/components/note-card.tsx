@@ -12,6 +12,45 @@ interface NoteCardProps {
   participation?: Participation;
 }
 
+function getNextPaymentDisplay(note: Note, participation?: Participation): string {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  
+  let paymentDay = 25;
+  if (note.paymentStartDate) {
+    paymentDay = new Date(note.paymentStartDate).getDate();
+  } else if (note.firstPaymentDate) {
+    const parsed = new Date(note.firstPaymentDate);
+    if (!isNaN(parsed.getTime())) {
+      paymentDay = parsed.getDate();
+    }
+  }
+  
+  let isNewlyFunded = false;
+  if (participation?.purchaseDate) {
+    const purchaseDate = new Date(participation.purchaseDate);
+    isNewlyFunded = purchaseDate.getMonth() === currentMonth && purchaseDate.getFullYear() === currentYear;
+  }
+  
+  let targetMonth = currentMonth;
+  let targetYear = currentYear;
+  
+  if (isNewlyFunded) {
+    targetMonth = currentMonth + 1;
+    if (targetMonth > 11) {
+      targetMonth = 0;
+      targetYear = currentYear + 1;
+    }
+  }
+  
+  const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const clampedDay = Math.min(paymentDay, daysInMonth);
+  
+  const nextPaymentDate = new Date(targetYear, targetMonth, clampedDay);
+  return format(nextPaymentDate, "MMM d, yyyy");
+}
+
 export function NoteCard({ note, participation }: NoteCardProps) {
   const investedAmount = participation 
     ? parseFloat(participation.investedAmount) 
@@ -23,9 +62,7 @@ export function NoteCard({ note, participation }: NoteCardProps) {
   const participationShare = notePrincipal > 0 ? investedAmount / notePrincipal : 0;
   const monthlyPayment = participation ? noteMonthlyPayment * participationShare : noteMonthlyPayment;
 
-  const nextPaymentDate = note.paymentStartDate 
-    ? new Date(note.paymentStartDate)
-    : new Date();
+  const nextPaymentDisplay = getNextPaymentDisplay(note, participation);
 
   return (
     <Card className="group hover:border-primary/50 transition-all duration-300 hover:shadow-md border-border/60" data-testid={`card-note-${note.id}`}>
@@ -80,7 +117,7 @@ export function NoteCard({ note, participation }: NoteCardProps) {
               Next Payment
             </span>
             <span className="font-medium" data-testid={`text-next-payment-${note.id}`}>
-              {note.firstPaymentDate || format(nextPaymentDate, "MMM d, yyyy")}
+              {nextPaymentDisplay}
             </span>
           </div>
         </div>
