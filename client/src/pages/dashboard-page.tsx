@@ -1,9 +1,10 @@
 import Layout from "@/components/layout";
 import { StatCard } from "@/components/stat-card";
-import { DollarSign, PieChart, TrendingUp, ArrowRight } from "lucide-react";
+import { DollarSign, PieChart, TrendingUp, ArrowRight, Info } from "lucide-react";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Area, AreaChart, CartesianGrid, XAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyParticipations, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -82,7 +83,19 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrencyPrecise(totalMonthlyPayment)}</div>
-                  <p className="text-xs text-muted-foreground mt-2">Blended yield of {weightedRate.toFixed(2)}%</p>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    Blended yield of {weightedRate.toFixed(2)}%
+                    <TooltipProvider>
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs text-sm">
+                          <p>The blended yield is the weighted average interest rate across all your note investments, based on the amount invested in each note.</p>
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
+                  </p>
                 </CardContent>
               </Card>
             </>
@@ -127,7 +140,7 @@ export default function DashboardPage() {
                       tickMargin={10} 
                       tick={{ fill: "hsl(var(--muted-foreground))" }} 
                     />
-                    <Tooltip 
+                    <RechartsTooltip 
                       contentStyle={{ 
                         backgroundColor: "hsl(var(--card))", 
                         borderColor: "hsl(var(--border))",
