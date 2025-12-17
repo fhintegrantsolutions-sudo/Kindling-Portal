@@ -76,7 +76,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background font-sans">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:block w-64 fixed inset-y-0 z-50">
+      <aside className="hidden md:block w-72 fixed inset-y-0 z-50">
         <NavContent />
       </aside>
 
@@ -103,7 +103,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 pt-16 md:pt-0 min-h-screen transition-all duration-300 ease-in-out">
+      <main className="flex-1 md:ml-72 pt-16 md:pt-0 min-h-screen transition-all duration-300 ease-in-out">
         <div className="h-full p-4 md:p-8 max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
           {children}
         </div>
