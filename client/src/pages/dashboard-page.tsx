@@ -1,25 +1,19 @@
 import Layout from "@/components/layout";
 import { StatCard } from "@/components/stat-card";
-import { DollarSign, PieChart, TrendingUp, ArrowRight, Info, Percent, Banknote, Gift, FileCheck, TrendingDown } from "lucide-react";
+import { DollarSign, PieChart, TrendingUp, ArrowRight, Info, Percent, Banknote, Gift, FileCheck } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line, Area, AreaChart, Legend } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useMyParticipations, useMyActivities, useOpportunities, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMyParticipations, useMyActivities, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, addMonths } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export default function DashboardPage() {
   const { data: participations, isLoading } = useMyParticipations();
-  const { data: opportunities } = useOpportunities();
-  const [projectionAmount, setProjectionAmount] = useState(2500);
-  
-  const nextOpportunity = opportunities?.[0];
 
   const chartData = useMemo(() => {
     if (!participations || participations.length === 0) return [];
@@ -119,100 +113,6 @@ export default function DashboardPage() {
   }, 0) || 0;
   
   const totalMonthlyPayment = monthlyInterest + monthlyPrincipal;
-
-  const projectionChartData = useMemo(() => {
-    const allMonths: Record<string, { month: string; current: number; withNext: number }> = {};
-    
-    let cumulativeCurrent = 0;
-    chartData.forEach((d) => {
-      cumulativeCurrent += d.interest + d.principal;
-      allMonths[d.month] = { 
-        month: d.month, 
-        current: cumulativeCurrent, 
-        withNext: cumulativeCurrent 
-      };
-    });
-    
-    if (nextOpportunity && projectionAmount >= 2500) {
-      const rate = parseFloat(nextOpportunity.rate);
-      const termMonths = nextOpportunity.termMonths;
-      const monthlyRate = rate / 100 / 12;
-      
-      const monthlyPayment = (projectionAmount * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
-        (Math.pow(1 + monthlyRate, termMonths) - 1);
-      
-      let startDate = nextOpportunity.paymentStartDate 
-        ? new Date(nextOpportunity.paymentStartDate)
-        : addMonths(new Date(), 2);
-      startDate.setDate(25);
-      
-      let balance = projectionAmount;
-      let cumulativeNew = 0;
-      
-      for (let i = 0; i < termMonths && balance > 0.01; i++) {
-        const paymentDate = addMonths(startDate, i);
-        const monthKey = format(paymentDate, "MMM yyyy");
-        
-        const interestPayment = balance * monthlyRate;
-        const principalPayment = Math.min(monthlyPayment - interestPayment, balance);
-        cumulativeNew += interestPayment + principalPayment;
-        
-        if (!allMonths[monthKey]) {
-          const lastCurrent = Object.values(allMonths).pop()?.current || cumulativeCurrent;
-          allMonths[monthKey] = { month: monthKey, current: lastCurrent, withNext: lastCurrent + cumulativeNew };
-        } else {
-          allMonths[monthKey].withNext = allMonths[monthKey].current + cumulativeNew;
-        }
-        
-        balance -= principalPayment;
-      }
-      
-      const sortedMonths = Object.values(allMonths).sort((a, b) => {
-        const dateA = new Date(a.month);
-        const dateB = new Date(b.month);
-        return dateA.getTime() - dateB.getTime();
-      });
-      
-      let lastWithNext = 0;
-      return sortedMonths.map((m) => {
-        if (m.withNext > m.current) {
-          lastWithNext = m.withNext;
-        } else if (lastWithNext > 0) {
-          m.withNext = Math.max(m.withNext, lastWithNext);
-        }
-        return m;
-      });
-    }
-    
-    return Object.values(allMonths).sort((a, b) => {
-      const dateA = new Date(a.month);
-      const dateB = new Date(b.month);
-      return dateA.getTime() - dateB.getTime();
-    });
-  }, [chartData, nextOpportunity, projectionAmount]);
-
-  const projectionStats = useMemo(() => {
-    if (!nextOpportunity || projectionAmount < 2500) return null;
-    
-    const rate = parseFloat(nextOpportunity.rate);
-    const termMonths = nextOpportunity.termMonths;
-    const monthlyRate = rate / 100 / 12;
-    
-    const monthlyPayment = (projectionAmount * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
-      (Math.pow(1 + monthlyRate, termMonths) - 1);
-    
-    const totalPayments = monthlyPayment * termMonths;
-    const totalInterest = totalPayments - projectionAmount;
-    
-    return {
-      monthlyPayment,
-      totalInterest,
-      totalReturn: totalPayments,
-      rate,
-      term: termMonths,
-      noteId: nextOpportunity.noteId,
-    };
-  }, [nextOpportunity, projectionAmount]);
 
   return (
     <Layout>
@@ -383,130 +283,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-
-        {nextOpportunity && (
-          <div>
-            <Card className="border-none shadow-sm">
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div>
-                    <CardTitle className="font-serif">Investment Projection</CardTitle>
-                    <CardDescription>
-                      See how your cumulative earnings would grow by participating in {nextOpportunity.noteId}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Label htmlFor="projection-amount" className="text-sm whitespace-nowrap">Investment Amount:</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                      <Input
-                        id="projection-amount"
-                        type="number"
-                        min={2500}
-                        step={500}
-                        value={projectionAmount}
-                        onChange={(e) => setProjectionAmount(Math.max(2500, parseInt(e.target.value) || 2500))}
-                        className="pl-7 w-32"
-                        data-testid="input-projection-amount"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                  <div className="lg:col-span-3">
-                    <div className="h-[300px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={projectionChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis 
-                            dataKey="month" 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tickMargin={10} 
-                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
-                            interval={Math.floor(projectionChartData.length / 12)}
-                          />
-                          <YAxis 
-                            axisLine={false} 
-                            tickLine={false} 
-                            tick={{ fill: "hsl(var(--muted-foreground))" }}
-                            tickFormatter={(value) => `$${value.toLocaleString()}`}
-                          />
-                          <RechartsTooltip 
-                            contentStyle={{ 
-                              backgroundColor: "hsl(var(--card))", 
-                              borderColor: "hsl(var(--border))",
-                              borderRadius: "var(--radius)",
-                              boxShadow: "var(--shadow-md)" 
-                            }}
-                            formatter={(value: number, name: string) => [
-                              `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                              name === 'current' ? 'Current Portfolio' : 'With Next Note'
-                            ]}
-                          />
-                          <Area 
-                            type="monotone"
-                            dataKey="current" 
-                            stroke="hsl(var(--muted-foreground))"
-                            fill="hsl(var(--muted-foreground)/0.2)"
-                            strokeWidth={2}
-                            name="Current Portfolio"
-                          />
-                          <Area 
-                            type="monotone"
-                            dataKey="withNext" 
-                            stroke="hsl(var(--primary))"
-                            fill="hsl(var(--primary)/0.3)"
-                            strokeWidth={2}
-                            name="With Next Note"
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex items-center justify-center gap-6 mt-4 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
-                        <span>Current Portfolio</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-full bg-primary" />
-                        <span>With {nextOpportunity.noteId}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {projectionStats && (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-primary/10 rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Additional Monthly Payment</p>
-                        <p className="text-xl font-bold text-primary" data-testid="text-projection-monthly">
-                          +{formatCurrencyPrecise(projectionStats.monthlyPayment)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-secondary/50 rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Total Interest Earned</p>
-                        <p className="text-xl font-bold" data-testid="text-projection-interest">
-                          {formatCurrencyPrecise(projectionStats.totalInterest)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-secondary/50 rounded-lg">
-                        <p className="text-xs text-muted-foreground mb-1">Note Details</p>
-                        <p className="text-sm font-medium">{projectionStats.rate}% for {projectionStats.term} months</p>
-                      </div>
-                      <Link href="/opportunities">
-                        <Button className="w-full gap-2" data-testid="button-view-opportunity">
-                          View Opportunity <ArrowRight className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </Layout>
   );
