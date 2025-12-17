@@ -68,6 +68,7 @@ export const beneficiaries = pgTable("beneficiaries", {
   name: text("name").notNull(),
   relation: text("relation").notNull(),
   percentage: integer("percentage").notNull(),
+  type: text("type").notNull().default("Primary"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

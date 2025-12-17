@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentUser, useMyBeneficiaries, useMyDocuments } from "@/lib/api";
 import { FileText, HelpCircle, Plus, Trash2, Upload, User } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -17,7 +18,7 @@ export default function ProfilePage() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: beneficiaries = [], isLoading: beneficiariesLoading } = useMyBeneficiaries();
   const { data: documents = [], isLoading: documentsLoading } = useMyDocuments();
-  const [newBeneficiary, setNewBeneficiary] = useState({ name: "", relation: "", percentage: "" });
+  const [newBeneficiary, setNewBeneficiary] = useState({ name: "", relation: "", percentage: "", type: "Primary" });
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   const handleFileUpload = () => {
@@ -29,10 +30,13 @@ export default function ProfilePage() {
 
   const addBeneficiary = () => {
     if (!newBeneficiary.name || !newBeneficiary.percentage) return;
-    setNewBeneficiary({ name: "", relation: "", percentage: "" });
+    setNewBeneficiary({ name: "", relation: "", percentage: "", type: "Primary" });
     setIsAddOpen(false);
     toast({ title: "Beneficiary Added", description: "Beneficiary list updated successfully." });
   };
+
+  const primaryBeneficiaries = beneficiaries.filter(b => b.type === "Primary" || !b.type);
+  const contingentBeneficiaries = beneficiaries.filter(b => b.type === "Contingent");
 
   const removeBeneficiary = (id: string) => {
     toast({ title: "Beneficiary Removed", description: "Beneficiary removed from your account." });
@@ -138,6 +142,21 @@ export default function ProfilePage() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
+                        <Label>Beneficiary Type</Label>
+                        <Select 
+                          value={newBeneficiary.type} 
+                          onValueChange={(value) => setNewBeneficiary({...newBeneficiary, type: value})}
+                        >
+                          <SelectTrigger data-testid="select-beneficiary-type">
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Primary">Primary Beneficiary</SelectItem>
+                            <SelectItem value="Contingent">Contingent Beneficiary</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
                         <Label>Full Name</Label>
                         <Input 
                           value={newBeneficiary.name} 
@@ -175,21 +194,44 @@ export default function ProfilePage() {
                     <Skeleton className="h-16 w-full" />
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {beneficiaries.map((b) => (
-                      <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
-                        <div>
-                          <p className="font-medium">{b.name}</p>
-                          <p className="text-xs text-muted-foreground">{b.relation} • {b.percentage}% Share</p>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={() => removeBeneficiary(b.id)} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-beneficiary-${b.id}`}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    {beneficiaries.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">No beneficiaries added yet.</p>
-                    )}
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-foreground">Primary Beneficiary</h4>
+                      {primaryBeneficiaries.length > 0 ? (
+                        primaryBeneficiaries.map((b) => (
+                          <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
+                            <div>
+                              <p className="font-medium">{b.name}</p>
+                              <p className="text-xs text-muted-foreground">{b.relation} • {b.percentage}% Share</p>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => removeBeneficiary(b.id)} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-beneficiary-${b.id}`}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground py-2">No primary beneficiary added yet.</p>
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold text-foreground">Contingent Beneficiary</h4>
+                      {contingentBeneficiaries.length > 0 ? (
+                        contingentBeneficiaries.map((b) => (
+                          <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
+                            <div>
+                              <p className="font-medium">{b.name}</p>
+                              <p className="text-xs text-muted-foreground">{b.relation} • {b.percentage}% Share</p>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => removeBeneficiary(b.id)} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-beneficiary-${b.id}`}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground py-2">No contingent beneficiary added yet.</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
