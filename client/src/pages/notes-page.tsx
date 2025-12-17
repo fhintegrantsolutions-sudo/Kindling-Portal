@@ -1,7 +1,7 @@
 import Layout from "@/components/layout";
 import { NoteCard } from "@/components/note-card";
 import { Input } from "@/components/ui/input";
-import { Search, Filter } from "lucide-react";
+import { Search } from "lucide-react";
 import { useMyParticipations } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
@@ -43,36 +43,19 @@ export default function NotesPage() {
             <h1 className="text-3xl font-serif font-bold text-foreground" data-testid="text-notes-title">My Notes</h1>
             <p className="text-muted-foreground" data-testid="text-notes-description">Manage and view details of your active note participations.</p>
           </div>
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search notes..." 
-              className="pl-10 bg-background" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              data-testid="input-search-notes"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Active">Active</SelectItem>
-                <SelectItem value="Completed">Completed</SelectItem>
-                <SelectItem value="Pending">Pending</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 w-full md:w-auto">
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search notes..." 
+                className="pl-10 bg-background" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                data-testid="input-search-notes"
+              />
+            </div>
             <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-[180px]" data-testid="select-sort-order">
+              <SelectTrigger className="w-full md:w-72" data-testid="select-sort-order">
                 <SelectValue placeholder="Sort order" />
               </SelectTrigger>
               <SelectContent>
