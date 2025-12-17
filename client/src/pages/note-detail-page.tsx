@@ -246,10 +246,10 @@ export default function NoteDetailPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Principal</TableHead>
-                      <TableHead>Interest</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Remaining Balance</TableHead>
+                      <TableHead className="text-right">Principal</TableHead>
+                      <TableHead className="text-right">Interest</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead className="text-right">Remaining Balance</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -261,12 +261,12 @@ export default function NoteDetailPage() {
                       return (
                         <TableRow key={payment.id} data-testid={`row-payment-${index}`}>
                           <TableCell>{format(new Date(payment.paymentDate), "MMM d, yyyy")}</TableCell>
-                          <TableCell>{formatCurrencyPrecise(payment.principalAmount)}</TableCell>
-                          <TableCell>{formatCurrencyPrecise(payment.interestAmount)}</TableCell>
-                          <TableCell className="font-medium">
+                          <TableCell className="text-right">{formatCurrencyPrecise(payment.principalAmount)}</TableCell>
+                          <TableCell className="text-right">{formatCurrencyPrecise(payment.interestAmount)}</TableCell>
+                          <TableCell className="text-right font-medium">
                             {formatCurrencyPrecise(parseFloat(payment.principalAmount) + parseFloat(payment.interestAmount))}
                           </TableCell>
-                          <TableCell className="font-medium">
+                          <TableCell className="text-right font-medium">
                             {formatCurrencyPrecise(remainingBalanceForRow)}
                           </TableCell>
                         </TableRow>
