@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentUser, useMyBeneficiaries, useMyDocuments } from "@/lib/api";
-import { FileText, HelpCircle, Plus, Trash2, Upload, User } from "lucide-react";
+import { FileText, HelpCircle, Plus, Trash2, Upload, User, ExternalLink } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -306,9 +306,19 @@ export default function ProfilePage() {
                 <CardDescription className="text-sidebar-foreground/60">Upload your W-9 for tax reporting.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <a 
+                  href="https://www.irs.gov/pub/irs-pdf/fw9.pdf" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-sidebar-accent hover:bg-sidebar-accent/80 rounded-lg text-sidebar-foreground font-medium transition-colors"
+                  data-testid="button-fill-w9"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Fill Out W-9 Form
+                </a>
                 <div className="border-2 border-dashed border-sidebar-border rounded-lg p-6 text-center hover:bg-sidebar-accent/50 transition-colors cursor-pointer" onClick={handleFileUpload} data-testid="upload-w9">
                   <Upload className="h-8 w-8 mx-auto mb-2 text-sidebar-foreground/50" />
-                  <p className="text-sm font-medium">Click to upload W-9</p>
+                  <p className="text-sm font-medium">Upload Signed W-9</p>
                   <p className="text-xs text-sidebar-foreground/50 mt-1">PDF, JPG up to 5MB</p>
                 </div>
                 <Separator className="bg-sidebar-border" />
