@@ -73,6 +73,7 @@ export default function DashboardPage() {
   }, [chartData, currentMonthKey]);
 
   const [sliderValue, setSliderValue] = useState<number[]>([0]);
+  const [showFullTerm, setShowFullTerm] = useState(false);
   
   useEffect(() => {
     if (chartData.length > 0) {
@@ -81,9 +82,10 @@ export default function DashboardPage() {
   }, [defaultStartIndex, chartData.length]);
 
   const visibleChartData = useMemo(() => {
+    if (showFullTerm) return chartData;
     const startIdx = sliderValue[0];
     return chartData.slice(startIdx, startIdx + 12);
-  }, [chartData, sliderValue]);
+  }, [chartData, sliderValue, showFullTerm]);
 
   const maxSliderValue = Math.max(0, chartData.length - 12);
 
@@ -187,6 +189,22 @@ export default function DashboardPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="font-serif">Portfolio Performance</CardTitle>
               <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-2 border rounded-lg p-1">
+                  <button
+                    onClick={() => setShowFullTerm(false)}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${!showFullTerm ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                    data-testid="button-12-months"
+                  >
+                    12 Months
+                  </button>
+                  <button
+                    onClick={() => setShowFullTerm(true)}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${showFullTerm ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
+                    data-testid="button-full-term"
+                  >
+                    Full Term
+                  </button>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-[hsl(var(--primary))]" />
                   <span>Interest</span>
@@ -242,7 +260,7 @@ export default function DashboardPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              {chartData.length > 12 && (
+              {!showFullTerm && chartData.length > 12 && (
                 <div className="mt-4 px-4">
                   <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                     <span>{chartData[0]?.month}</span>
