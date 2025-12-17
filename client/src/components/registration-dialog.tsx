@@ -181,7 +181,7 @@ export function RegistrationDialog({ opportunity, open, onOpenChange }: Registra
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif text-2xl">
-            Participate Now: {opportunity.noteId}
+            Register to Participate: {opportunity.noteId}
           </DialogTitle>
           <DialogDescription>
             Complete this form to register your interest in this investment opportunity.

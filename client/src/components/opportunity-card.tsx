@@ -87,7 +87,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
         <CardFooter className="pt-2">
           <Button onClick={() => setDialogOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-11 text-base shadow-md hover:shadow-lg transition-all" data-testid={`button-register-${opportunity.id}`}>
-            Participate Now
+            Register to Participate
           </Button>
         </CardFooter>
       </Card>
