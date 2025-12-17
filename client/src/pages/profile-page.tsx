@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useCurrentUser, useMyBeneficiaries, useMyDocuments } from "@/lib/api";
-import { FileText, Plus, Trash2, Upload, User } from "lucide-react";
+import { FileText, HelpCircle, Plus, Trash2, Upload, User } from "lucide-react";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -233,6 +234,64 @@ export default function ProfilePage() {
             </Card>
           </div>
         </div>
+
+        {/* FAQ Section */}
+        <Card className="border-none shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-full">
+                <HelpCircle className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Frequently Asked Questions</CardTitle>
+                <CardDescription>Common questions about your account and investments</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="item-1">
+                <AccordionTrigger>How do I update my bank account information?</AccordionTrigger>
+                <AccordionContent>
+                  To update your bank account information for receiving payments, please contact us at{" "}
+                  <a href="mailto:info@kindling.network" className="text-primary hover:underline">info@kindling.network</a>.
+                  For security purposes, bank account changes require verification.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-2">
+                <AccordionTrigger>When will I receive my monthly payments?</AccordionTrigger>
+                <AccordionContent>
+                  Payments are processed on the 25th of each month. If the 25th falls on a weekend or holiday, 
+                  payments will be processed on the next business day. Newly funded notes will begin payments 
+                  the following month after funding.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-3">
+                <AccordionTrigger>How do I add or update beneficiaries?</AccordionTrigger>
+                <AccordionContent>
+                  You can add beneficiaries directly from this page using the "Add Beneficiary" button in the 
+                  Beneficiaries section above. To remove a beneficiary, click the trash icon next to their name.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-4">
+                <AccordionTrigger>What tax documents do I need to provide?</AccordionTrigger>
+                <AccordionContent>
+                  All investors are required to submit a W-9 form for tax reporting purposes. You can upload 
+                  your W-9 in the Tax Documents section. You will receive a 1099-INT form annually for interest 
+                  income earned.
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-5">
+                <AccordionTrigger>How is my blended yield calculated?</AccordionTrigger>
+                <AccordionContent>
+                  Your blended yield is the weighted average interest rate across all your note investments, 
+                  calculated based on the amount you have invested in each note. This gives you a single 
+                  rate that represents your overall portfolio performance.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
