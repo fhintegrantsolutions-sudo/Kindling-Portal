@@ -17,6 +17,7 @@ export default function NotesPage() {
   const { data: participations, isLoading } = useMyParticipations();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("oldest");
 
   const filteredParticipations = participations?.filter(p => {
     const matchesSearch = p.note.noteId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -28,9 +29,10 @@ export default function NotesPage() {
     return matchesSearch && matchesStatus;
   }) || [];
 
-  // Sort by purchase date, oldest to newest
   const sortedParticipations = [...filteredParticipations].sort((a, b) => {
-    return new Date(a.purchaseDate).getTime() - new Date(b.purchaseDate).getTime();
+    const dateA = new Date(a.purchaseDate).getTime();
+    const dateB = new Date(b.purchaseDate).getTime();
+    return sortOrder === "oldest" ? dateA - dateB : dateB - dateA;
   });
 
   return (
@@ -68,8 +70,16 @@ export default function NotesPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            Sorted by: Oldest to Newest
+          <div className="flex items-center gap-2">
+            <Select value={sortOrder} onValueChange={setSortOrder}>
+              <SelectTrigger className="w-[180px]" data-testid="select-sort-order">
+                <SelectValue placeholder="Sort order" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oldest">Oldest to Newest</SelectItem>
+                <SelectItem value="newest">Newest to Oldest</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
