@@ -368,7 +368,7 @@ export default function ProfilePage() {
                   data-testid="button-fill-w9"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  Fill Out W-9 Form
+                  Download W-9 Form
                 </a>
                 <div className="border-2 border-dashed border-sidebar-border rounded-lg p-6 text-center hover:bg-sidebar-accent/50 transition-colors cursor-pointer" onClick={handleFileUpload} data-testid="upload-w9">
                   <Upload className="h-8 w-8 mx-auto mb-2 text-sidebar-foreground/50" />
