@@ -2,6 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import { Calendar, DollarSign, Percent, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -69,6 +70,19 @@ export function NoteCard({ note, participation }: NoteCardProps) {
 
   const nextPaymentDisplay = getNextPaymentDisplay(note, participation);
 
+  // Calculate term progress
+  const calculateTermProgress = () => {
+    if (!participation?.purchaseDate || !note.termMonths) return 0;
+    const purchaseDate = new Date(participation.purchaseDate);
+    const now = new Date();
+    const monthsElapsed = (now.getFullYear() - purchaseDate.getFullYear()) * 12 + (now.getMonth() - purchaseDate.getMonth());
+    const progress = Math.min(100, Math.max(0, (monthsElapsed / note.termMonths) * 100));
+    return progress;
+  };
+  
+  const termProgress = calculateTermProgress();
+  const monthsElapsed = participation?.purchaseDate ? Math.floor((new Date().getTime() - new Date(participation.purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0;
+
   return (
     <Card className="group hover:border-primary/50 transition-all duration-300 hover:shadow-md border-border/60" data-testid={`card-note-${note.id}`}>
       <CardHeader className="pb-3">
@@ -135,6 +149,18 @@ export function NoteCard({ note, participation }: NoteCardProps) {
                 {formatCurrencyPrecise(monthlyPayment)}
               </span>
             </div>
+          </div>
+        )}
+
+        {participation && note.termMonths > 0 && (
+          <div className="pt-3 border-t border-border/50">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Term Progress</span>
+              <span className="text-xs text-muted-foreground">
+                {Math.min(monthsElapsed, note.termMonths)} of {note.termMonths} months
+              </span>
+            </div>
+            <Progress value={termProgress} className="h-2" />
           </div>
         )}
       </CardContent>
