@@ -94,10 +94,8 @@ export default function NoteDetailPage() {
   
   // Find payments that should be considered "applied" based on date
   // A payment is applied if: we're on or past the 25th of its payment month
-  const appliedPrincipal = sortedPayments.reduce((sum, p) => {
-    // Handle paymentDate as either string or Date
-    const paymentDateStr = typeof p.paymentDate === 'string' ? p.paymentDate : p.paymentDate.toISOString().split('T')[0];
-    // Extract month and year from payment date string (YYYY-MM-DD format)
+  const isPaymentApplied = (paymentDate: string | Date) => {
+    const paymentDateStr = typeof paymentDate === 'string' ? paymentDate : paymentDate.toISOString().split('T')[0];
     const [pYear, pMonth] = paymentDateStr.split('-').map(Number);
     
     // Payment is applied if:
@@ -106,8 +104,19 @@ export default function NoteDetailPage() {
     const isPastMonth = pYear < currentYear || (pYear === currentYear && pMonth - 1 < currentMonth);
     const isCurrentMonthApplied = pYear === currentYear && pMonth - 1 === currentMonth && currentDay >= 25;
     
-    if (isPastMonth || isCurrentMonthApplied) {
+    return isPastMonth || isCurrentMonthApplied;
+  };
+  
+  const appliedPrincipal = sortedPayments.reduce((sum, p) => {
+    if (isPaymentApplied(p.paymentDate)) {
       return sum + parseFloat(p.principalAmount);
+    }
+    return sum;
+  }, 0);
+  
+  const appliedInterest = sortedPayments.reduce((sum, p) => {
+    if (isPaymentApplied(p.paymentDate)) {
+      return sum + parseFloat(p.interestAmount);
     }
     return sum;
   }, 0);
@@ -201,7 +210,7 @@ export default function NoteDetailPage() {
           </Card>
         </div>
 
-        {(totalPaidPrincipal > 0 || totalPaidInterest > 0) && (
+        {(appliedPrincipal > 0 || appliedInterest > 0) && (
           <Card data-testid="card-earnings-chart">
             <CardHeader>
               <CardTitle className="font-serif text-xl flex items-center gap-2">
@@ -215,8 +224,8 @@ export default function NoteDetailPage() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: "Principal Returned", value: totalPaidPrincipal, color: "#64748b" },
-                        { name: "Interest Earned", value: totalPaidInterest, color: "#16a34a" },
+                        { name: "Principal Returned", value: appliedPrincipal, color: "#64748b" },
+                        { name: "Interest Earned", value: appliedInterest, color: "#16a34a" },
                       ]}
                       cx="50%"
                       cy="50%"
@@ -243,11 +252,11 @@ export default function NoteDetailPage() {
               <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-4 text-center">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Principal Returned</p>
-                  <p className="text-xl font-bold">{formatCurrencyPrecise(totalPaidPrincipal)}</p>
+                  <p className="text-xl font-bold">{formatCurrencyPrecise(appliedPrincipal)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Interest Earned</p>
-                  <p className="text-xl font-bold text-emerald-600">{formatCurrencyPrecise(totalPaidInterest)}</p>
+                  <p className="text-xl font-bold text-emerald-600">{formatCurrencyPrecise(appliedInterest)}</p>
                 </div>
               </div>
             </CardContent>
