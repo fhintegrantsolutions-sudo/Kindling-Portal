@@ -417,10 +417,23 @@ export default function NoteDetailPage() {
                 <p className="text-xs text-muted-foreground mt-2">Notes are saved automatically.</p>
               </CardContent>
             </Card>
+
+            <Card className="bg-secondary/30" data-testid="card-see-note-details">
+              <CardContent className="py-4">
+                <a 
+                  href="#note-details" 
+                  className="text-primary hover:underline font-medium flex items-center gap-2"
+                  data-testid="link-see-note-details"
+                >
+                  <FileText className="w-4 h-4" />
+                  See Note Details
+                </a>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
-        <Card data-testid="card-note-details">
+        <Card id="note-details" data-testid="card-note-details">
           <CardHeader>
             <CardTitle className="font-serif text-xl">Note Details</CardTitle>
           </CardHeader>
