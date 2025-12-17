@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -78,6 +79,7 @@ export function RegistrationDialog({ opportunity, open, onOpenChange }: Registra
   const { toast } = useToast();
   const { data: user } = useCurrentUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useProfileData, setUseProfileData] = useState(true);
 
   const nameParts = user?.name?.split(" ") || [];
   const defaultFirstName = nameParts[0] || "";
@@ -112,6 +114,31 @@ export function RegistrationDialog({ opportunity, open, onOpenChange }: Registra
       acknowledgeLender: undefined as unknown as true,
     },
   });
+
+  useEffect(() => {
+    if (useProfileData && user) {
+      const nameParts = user.name?.split(" ") || [];
+      setValue("firstName", nameParts[0] || "");
+      setValue("lastName", nameParts.slice(1).join(" ") || "");
+      setValue("email", user.email || "");
+      setValue("phone", user.phone || "");
+      setValue("nameForAgreement", user.name || "");
+      setValue("mailingAddress", user.address || "");
+      setValue("city", user.city || "");
+      setValue("state", user.state || "");
+      setValue("zipCode", user.zipCode || "");
+    } else if (!useProfileData) {
+      setValue("firstName", "");
+      setValue("lastName", "");
+      setValue("email", "");
+      setValue("phone", "");
+      setValue("nameForAgreement", "");
+      setValue("mailingAddress", "");
+      setValue("city", "");
+      setValue("state", "");
+      setValue("zipCode", "");
+    }
+  }, [useProfileData, user, setValue]);
 
   const acknowledgeLender = watch("acknowledgeLender");
   const minInvestment = parseFloat(opportunity.minInvestment || "2500");
@@ -163,6 +190,19 @@ export function RegistrationDialog({ opportunity, open, onOpenChange }: Registra
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border">
+            <div className="space-y-0.5">
+              <Label htmlFor="use-profile" className="font-medium">Use my profile data</Label>
+              <p className="text-xs text-muted-foreground">Auto-fill with your email, phone, and address</p>
+            </div>
+            <Switch
+              id="use-profile"
+              checked={useProfileData}
+              onCheckedChange={setUseProfileData}
+              data-testid="switch-use-profile"
+            />
+          </div>
+
           <div className="space-y-4">
             <h3 className="font-semibold text-lg border-b pb-2">Personal Information</h3>
             <div className="grid grid-cols-2 gap-4">
