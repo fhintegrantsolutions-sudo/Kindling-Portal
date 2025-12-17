@@ -231,7 +231,7 @@ export default function DashboardPage() {
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      tickFormatter={(value) => `$${value}`}
+                      tickFormatter={(value) => `$${value.toLocaleString()}`}
                     />
                     <RechartsTooltip 
                       contentStyle={{ 
@@ -241,7 +241,7 @@ export default function DashboardPage() {
                         boxShadow: "var(--shadow-md)" 
                       }}
                       itemStyle={{ fontWeight: "bold" }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
+                      formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '']}
                     />
                     <Bar 
                       dataKey="principal" 
