@@ -17,7 +17,7 @@ export default function NotesPage() {
   const { data: participations, isLoading } = useMyParticipations();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("noteId");
+  const [sortBy, setSortBy] = useState("noteId-asc");
 
   const filteredParticipations = participations?.filter(p => {
     const matchesSearch = p.note.noteId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -31,8 +31,10 @@ export default function NotesPage() {
 
   const sortedParticipations = [...filteredParticipations].sort((a, b) => {
     switch (sortBy) {
-      case "noteId":
+      case "noteId-asc":
         return a.note.noteId.localeCompare(b.note.noteId);
+      case "noteId-desc":
+        return b.note.noteId.localeCompare(a.note.noteId);
       case "invested-high":
         return parseFloat(b.investedAmount) - parseFloat(a.investedAmount);
       case "invested-low":
@@ -92,7 +94,8 @@ export default function NotesPage() {
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="noteId">Note ID</SelectItem>
+                <SelectItem value="noteId-asc">Note ID (A to Z)</SelectItem>
+                <SelectItem value="noteId-desc">Note ID (Z to A)</SelectItem>
                 <SelectItem value="invested-high">Invested (High to Low)</SelectItem>
                 <SelectItem value="invested-low">Invested (Low to High)</SelectItem>
                 <SelectItem value="rate-high">Rate (High to Low)</SelectItem>
