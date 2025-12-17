@@ -285,8 +285,8 @@ export default function NoteDetailPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2" data-testid="card-payment-history">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card data-testid="card-payment-history">
             <CardHeader>
               <CardTitle className="font-serif text-xl flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
