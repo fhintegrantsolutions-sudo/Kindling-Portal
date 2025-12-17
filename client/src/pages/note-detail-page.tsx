@@ -306,6 +306,7 @@ export default function NoteDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Month</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead className="text-right">Principal</TableHead>
                       <TableHead className="text-right">Interest</TableHead>
@@ -321,6 +322,7 @@ export default function NoteDetailPage() {
                       const remainingBalanceForRow = investedAmount - cumulativePrincipal;
                       return (
                         <TableRow key={payment.id} data-testid={`row-payment-${index}`}>
+                          <TableCell className="text-muted-foreground">{index + 1} of {note.termMonths}</TableCell>
                           <TableCell>{format(new Date(payment.paymentDate), "MMM d, yyyy")}</TableCell>
                           <TableCell className="text-right">{formatCurrencyPrecise(payment.principalAmount)}</TableCell>
                           <TableCell className="text-right">{formatCurrencyPrecise(payment.interestAmount)}</TableCell>
