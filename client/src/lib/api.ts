@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument, InvestorEntity } from "@shared/schema";
+import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument } from "@shared/schema";
 
 export type ParticipationWithNote = Participation & { note: Note };
 
@@ -146,11 +146,4 @@ export function formatTerm(months: number): string {
     return `${years}y ${remainingMonths}m`;
   }
   return `${months} Months`;
-}
-
-export function useMyEntities() {
-  return useQuery<InvestorEntity[]>({
-    queryKey: ["my-entities"],
-    queryFn: () => fetchJSON("/api/my-entities"),
-  });
 }

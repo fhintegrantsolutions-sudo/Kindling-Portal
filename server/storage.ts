@@ -7,7 +7,6 @@ import {
   documents,
   participationDocuments,
   noteRegistrations,
-  investorEntities,
   type User, 
   type InsertUser,
   type Note,
@@ -24,8 +23,6 @@ import {
   type InsertParticipationDocument,
   type NoteRegistration,
   type InsertNoteRegistration,
-  type InvestorEntity,
-  type InsertInvestorEntity,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -78,12 +75,6 @@ export interface IStorage {
   createNoteRegistration(registration: InsertNoteRegistration): Promise<NoteRegistration>;
   getNoteRegistrationsByNote(noteId: string): Promise<NoteRegistration[]>;
   getNoteRegistrationsByUser(userId: string): Promise<NoteRegistration[]>;
-  
-  // Investor Entities
-  getEntitiesByUser(userId: string): Promise<InvestorEntity[]>;
-  createEntity(entity: InsertInvestorEntity): Promise<InvestorEntity>;
-  updateEntity(id: string, entity: Partial<InsertInvestorEntity>): Promise<InvestorEntity | undefined>;
-  getParticipationsByUserAndEntity(userId: string, entityId: string | null): Promise<(Participation & { note: Note })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -296,46 +287,6 @@ export class DatabaseStorage implements IStorage {
 
   async getNoteRegistrationsByUser(userId: string): Promise<NoteRegistration[]> {
     return await db.select().from(noteRegistrations).where(eq(noteRegistrations.userId, userId)).orderBy(desc(noteRegistrations.createdAt));
-  }
-
-  // Investor Entities
-  async getEntitiesByUser(userId: string): Promise<InvestorEntity[]> {
-    return await db.select().from(investorEntities).where(eq(investorEntities.userId, userId)).orderBy(desc(investorEntities.createdAt));
-  }
-
-  async createEntity(insertEntity: InsertInvestorEntity): Promise<InvestorEntity> {
-    const [entity] = await db
-      .insert(investorEntities)
-      .values(insertEntity)
-      .returning();
-    return entity;
-  }
-
-  async updateEntity(id: string, entityUpdate: Partial<InsertInvestorEntity>): Promise<InvestorEntity | undefined> {
-    const [entity] = await db
-      .update(investorEntities)
-      .set(entityUpdate)
-      .where(eq(investorEntities.id, id))
-      .returning();
-    return entity || undefined;
-  }
-
-  async getParticipationsByUserAndEntity(userId: string, entityId: string | null): Promise<(Participation & { note: Note })[]> {
-    const results = await db
-      .select()
-      .from(participations)
-      .leftJoin(notes, eq(participations.noteId, notes.id))
-      .where(
-        entityId 
-          ? and(eq(participations.userId, userId), eq(participations.entityId, entityId))
-          : eq(participations.userId, userId)
-      )
-      .orderBy(desc(participations.createdAt));
-    
-    return results.map(r => ({
-      ...r.participations,
-      note: r.notes!,
-    }));
   }
 }
 

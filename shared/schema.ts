@@ -18,15 +18,6 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const investorEntities = pgTable("investor_entities", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  type: text("type").notNull(),
-  isDefault: boolean("is_default").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
 export const notes = pgTable("notes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   noteId: text("note_id").notNull().unique(),
@@ -55,7 +46,6 @@ export const participations = pgTable("participations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   noteId: varchar("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
-  entityId: varchar("entity_id").references(() => investorEntities.id, { onDelete: "set null" }),
   investedAmount: decimal("invested_amount", { precision: 12, scale: 2 }).notNull(),
   purchaseDate: timestamp("purchase_date").notNull(),
   status: text("status").notNull().default("Active"),
@@ -136,20 +126,11 @@ export const noteRegistrationsRelations = relations(noteRegistrations, ({ one })
   }),
 }));
 
-export const investorEntitiesRelations = relations(investorEntities, ({ one, many }) => ({
-  user: one(users, {
-    fields: [investorEntities.userId],
-    references: [users.id],
-  }),
-  participations: many(participations),
-}));
-
 export const usersRelations = relations(users, ({ many }) => ({
   participations: many(participations),
   beneficiaries: many(beneficiaries),
   documents: many(documents),
   registrations: many(noteRegistrations),
-  entities: many(investorEntities),
 }));
 
 export const notesRelations = relations(notes, ({ many }) => ({
@@ -165,10 +146,6 @@ export const participationsRelations = relations(participations, ({ one, many })
   note: one(notes, {
     fields: [participations.noteId],
     references: [notes.id],
-  }),
-  entity: one(investorEntities, {
-    fields: [participations.entityId],
-    references: [investorEntities.id],
   }),
   payments: many(payments),
   documents: many(participationDocuments),
@@ -242,11 +219,6 @@ export const insertNoteRegistrationSchema = createInsertSchema(noteRegistrations
   createdAt: true,
 });
 
-export const insertInvestorEntitySchema = createInsertSchema(investorEntities).omit({
-  id: true,
-  createdAt: true,
-});
-
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -270,6 +242,3 @@ export type ParticipationDocument = typeof participationDocuments.$inferSelect;
 
 export type InsertNoteRegistration = z.infer<typeof insertNoteRegistrationSchema>;
 export type NoteRegistration = typeof noteRegistrations.$inferSelect;
-
-export type InsertInvestorEntity = z.infer<typeof insertInvestorEntitySchema>;
-export type InvestorEntity = typeof investorEntities.$inferSelect;
