@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const { data: user, isLoading: userLoading } = useCurrentUser();
   const { data: beneficiaries = [], isLoading: beneficiariesLoading } = useMyBeneficiaries();
   const { data: documents = [], isLoading: documentsLoading } = useMyDocuments();
-  const [newBeneficiary, setNewBeneficiary] = useState({ name: "", relation: "", percentage: "", type: "Primary" });
+  const [newBeneficiary, setNewBeneficiary] = useState({ name: "", relation: "", percentage: "", type: "Primary", dob: "", phone: "", address: "" });
   const [isAddOpen, setIsAddOpen] = useState(false);
 
   const handleFileUpload = () => {
@@ -30,7 +30,7 @@ export default function ProfilePage() {
 
   const addBeneficiary = () => {
     if (!newBeneficiary.name || !newBeneficiary.percentage) return;
-    setNewBeneficiary({ name: "", relation: "", percentage: "", type: "Primary" });
+    setNewBeneficiary({ name: "", relation: "", percentage: "", type: "Primary", dob: "", phone: "", address: "" });
     setIsAddOpen(false);
     toast({ title: "Beneficiary Added", description: "Beneficiary list updated successfully." });
   };
@@ -184,6 +184,33 @@ export default function ProfilePage() {
                           data-testid="input-beneficiary-percentage"
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label>Date of Birth</Label>
+                        <Input 
+                          type="date"
+                          value={newBeneficiary.dob} 
+                          onChange={(e) => setNewBeneficiary({...newBeneficiary, dob: e.target.value})}
+                          data-testid="input-beneficiary-dob"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Phone Number</Label>
+                        <Input 
+                          value={newBeneficiary.phone} 
+                          onChange={(e) => setNewBeneficiary({...newBeneficiary, phone: e.target.value})}
+                          placeholder="(555) 123-4567"
+                          data-testid="input-beneficiary-phone"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Mailing Address</Label>
+                        <Input 
+                          value={newBeneficiary.address} 
+                          onChange={(e) => setNewBeneficiary({...newBeneficiary, address: e.target.value})}
+                          placeholder="123 Main St, City, State ZIP"
+                          data-testid="input-beneficiary-address"
+                        />
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button onClick={addBeneficiary} data-testid="button-submit-beneficiary">Add Beneficiary</Button>
@@ -212,7 +239,15 @@ export default function ProfilePage() {
                           <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
                             <div>
                               <p className="font-medium">{b.name}</p>
-                              <p className="text-xs text-muted-foreground">{b.relation} • {b.percentage}% Share</p>
+                              <p className="text-xs text-muted-foreground">
+                                {b.relation} • {b.percentage}% Share
+                                {b.dob && ` • DOB: ${b.dob}`}
+                              </p>
+                              {(b.phone || b.address) && (
+                                <p className="text-xs text-muted-foreground">
+                                  {b.phone && `${b.phone}`}{b.phone && b.address && ' • '}{b.address && `${b.address}`}
+                                </p>
+                              )}
                             </div>
                             <Button variant="ghost" size="icon" onClick={() => removeBeneficiary(b.id)} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-beneficiary-${b.id}`}>
                               <Trash2 className="h-4 w-4" />
@@ -237,7 +272,15 @@ export default function ProfilePage() {
                             <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
                               <div>
                                 <p className="font-medium">{b.name}</p>
-                                <p className="text-xs text-muted-foreground">{b.relation} • {b.percentage}% Share</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {b.relation} • {b.percentage}% Share
+                                  {b.dob && ` • DOB: ${b.dob}`}
+                                </p>
+                                {(b.phone || b.address) && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {b.phone && `${b.phone}`}{b.phone && b.address && ' • '}{b.address && `${b.address}`}
+                                  </p>
+                                )}
                               </div>
                               <Button variant="ghost" size="icon" onClick={() => removeBeneficiary(b.id)} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-beneficiary-${b.id}`}>
                                 <Trash2 className="h-4 w-4" />
