@@ -398,11 +398,11 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-sidebar/50 border-none">
+            <Card className="bg-white border border-border">
               <CardContent className="pt-6">
-                <p className="text-sm text-sidebar-foreground/80">
+                <p className="text-sm text-muted-foreground">
                   To update bank account information for payments from a note, please contact{" "}
-                  <a href="mailto:info@kindling.network" className="text-sidebar-primary hover:underline font-medium">
+                  <a href="mailto:info@kindling.network" className="text-primary hover:underline font-medium">
                     info@kindling.network
                   </a>
                 </p>
