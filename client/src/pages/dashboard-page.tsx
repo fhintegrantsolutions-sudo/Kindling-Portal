@@ -1,6 +1,6 @@
 import Layout from "@/components/layout";
 import { StatCard } from "@/components/stat-card";
-import { DollarSign, PieChart, TrendingUp, ArrowRight, Info } from "lucide-react";
+import { DollarSign, PieChart, TrendingUp, ArrowRight, Info, Percent } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -55,9 +55,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {isLoading ? (
             <>
+              <Skeleton className="h-32" />
               <Skeleton className="h-32" />
               <Skeleton className="h-32" />
               <Skeleton className="h-32" />
@@ -83,8 +84,20 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{formatCurrencyPrecise(totalMonthlyPayment)}</div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Expected monthly income
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-none shadow-sm" data-testid="card-blended-yield">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <p className="text-sm font-medium text-muted-foreground">Blended Yield</p>
+                  <Percent className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{weightedRate.toFixed(2)}%</div>
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                    Blended yield of {weightedRate.toFixed(2)}%
+                    Weighted average rate
                     <TooltipProvider>
                       <UITooltip>
                         <TooltipTrigger asChild>
