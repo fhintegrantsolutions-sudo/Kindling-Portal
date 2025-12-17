@@ -37,6 +37,9 @@ export default function ProfilePage() {
 
   const primaryBeneficiaries = beneficiaries.filter(b => b.type === "Primary" || !b.type);
   const contingentBeneficiaries = beneficiaries.filter(b => b.type === "Contingent");
+  
+  const primaryTotal = primaryBeneficiaries.reduce((sum, b) => sum + b.percentage, 0);
+  const contingentTotal = contingentBeneficiaries.reduce((sum, b) => sum + b.percentage, 0);
 
   const removeBeneficiary = (id: string) => {
     toast({ title: "Beneficiary Removed", description: "Beneficiary removed from your account." });
@@ -196,7 +199,14 @@ export default function ProfilePage() {
                 ) : (
                   <div className="space-y-6">
                     <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-foreground">Primary Beneficiary</h4>
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-foreground">Primary Beneficiary</h4>
+                        {primaryBeneficiaries.length > 0 && (
+                          <span className={`text-xs font-medium ${primaryTotal === 100 ? 'text-emerald-600' : 'text-destructive'}`}>
+                            Total: {primaryTotal}% {primaryTotal === 100 ? '✓' : '(must equal 100%)'}
+                          </span>
+                        )}
+                      </div>
                       {primaryBeneficiaries.length > 0 ? (
                         primaryBeneficiaries.map((b) => (
                           <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
@@ -217,7 +227,12 @@ export default function ProfilePage() {
                       <>
                         <Separator />
                         <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-foreground">Contingent Beneficiary</h4>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-semibold text-foreground">Contingent Beneficiary</h4>
+                            <span className={`text-xs font-medium ${contingentTotal === 100 ? 'text-emerald-600' : 'text-destructive'}`}>
+                              Total: {contingentTotal}% {contingentTotal === 100 ? '✓' : '(must equal 100%)'}
+                            </span>
+                          </div>
                           {contingentBeneficiaries.map((b) => (
                             <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
                               <div>
