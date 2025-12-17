@@ -249,28 +249,38 @@ export default function NoteDetailPage() {
                       <TableHead>Principal</TableHead>
                       <TableHead>Interest</TableHead>
                       <TableHead>Total</TableHead>
+                      <TableHead>Remaining Balance</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedPayments.map((payment, index) => (
-                      <TableRow key={payment.id} data-testid={`row-payment-${index}`}>
-                        <TableCell>{format(new Date(payment.paymentDate), "MMM d, yyyy")}</TableCell>
-                        <TableCell>{formatCurrencyPrecise(payment.principalAmount)}</TableCell>
-                        <TableCell>{formatCurrencyPrecise(payment.interestAmount)}</TableCell>
-                        <TableCell className="font-medium">
-                          {formatCurrencyPrecise(parseFloat(payment.principalAmount) + parseFloat(payment.interestAmount))}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusBadgeClass(payment.status)} data-testid={`badge-payment-status-${index}`}>
-                            <span className="flex items-center gap-1">
-                              {getStatusIcon(payment.status)}
-                              {payment.status}
-                            </span>
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {sortedPayments.map((payment, index) => {
+                      const cumulativePrincipal = sortedPayments
+                        .slice(0, index + 1)
+                        .reduce((sum, p) => sum + parseFloat(p.principalAmount), 0);
+                      const remainingBalanceForRow = investedAmount - cumulativePrincipal;
+                      return (
+                        <TableRow key={payment.id} data-testid={`row-payment-${index}`}>
+                          <TableCell>{format(new Date(payment.paymentDate), "MMM d, yyyy")}</TableCell>
+                          <TableCell>{formatCurrencyPrecise(payment.principalAmount)}</TableCell>
+                          <TableCell>{formatCurrencyPrecise(payment.interestAmount)}</TableCell>
+                          <TableCell className="font-medium">
+                            {formatCurrencyPrecise(parseFloat(payment.principalAmount) + parseFloat(payment.interestAmount))}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {formatCurrencyPrecise(remainingBalanceForRow)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusBadgeClass(payment.status)} data-testid={`badge-payment-status-${index}`}>
+                              <span className="flex items-center gap-1">
+                                {getStatusIcon(payment.status)}
+                                {payment.status}
+                              </span>
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               ) : (
