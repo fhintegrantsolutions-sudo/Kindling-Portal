@@ -1,7 +1,7 @@
 import Layout from "@/components/layout";
 import { NoteCard } from "@/components/note-card";
 import { Input } from "@/components/ui/input";
-import { Search, Filter, ArrowUpDown } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { useMyParticipations } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
@@ -17,7 +17,6 @@ export default function NotesPage() {
   const { data: participations, isLoading } = useMyParticipations();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("noteId-asc");
 
   const filteredParticipations = participations?.filter(p => {
     const matchesSearch = p.note.noteId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -29,27 +28,9 @@ export default function NotesPage() {
     return matchesSearch && matchesStatus;
   }) || [];
 
+  // Sort by purchase date, oldest to newest
   const sortedParticipations = [...filteredParticipations].sort((a, b) => {
-    switch (sortBy) {
-      case "noteId-asc":
-        return a.note.noteId.localeCompare(b.note.noteId);
-      case "noteId-desc":
-        return b.note.noteId.localeCompare(a.note.noteId);
-      case "invested-high":
-        return parseFloat(b.investedAmount) - parseFloat(a.investedAmount);
-      case "invested-low":
-        return parseFloat(a.investedAmount) - parseFloat(b.investedAmount);
-      case "rate-high":
-        return parseFloat(b.note.rate) - parseFloat(a.note.rate);
-      case "rate-low":
-        return parseFloat(a.note.rate) - parseFloat(b.note.rate);
-      case "term-long":
-        return b.note.termMonths - a.note.termMonths;
-      case "term-short":
-        return a.note.termMonths - b.note.termMonths;
-      default:
-        return 0;
-    }
+    return new Date(a.purchaseDate).getTime() - new Date(b.purchaseDate).getTime();
   });
 
   return (
@@ -87,23 +68,8 @@ export default function NotesPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px]" data-testid="select-sort-by">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="noteId-asc">Note ID (A to Z)</SelectItem>
-                <SelectItem value="noteId-desc">Note ID (Z to A)</SelectItem>
-                <SelectItem value="invested-high">Invested (High to Low)</SelectItem>
-                <SelectItem value="invested-low">Invested (Low to High)</SelectItem>
-                <SelectItem value="rate-high">Rate (High to Low)</SelectItem>
-                <SelectItem value="rate-low">Rate (Low to High)</SelectItem>
-                <SelectItem value="term-long">Term (Longest)</SelectItem>
-                <SelectItem value="term-short">Term (Shortest)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            Sorted by: Oldest to Newest
           </div>
         </div>
 
