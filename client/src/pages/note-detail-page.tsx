@@ -84,7 +84,35 @@ export default function NoteDetailPage() {
   ) || [];
   const totalPaidPrincipal = payments?.reduce((sum, p) => sum + parseFloat(p.principalAmount), 0) || 0;
   const totalPaidInterest = payments?.reduce((sum, p) => sum + parseFloat(p.interestAmount), 0) || 0;
-  const remainingBalance = investedAmount - totalPaidPrincipal;
+  
+  // Calculate remaining balance based on the 25th rule
+  // On or after the 25th, include that month's payment in the calculation
+  const today = new Date();
+  const currentDay = today.getDate();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  
+  // Find payments that should be considered "applied" based on date
+  // A payment is applied if: we're on or past the 25th of its payment month
+  const appliedPrincipal = sortedPayments.reduce((sum, p) => {
+    // Handle paymentDate as either string or Date
+    const paymentDateStr = typeof p.paymentDate === 'string' ? p.paymentDate : p.paymentDate.toISOString().split('T')[0];
+    // Extract month and year from payment date string (YYYY-MM-DD format)
+    const [pYear, pMonth] = paymentDateStr.split('-').map(Number);
+    
+    // Payment is applied if:
+    // - Payment is from a past month/year, OR
+    // - Payment is from current month and we're on or after the 25th
+    const isPastMonth = pYear < currentYear || (pYear === currentYear && pMonth - 1 < currentMonth);
+    const isCurrentMonthApplied = pYear === currentYear && pMonth - 1 === currentMonth && currentDay >= 25;
+    
+    if (isPastMonth || isCurrentMonthApplied) {
+      return sum + parseFloat(p.principalAmount);
+    }
+    return sum;
+  }, 0);
+  
+  const remainingBalance = investedAmount - appliedPrincipal;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
