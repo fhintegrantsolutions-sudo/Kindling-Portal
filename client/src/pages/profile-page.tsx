@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentUser, useMyBeneficiaries, useMyDocuments } from "@/lib/api";
-import { FileText, HelpCircle, Plus, Trash2, Upload, User, ExternalLink, Building2 } from "lucide-react";
+import { FileText, HelpCircle, Plus, Trash2, Upload, User, ExternalLink, Building2, Eye } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -382,12 +382,24 @@ export default function ProfilePage() {
                     <Skeleton className="h-10 w-full" />
                   ) : documents.length > 0 ? (
                     documents.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-2 rounded hover:bg-sidebar-accent/50 cursor-pointer" data-testid={`document-${doc.id}`}>
+                      <div key={doc.id} className="flex items-center justify-between p-2 rounded hover:bg-sidebar-accent/50" data-testid={`document-${doc.id}`}>
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-sidebar-primary" />
                           <span className="text-sm">{doc.fileName}</span>
                         </div>
-                        <span className={`text-xs ${doc.status === 'Verified' ? 'text-green-400' : 'text-yellow-400'}`}>{doc.status}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs ${doc.status === 'Verified' ? 'text-green-400' : 'text-yellow-400'}`}>{doc.status}</span>
+                          <a 
+                            href={doc.fileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-sidebar-accent rounded transition-colors"
+                            data-testid={`button-preview-doc-${doc.id}`}
+                            title="Preview document"
+                          >
+                            <Eye className="h-4 w-4 text-sidebar-foreground/70 hover:text-sidebar-foreground" />
+                          </a>
+                        </div>
                       </div>
                     ))
                   ) : (
