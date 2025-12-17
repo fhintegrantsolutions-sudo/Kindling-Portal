@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyParticipations, useMyActivities, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, addMonths } from "date-fns";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { Slider } from "@/components/ui/slider";
 
 export default function DashboardPage() {
   const { data: participations, isLoading } = useMyParticipations();
@@ -64,6 +65,27 @@ export default function DashboardPage() {
       return dateA.getTime() - dateB.getTime();
     });
   }, [participations]);
+
+  const currentMonthKey = format(new Date(), "MMM yyyy");
+  const defaultStartIndex = useMemo(() => {
+    const idx = chartData.findIndex(d => d.month === currentMonthKey);
+    return idx >= 0 ? idx : 0;
+  }, [chartData, currentMonthKey]);
+
+  const [sliderValue, setSliderValue] = useState<number[]>([0]);
+  
+  useEffect(() => {
+    if (chartData.length > 0) {
+      setSliderValue([defaultStartIndex]);
+    }
+  }, [defaultStartIndex, chartData.length]);
+
+  const visibleChartData = useMemo(() => {
+    const startIdx = sliderValue[0];
+    return chartData.slice(startIdx, startIdx + 12);
+  }, [chartData, sliderValue]);
+
+  const maxSliderValue = Math.max(0, chartData.length - 12);
 
   const totalInvested = participations?.reduce((sum, p) => sum + parseFloat(p.investedAmount), 0) || 0;
   const activeNotes = participations?.length || 0;
@@ -178,14 +200,14 @@ export default function DashboardPage() {
             <CardContent>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <BarChart data={visibleChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                     <XAxis 
                       dataKey="month" 
                       axisLine={false} 
                       tickLine={false} 
                       tickMargin={10} 
-                      tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} 
                     />
                     <YAxis 
                       axisLine={false} 
@@ -201,6 +223,7 @@ export default function DashboardPage() {
                         boxShadow: "var(--shadow-md)" 
                       }}
                       itemStyle={{ fontWeight: "bold" }}
+                      formatter={(value: number) => [`$${value.toFixed(2)}`, '']}
                     />
                     <Bar 
                       dataKey="principal" 
@@ -219,6 +242,23 @@ export default function DashboardPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              {chartData.length > 12 && (
+                <div className="mt-4 px-4">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                    <span>{chartData[0]?.month}</span>
+                    <span className="font-medium">Slide to view different time periods</span>
+                    <span>{chartData[chartData.length - 1]?.month}</span>
+                  </div>
+                  <Slider
+                    value={sliderValue}
+                    onValueChange={setSliderValue}
+                    max={maxSliderValue}
+                    step={1}
+                    className="w-full"
+                    data-testid="slider-chart-timeline"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
