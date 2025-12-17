@@ -4,7 +4,7 @@ import { DollarSign, PieChart, TrendingUp, ArrowRight, Info } from "lucide-react
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Area, AreaChart, CartesianGrid, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyParticipations, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -121,17 +121,7 @@ export default function DashboardPage() {
             <CardContent>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorInterest" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorPrincipal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="hsl(var(--secondary-foreground))" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
+                  <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                     <XAxis 
                       dataKey="month" 
@@ -139,6 +129,12 @@ export default function DashboardPage() {
                       tickLine={false} 
                       tickMargin={10} 
                       tick={{ fill: "hsl(var(--muted-foreground))" }} 
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: "hsl(var(--muted-foreground))" }}
+                      tickFormatter={(value) => `$${value}`}
                     />
                     <RechartsTooltip 
                       contentStyle={{ 
@@ -149,27 +145,21 @@ export default function DashboardPage() {
                       }}
                       itemStyle={{ fontWeight: "bold" }}
                     />
-                    <Area 
-                      type="monotone" 
+                    <Bar 
                       dataKey="principal" 
                       stackId="1"
-                      stroke="hsl(var(--secondary-foreground))" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorPrincipal)" 
+                      fill="hsl(var(--secondary-foreground))" 
                       name="Principal Repaid"
+                      radius={[0, 0, 0, 0]}
                     />
-                    <Area 
-                      type="monotone" 
+                    <Bar 
                       dataKey="interest" 
                       stackId="1"
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorInterest)" 
+                      fill="hsl(var(--primary))" 
                       name="Interest Income"
+                      radius={[4, 4, 0, 0]}
                     />
-                  </AreaChart>
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
