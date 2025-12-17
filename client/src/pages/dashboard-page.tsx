@@ -241,7 +241,10 @@ export default function DashboardPage() {
                         boxShadow: "var(--shadow-md)" 
                       }}
                       itemStyle={{ fontWeight: "bold" }}
-                      formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, '']}
+                      formatter={(value: number, name: string) => {
+                        const prefix = name === 'Principal Repaid' ? 'P: ' : 'I: ';
+                        return [`${prefix}$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`];
+                      }}
                     />
                     <Bar 
                       dataKey="principal" 
