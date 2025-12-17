@@ -37,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 export default function NoteDetailPage() {
@@ -307,40 +308,42 @@ export default function NoteDetailPage() {
                   <Skeleton className="h-10 w-full" />
                 </div>
               ) : sortedPayments.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Month</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Principal</TableHead>
-                      <TableHead className="text-right">Interest</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">Remaining Balance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sortedPayments.map((payment, index) => {
-                      const cumulativePrincipal = sortedPayments
-                        .slice(0, index + 1)
-                        .reduce((sum, p) => sum + parseFloat(p.principalAmount), 0);
-                      const remainingBalanceForRow = investedAmount - cumulativePrincipal;
-                      return (
-                        <TableRow key={payment.id} data-testid={`row-payment-${index}`}>
-                          <TableCell className="text-muted-foreground">{index + 1}</TableCell>
-                          <TableCell>{format(new Date(payment.paymentDate), "MMM d, yyyy")}</TableCell>
-                          <TableCell className="text-right">{formatCurrencyPrecise(payment.principalAmount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrencyPrecise(payment.interestAmount)}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrencyPrecise(parseFloat(payment.principalAmount) + parseFloat(payment.interestAmount))}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatCurrencyPrecise(remainingBalanceForRow)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <ScrollArea className="h-[400px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Month</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Principal</TableHead>
+                        <TableHead className="text-right">Interest</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Remaining Balance</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sortedPayments.map((payment, index) => {
+                        const cumulativePrincipal = sortedPayments
+                          .slice(0, index + 1)
+                          .reduce((sum, p) => sum + parseFloat(p.principalAmount), 0);
+                        const remainingBalanceForRow = investedAmount - cumulativePrincipal;
+                        return (
+                          <TableRow key={payment.id} data-testid={`row-payment-${index}`}>
+                            <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                            <TableCell>{format(new Date(payment.paymentDate), "MMM d, yyyy")}</TableCell>
+                            <TableCell className="text-right">{formatCurrencyPrecise(payment.principalAmount)}</TableCell>
+                            <TableCell className="text-right">{formatCurrencyPrecise(payment.interestAmount)}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrencyPrecise(parseFloat(payment.principalAmount) + parseFloat(payment.interestAmount))}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrencyPrecise(remainingBalanceForRow)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
               ) : (
                 <p className="text-muted-foreground text-center py-8" data-testid="text-no-payments">
                   No payment history yet.
