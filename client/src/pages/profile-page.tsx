@@ -213,25 +213,25 @@ export default function ProfilePage() {
                         <p className="text-sm text-muted-foreground py-2">No primary beneficiary added yet.</p>
                       )}
                     </div>
-                    <Separator />
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-semibold text-foreground">Contingent Beneficiary</h4>
-                      {contingentBeneficiaries.length > 0 ? (
-                        contingentBeneficiaries.map((b) => (
-                          <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
-                            <div>
-                              <p className="font-medium">{b.name}</p>
-                              <p className="text-xs text-muted-foreground">{b.relation} • {b.percentage}% Share</p>
+                    {contingentBeneficiaries.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-foreground">Contingent Beneficiary</h4>
+                          {contingentBeneficiaries.map((b) => (
+                            <div key={b.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg border border-secondary" data-testid={`beneficiary-${b.id}`}>
+                              <div>
+                                <p className="font-medium">{b.name}</p>
+                                <p className="text-xs text-muted-foreground">{b.relation} • {b.percentage}% Share</p>
+                              </div>
+                              <Button variant="ghost" size="icon" onClick={() => removeBeneficiary(b.id)} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-beneficiary-${b.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => removeBeneficiary(b.id)} className="text-muted-foreground hover:text-destructive" data-testid={`button-remove-beneficiary-${b.id}`}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground py-2">No contingent beneficiary added yet.</p>
-                      )}
-                    </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </CardContent>
