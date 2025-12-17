@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument } from "@shared/schema";
+import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument, Activity } from "@shared/schema";
 
 export type ParticipationWithNote = Participation & { note: Note };
 
@@ -146,4 +146,11 @@ export function formatTerm(months: number): string {
     return `${years}y ${remainingMonths}m`;
   }
   return `${months} Months`;
+}
+
+export function useMyActivities(limit: number = 10) {
+  return useQuery<Activity[]>({
+    queryKey: ["my-activities", limit],
+    queryFn: () => fetchJSON(`/api/my-activities?limit=${limit}`),
+  });
 }

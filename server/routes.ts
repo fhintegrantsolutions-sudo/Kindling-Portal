@@ -249,6 +249,21 @@ export async function registerRoutes(
     }
   });
 
+  // Activities
+  app.get("/api/my-activities", async (req, res) => {
+    try {
+      const demoUser = await storage.getUserByUsername("kdavidsh");
+      if (!demoUser) {
+        return res.status(404).json({ error: "Demo user not found" });
+      }
+      const limit = parseInt(req.query.limit as string) || 10;
+      const activities = await storage.getActivitiesByUser(demoUser.id, limit);
+      res.json(activities);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch activities" });
+    }
+  });
+
   // Note Registrations
   app.post("/api/registrations", async (req, res) => {
     try {

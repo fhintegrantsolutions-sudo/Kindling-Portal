@@ -7,6 +7,7 @@ import {
   documents,
   participationDocuments,
   noteRegistrations,
+  activities,
   type User, 
   type InsertUser,
   type Note,
@@ -23,6 +24,8 @@ import {
   type InsertParticipationDocument,
   type NoteRegistration,
   type InsertNoteRegistration,
+  type Activity,
+  type InsertActivity,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -75,6 +78,10 @@ export interface IStorage {
   createNoteRegistration(registration: InsertNoteRegistration): Promise<NoteRegistration>;
   getNoteRegistrationsByNote(noteId: string): Promise<NoteRegistration[]>;
   getNoteRegistrationsByUser(userId: string): Promise<NoteRegistration[]>;
+  
+  // Activities
+  getActivitiesByUser(userId: string, limit?: number): Promise<Activity[]>;
+  createActivity(activity: InsertActivity): Promise<Activity>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -287,6 +294,19 @@ export class DatabaseStorage implements IStorage {
 
   async getNoteRegistrationsByUser(userId: string): Promise<NoteRegistration[]> {
     return await db.select().from(noteRegistrations).where(eq(noteRegistrations.userId, userId)).orderBy(desc(noteRegistrations.createdAt));
+  }
+
+  // Activities
+  async getActivitiesByUser(userId: string, limit: number = 10): Promise<Activity[]> {
+    return await db.select().from(activities).where(eq(activities.userId, userId)).orderBy(desc(activities.activityDate)).limit(limit);
+  }
+
+  async createActivity(insertActivity: InsertActivity): Promise<Activity> {
+    const [activity] = await db
+      .insert(activities)
+      .values(insertActivity)
+      .returning();
+    return activity;
   }
 }
 

@@ -1,13 +1,14 @@
 import Layout from "@/components/layout";
 import { StatCard } from "@/components/stat-card";
-import { DollarSign, PieChart, TrendingUp, ArrowRight, Info, Percent } from "lucide-react";
+import { DollarSign, PieChart, TrendingUp, ArrowRight, Info, Percent, Banknote, Gift, FileCheck } from "lucide-react";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMyParticipations, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
+import { useMyParticipations, useMyActivities, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
 
 const chartData = [
   { month: "Jan", interest: 850, principal: 100 },

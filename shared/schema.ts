@@ -119,6 +119,29 @@ export const noteRegistrations = pgTable("note_registrations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const activities = pgTable("activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  participationId: varchar("participation_id").references(() => participations.id, { onDelete: "cascade" }),
+  type: text("type").notNull(), // 'funding' | 'payment' | 'bonus'
+  description: text("description").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  noteId: text("note_id"),
+  activityDate: timestamp("activity_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const activitiesRelations = relations(activities, ({ one }) => ({
+  user: one(users, {
+    fields: [activities.userId],
+    references: [users.id],
+  }),
+  participation: one(participations, {
+    fields: [activities.participationId],
+    references: [participations.id],
+  }),
+}));
+
 export const noteRegistrationsRelations = relations(noteRegistrations, ({ one }) => ({
   note: one(notes, {
     fields: [noteRegistrations.noteId],
@@ -223,6 +246,11 @@ export const insertNoteRegistrationSchema = createInsertSchema(noteRegistrations
   createdAt: true,
 });
 
+export const insertActivitySchema = createInsertSchema(activities).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -246,3 +274,6 @@ export type ParticipationDocument = typeof participationDocuments.$inferSelect;
 
 export type InsertNoteRegistration = z.infer<typeof insertNoteRegistrationSchema>;
 export type NoteRegistration = typeof noteRegistrations.$inferSelect;
+
+export type InsertActivity = z.infer<typeof insertActivitySchema>;
+export type Activity = typeof activities.$inferSelect;
