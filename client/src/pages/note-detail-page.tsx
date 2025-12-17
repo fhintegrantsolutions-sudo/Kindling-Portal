@@ -13,8 +13,10 @@ import {
   Download,
   CheckCircle2,
   Clock,
-  XCircle
+  XCircle,
+  Info
 } from "lucide-react";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { 
   useParticipation, 
@@ -204,6 +206,16 @@ export default function NoteDetailPage() {
               <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
                 <DollarSign className="w-4 h-4" />
                 Remaining Balance
+                <TooltipProvider>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3.5 w-3.5 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-sm">
+                      <p>Updates on the 25th of every month when payments are applied.</p>
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
               </div>
               <p className="text-2xl font-bold">{formatCurrency(remainingBalance)}</p>
             </CardContent>
@@ -216,6 +228,16 @@ export default function NoteDetailPage() {
               <CardTitle className="font-serif text-xl flex items-center gap-2">
                 <DollarSign className="w-5 h-5" />
                 Earnings Summary
+                <TooltipProvider>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-sm">
+                      <p>Updates on the 25th of every month when payments are applied.</p>
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
               </CardTitle>
             </CardHeader>
             <CardContent>
