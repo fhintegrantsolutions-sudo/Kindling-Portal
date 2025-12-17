@@ -14,8 +14,10 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  Info
+  Info,
+  StickyNote
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { 
@@ -354,49 +356,68 @@ export default function NoteDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2" data-testid="card-lender-documents">
-            <CardHeader>
-              <CardTitle className="font-serif text-xl flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Lender Documents
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loadingDocuments ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </div>
-              ) : documents && documents.length > 0 ? (
-                <div className="space-y-3">
-                  {documents.map((doc, index) => (
-                    <div 
-                      key={doc.id} 
-                      className="flex items-center justify-between p-3 rounded-lg border bg-secondary/20 hover:bg-secondary/40 transition-colors"
-                      data-testid={`doc-item-${index}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-primary" />
-                        <div>
-                          <p className="font-medium text-sm">{doc.fileName}</p>
-                          <p className="text-xs text-muted-foreground">{doc.type}</p>
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <Card data-testid="card-lender-documents">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-serif text-lg flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Lender Documents
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {loadingDocuments ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : documents && documents.length > 0 ? (
+                  <div className="space-y-2">
+                    {documents.map((doc, index) => (
+                      <div 
+                        key={doc.id} 
+                        className="flex items-center justify-between p-2 rounded-lg border bg-secondary/20 hover:bg-secondary/40 transition-colors"
+                        data-testid={`doc-item-${index}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-primary" />
+                          <div>
+                            <p className="font-medium text-sm">{doc.fileName}</p>
+                            <p className="text-xs text-muted-foreground">{doc.type}</p>
+                          </div>
                         </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" data-testid={`button-download-doc-${index}`}>
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="icon" asChild>
-                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" data-testid={`button-download-doc-${index}`}>
-                          <Download className="w-4 h-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-8" data-testid="text-no-documents">
-                  No documents available yet.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-4 text-sm" data-testid="text-no-documents">
+                    No documents available yet.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-user-notes">
+              <CardHeader className="pb-3">
+                <CardTitle className="font-serif text-lg flex items-center gap-2">
+                  <StickyNote className="w-4 h-4" />
+                  My Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Textarea 
+                  placeholder="Add your personal notes about this investment..."
+                  className="min-h-[120px] resize-none"
+                  data-testid="textarea-user-notes"
+                />
+                <p className="text-xs text-muted-foreground mt-2">Notes are saved automatically.</p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         <Card data-testid="card-note-details">
