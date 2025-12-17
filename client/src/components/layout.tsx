@@ -2,23 +2,43 @@ import { Link, useLocation } from "wouter";
 import { NAV_ITEMS } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Menu, ChevronDown, Building2, User } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useCurrentUser } from "@/lib/api";
+import { useCurrentUser, useMyEntities } from "@/lib/api";
+import { useEntity } from "@/contexts/entity-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { data: user } = useCurrentUser();
+  const { data: entities } = useMyEntities();
+  const { selectedEntity, setSelectedEntity } = useEntity();
+  
+  useEffect(() => {
+    if (entities && entities.length > 0 && !selectedEntity) {
+      const defaultEntity = entities.find(e => e.isDefault) || entities[0];
+      setSelectedEntity(defaultEntity);
+    }
+  }, [entities, selectedEntity, setSelectedEntity]);
   
   const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
+  
+  const getEntityIcon = (type: string) => {
+    return type === "Personal" ? User : Building2;
+  };
 
   const NavContent = () => (
     <div className="flex flex-col h-full bg-sidebar text-sidebar-foreground">
       <div className="p-6 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mb-4">
           <img 
             src="/attached_assets/Kindling_Logo_Transparent_1765674411263.png" 
             alt="Kindling Logo" 
@@ -28,6 +48,53 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             Kindling
           </span>
         </div>
+        {entities && entities.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="w-full justify-between border-sidebar-border bg-sidebar-accent/50 hover:bg-sidebar-accent text-sidebar-foreground"
+                data-testid="dropdown-entity-selector"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  {selectedEntity && (
+                    <>
+                      {selectedEntity.type === "Personal" ? (
+                        <User className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <Building2 className="h-4 w-4 shrink-0" />
+                      )}
+                      <span className="truncate">{selectedEntity.name}</span>
+                    </>
+                  )}
+                </div>
+                <ChevronDown className="h-4 w-4 shrink-0 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[200px]">
+              {entities.map((entity) => (
+                <DropdownMenuItem
+                  key={entity.id}
+                  onClick={() => setSelectedEntity(entity)}
+                  className={cn(
+                    "cursor-pointer",
+                    selectedEntity?.id === entity.id && "bg-accent"
+                  )}
+                  data-testid={`menu-item-entity-${entity.id}`}
+                >
+                  <div className="flex items-center gap-2">
+                    {entity.type === "Personal" ? (
+                      <User className="h-4 w-4" />
+                    ) : (
+                      <Building2 className="h-4 w-4" />
+                    )}
+                    <span>{entity.name}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <div className="flex-1 py-6 px-4 space-y-2">

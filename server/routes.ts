@@ -270,5 +270,19 @@ export async function registerRoutes(
     }
   });
 
+  // Investor Entities
+  app.get("/api/my-entities", async (req, res) => {
+    try {
+      const demoUser = await storage.getUserByUsername("kdavidsh");
+      if (!demoUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const entities = await storage.getEntitiesByUser(demoUser.id);
+      res.json(entities);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch entities" });
+    }
+  });
+
   return httpServer;
 }
