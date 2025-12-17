@@ -8,19 +8,62 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip,
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMyParticipations, useMyActivities, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
-
-const chartData = [
-  { month: "Jan", interest: 850, principal: 100 },
-  { month: "Feb", interest: 900, principal: 200 },
-  { month: "Mar", interest: 880, principal: 170 },
-  { month: "Apr", interest: 950, principal: 250 },
-  { month: "May", interest: 980, principal: 270 },
-  { month: "Jun", interest: 950, principal: 300 },
-];
+import { format, addMonths } from "date-fns";
+import { useMemo } from "react";
 
 export default function DashboardPage() {
   const { data: participations, isLoading } = useMyParticipations();
+
+  const chartData = useMemo(() => {
+    if (!participations || participations.length === 0) return [];
+    
+    const monthlyData: Record<string, { month: string; interest: number; principal: number }> = {};
+    
+    participations.forEach((p) => {
+      const invested = parseFloat(p.investedAmount);
+      const notePrincipal = parseFloat(p.note.principal);
+      const rate = parseFloat(p.note.rate);
+      const termMonths = p.note.termMonths;
+      const monthlyRate = rate / 100 / 12;
+      const share = notePrincipal > 0 ? invested / notePrincipal : 0;
+      
+      const noteMonthlyPayment = p.note.monthlyPayment 
+        ? parseFloat(p.note.monthlyPayment) 
+        : (invested * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / (Math.pow(1 + monthlyRate, termMonths) - 1);
+      
+      const scaledPayment = p.note.monthlyPayment ? noteMonthlyPayment * share : noteMonthlyPayment;
+      
+      let startDate = p.note.paymentStartDate 
+        ? new Date(p.note.paymentStartDate) 
+        : new Date(p.purchaseDate);
+      startDate.setDate(25);
+      
+      let balance = invested;
+      
+      for (let i = 0; i < termMonths && balance > 0.01; i++) {
+        const paymentDate = addMonths(startDate, i);
+        const monthKey = format(paymentDate, "MMM yyyy");
+        
+        const interestPayment = balance * monthlyRate;
+        const principalPayment = Math.min(scaledPayment - interestPayment, balance);
+        
+        if (!monthlyData[monthKey]) {
+          monthlyData[monthKey] = { month: monthKey, interest: 0, principal: 0 };
+        }
+        
+        monthlyData[monthKey].interest += interestPayment;
+        monthlyData[monthKey].principal += principalPayment;
+        
+        balance -= principalPayment;
+      }
+    });
+    
+    return Object.values(monthlyData).sort((a, b) => {
+      const dateA = new Date(a.month);
+      const dateB = new Date(b.month);
+      return dateA.getTime() - dateB.getTime();
+    });
+  }, [participations]);
 
   const totalInvested = participations?.reduce((sum, p) => sum + parseFloat(p.investedAmount), 0) || 0;
   const activeNotes = participations?.length || 0;
