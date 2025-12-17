@@ -10,7 +10,7 @@ export default function OpportunitiesPage() {
     <Layout>
       <div className="space-y-8">
         <div className="max-w-3xl space-y-4">
-          <h1 className="text-3xl font-serif font-bold text-foreground" data-testid="text-opportunities-title">Investment Opportunities</h1>
+          <h1 className="text-3xl font-serif font-bold text-foreground" data-testid="text-opportunities-title">Next Note Opportunity</h1>
           <p className="text-muted-foreground text-lg" data-testid="text-opportunities-description">
             Browse our curated selection of private note opportunities. Register your interest to lock in your participation for the next funding round.
           </p>

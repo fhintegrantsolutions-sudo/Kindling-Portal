@@ -15,7 +15,7 @@ import {
 export const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "My Notes", icon: PieChart, href: "/notes" },
-  { label: "Opportunities", icon: TrendingUp, href: "/opportunities" },
+  { label: "Next Note Opportunity", icon: TrendingUp, href: "/opportunities" },
   { label: "Profile & Documents", icon: User, href: "/profile" },
 ];
 
