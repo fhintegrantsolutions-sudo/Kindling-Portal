@@ -169,17 +169,6 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-secondary/30">
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground">
-                  To update bank account information for payments from a note, please contact{" "}
-                  <a href="mailto:info@kindling.network" className="text-primary hover:underline font-medium">
-                    info@kindling.network
-                  </a>
-                </p>
-              </CardContent>
-            </Card>
-
             <Card className="border-none shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -406,6 +395,17 @@ export default function ProfilePage() {
                     <p className="text-xs text-sidebar-foreground/50">No documents uploaded yet.</p>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-sidebar/50 border-none">
+              <CardContent className="pt-6">
+                <p className="text-sm text-sidebar-foreground/80">
+                  To update bank account information for payments from a note, please contact{" "}
+                  <a href="mailto:info@kindling.network" className="text-sidebar-primary hover:underline font-medium">
+                    info@kindling.network
+                  </a>
+                </p>
               </CardContent>
             </Card>
           </div>
