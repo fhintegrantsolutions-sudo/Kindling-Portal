@@ -250,7 +250,6 @@ export default function NoteDetailPage() {
                       <TableHead>Interest</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Remaining Balance</TableHead>
-                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -269,14 +268,6 @@ export default function NoteDetailPage() {
                           </TableCell>
                           <TableCell className="font-medium">
                             {formatCurrencyPrecise(remainingBalanceForRow)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusBadgeClass(payment.status)} data-testid={`badge-payment-status-${index}`}>
-                              <span className="flex items-center gap-1">
-                                {getStatusIcon(payment.status)}
-                                {payment.status}
-                              </span>
-                            </Badge>
                           </TableCell>
                         </TableRow>
                       );
