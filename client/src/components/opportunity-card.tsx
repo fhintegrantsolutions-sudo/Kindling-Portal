@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, ArrowUpRight, Clock, Percent, Calendar } from "lucide-react";
+import { ArrowUpRight, Clock, Percent, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { Note } from "@shared/schema";
 import { formatCurrency, formatRate, formatTerm } from "@/lib/api";
@@ -15,7 +15,6 @@ interface OpportunityCardProps {
 export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const targetRaise = opportunity.targetRaise ? parseFloat(opportunity.targetRaise) : 0;
   const minInvestment = opportunity.minInvestment ? parseFloat(opportunity.minInvestment) : 0;
   const rate = parseFloat(opportunity.rate || "0");
   const closingDate = opportunity.fundingEndDate || opportunity.maturityDate;
@@ -63,18 +62,6 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
           </div>
 
           <div className="space-y-3 text-sm">
-            {targetRaise > 0 && (
-              <div className="flex justify-between items-center py-2 border-b border-border/50">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-primary/70" /> Target Raise
-                </span>
-                <span className="font-medium" data-testid={`text-target-${opportunity.id}`}>
-                  {targetRaise >= 1000000 
-                    ? `$${(targetRaise / 1000000).toFixed(1)}M` 
-                    : formatCurrency(targetRaise)}
-                </span>
-              </div>
-            )}
             {minInvestment > 0 && (
               <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="text-muted-foreground flex items-center gap-2">
