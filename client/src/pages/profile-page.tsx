@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentUser, useMyBeneficiaries, useMyDocuments } from "@/lib/api";
-import { FileText, HelpCircle, Plus, Trash2, Upload, User, ExternalLink } from "lucide-react";
+import { FileText, HelpCircle, Plus, Trash2, Upload, User, ExternalLink, Building2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -112,6 +112,60 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <Button variant="outline" className="w-full sm:w-auto" data-testid="button-update-profile">Update Profile</Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-full">
+                    <Building2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Entity Information</CardTitle>
+                    <CardDescription>For investments held by a business or trust</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Entity Type</Label>
+                  <Select defaultValue="individual">
+                    <SelectTrigger data-testid="select-entity-type">
+                      <SelectValue placeholder="Select entity type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="business">Business (LLC, Corp, Partnership)</SelectItem>
+                      <SelectItem value="trust">Trust</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Entity Name</Label>
+                    <Input placeholder="Business or Trust name" data-testid="input-entity-name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>EIN / Tax ID</Label>
+                    <Input placeholder="XX-XXXXXXX" data-testid="input-entity-ein" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Entity Address (if different from personal)</Label>
+                  <Input placeholder="123 Business St, City, State ZIP" data-testid="input-entity-address" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>State of Formation</Label>
+                    <Input placeholder="State" data-testid="input-entity-state" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date of Formation</Label>
+                    <Input type="date" data-testid="input-entity-formation-date" />
+                  </div>
+                </div>
+                <Button variant="outline" className="w-full sm:w-auto" data-testid="button-update-entity">Update Entity</Button>
               </CardContent>
             </Card>
 
