@@ -1,279 +1,222 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, timestamp, boolean } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { Timestamp } from "firebase-admin/firestore";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  phone: text("phone"),
-  address: text("address"),
-  city: text("city"),
-  state: text("state"),
-  zipCode: text("zip_code"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Zod schemas for validation
+export const insertUserSchema = z.object({
+  username: z.string().min(1),
+  password: z.string().min(6),
+  name: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  role: z.enum(["admin", "lender"]).default("lender"),
 });
 
-export const notes = pgTable("notes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  noteId: text("note_id").notNull().unique(),
-  borrower: text("borrower").notNull(),
-  title: text("title").notNull(),
-  principal: decimal("principal", { precision: 12, scale: 2 }).notNull(),
-  rate: decimal("rate", { precision: 5, scale: 2 }).notNull(),
-  termMonths: integer("term_months").notNull(),
-  contractDate: timestamp("contract_date"),
-  paymentStartDate: timestamp("payment_start_date"),
-  maturityDate: timestamp("maturity_date"),
-  monthlyPayment: decimal("monthly_payment", { precision: 12, scale: 2 }),
-  status: text("status").notNull().default("Active"),
-  type: text("type").notNull(),
-  interestType: text("interest_type").notNull().default("Amortized"),
-  description: text("description"),
-  targetRaise: decimal("target_raise", { precision: 12, scale: 2 }),
-  minInvestment: decimal("min_investment", { precision: 12, scale: 2 }),
-  fundingStartDate: timestamp("funding_start_date"),
-  fundingEndDate: timestamp("funding_end_date"),
-  firstPaymentDate: text("first_payment_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertNoteSchema = z.object({
+  noteId: z.string().min(1),
+  borrower: z.string().min(1),
+  title: z.string().min(1),
+  principal: z.string(),
+  rate: z.string(),
+  termMonths: z.number().int().positive(),
+  termYears: z.number().optional(),
+  projectType: z.string().min(1),
+  loanPaymentStatus: z.string().default("Current"),
+  contractDate: z.union([z.date(), z.string()]).optional(),
+  paymentStartDate: z.union([z.date(), z.string()]).optional(),
+  maturityDate: z.union([z.date(), z.string()]).optional(),
+  fundingStartDate: z.union([z.date(), z.string()]).optional(),
+  fundingEndDate: z.union([z.date(), z.string()]).optional(),
+  fundingWindowEnd: z.union([z.date(), z.string()]).optional(),
+  firstPaymentDate: z.union([z.date(), z.string()]).optional(),
+  monthlyPayment: z.string().optional(),
+  status: z.string().default("Active"),
+  clientStatus: z.string().default("Available"),
+  type: z.string(),
+  interestType: z.string().default("Amortized"),
+  description: z.string().optional(),
+  targetRaise: z.string().optional(),
+  minInvestment: z.string().optional(),
 });
 
-export const participations = pgTable("participations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  noteId: varchar("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
-  investedAmount: decimal("invested_amount", { precision: 12, scale: 2 }).notNull(),
-  purchaseDate: timestamp("purchase_date").notNull(),
-  status: text("status").notNull().default("Active"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertParticipationSchema = z.object({
+  userId: z.string().min(1),
+  noteId: z.string().min(1),
+  investedAmount: z.string(),
+  purchaseDate: z.union([z.date(), z.string()]),
+  status: z.string().default("Active"),
+  fundingStatus: z.object({
+    received: z.boolean().default(false),
+    deposited: z.boolean().default(false),
+    cleared: z.boolean().default(false),
+  }).optional(),
 });
 
-export const payments = pgTable("payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  participationId: varchar("participation_id").notNull().references(() => participations.id, { onDelete: "cascade" }),
-  paymentDate: timestamp("payment_date").notNull(),
-  principalAmount: decimal("principal_amount", { precision: 12, scale: 2 }).notNull(),
-  interestAmount: decimal("interest_amount", { precision: 12, scale: 2 }).notNull(),
-  status: text("status").notNull().default("Scheduled"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertPaymentSchema = z.object({
+  participationId: z.string().min(1),
+  paymentDate: z.union([z.date(), z.string()]),
+  principalAmount: z.string(),
+  interestAmount: z.string(),
+  status: z.string().default("Scheduled"),
 });
 
-export const beneficiaries = pgTable("beneficiaries", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  relation: text("relation").notNull(),
-  percentage: integer("percentage").notNull(),
-  type: text("type").notNull().default("Primary"),
-  dob: text("dob"),
-  phone: text("phone"),
-  address: text("address"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertBeneficiarySchema = z.object({
+  userId: z.string().min(1),
+  name: z.string().min(1),
+  relation: z.string().min(1),
+  percentage: z.number().int().min(0).max(100),
+  type: z.string().default("Primary"),
+  dob: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
 });
 
-export const documents = pgTable("documents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  type: text("type").notNull(),
-  fileName: text("file_name").notNull(),
-  fileUrl: text("file_url").notNull(),
-  status: text("status").notNull().default("Pending"),
-  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+export const insertDocumentSchema = z.object({
+  userId: z.string().min(1),
+  type: z.string().min(1),
+  fileName: z.string().min(1),
+  fileUrl: z.string().url(),
+  status: z.string().default("Pending"),
 });
 
-export const participationDocuments = pgTable("participation_documents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  participationId: varchar("participation_id").notNull().references(() => participations.id, { onDelete: "cascade" }),
-  type: text("type").notNull(),
-  fileName: text("file_name").notNull(),
-  fileUrl: text("file_url").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertParticipationDocumentSchema = z.object({
+  participationId: z.string().min(1),
+  type: z.string().min(1),
+  fileName: z.string().min(1),
+  fileUrl: z.string().url(),
 });
 
-export const noteRegistrations = pgTable("note_registrations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  noteId: varchar("note_id").notNull().references(() => notes.id, { onDelete: "cascade" }),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  phone: text("phone").notNull(),
-  email: text("email").notNull(),
-  entityType: text("entity_type").notNull(),
-  nameForAgreement: text("name_for_agreement").notNull(),
-  mailingAddress: text("mailing_address").notNull(),
-  city: text("city").notNull(),
-  state: text("state").notNull(),
-  zipCode: text("zip_code").notNull(),
-  investmentAmount: decimal("investment_amount", { precision: 12, scale: 2 }).notNull(),
-  bankName: text("bank_name").notNull(),
-  bankAccountType: text("bank_account_type").notNull(),
-  bankAccountNumber: text("bank_account_number").notNull(),
-  bankRoutingNumber: text("bank_routing_number").notNull(),
-  bankAccountAddress: text("bank_account_address"),
-  acknowledgeLender: boolean("acknowledge_lender").notNull().default(false),
-  status: text("status").notNull().default("Pending"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertNoteRegistrationSchema = z.object({
+  noteId: z.string().min(1),
+  userId: z.string().optional(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  phone: z.string().min(1),
+  email: z.string().email(),
+  entityType: z.string().min(1),
+  nameForAgreement: z.string().min(1),
+  mailingAddress: z.string().min(1),
+  city: z.string().min(1),
+  state: z.string().min(1),
+  zipCode: z.string().min(1),
+  investmentAmount: z.string(),
+  bankName: z.string().min(1),
+  bankAccountType: z.string().min(1),
+  bankAccountNumber: z.string().min(1),
+  bankRoutingNumber: z.string().min(1),
+  bankAccountAddress: z.string().optional(),
+  acknowledgeLender: z.boolean().default(false),
+  status: z.string().default("Pending"),
 });
 
-export const activities = pgTable("activities", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  participationId: varchar("participation_id").references(() => participations.id, { onDelete: "cascade" }),
-  type: text("type").notNull(), // 'funding' | 'payment' | 'bonus'
-  description: text("description").notNull(),
-  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
-  noteId: text("note_id"),
-  activityDate: timestamp("activity_date").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertActivitySchema = z.object({
+  userId: z.string().min(1),
+  participationId: z.string().optional(),
+  type: z.string().min(1),
+  description: z.string().min(1),
+  amount: z.string(),
+  noteId: z.string().optional(),
+  activityDate: z.union([z.date(), z.string()]),
 });
 
-export const activitiesRelations = relations(activities, ({ one }) => ({
-  user: one(users, {
-    fields: [activities.userId],
-    references: [users.id],
-  }),
-  participation: one(participations, {
-    fields: [activities.participationId],
-    references: [participations.id],
-  }),
-}));
-
-export const noteRegistrationsRelations = relations(noteRegistrations, ({ one }) => ({
-  note: one(notes, {
-    fields: [noteRegistrations.noteId],
-    references: [notes.id],
-  }),
-  user: one(users, {
-    fields: [noteRegistrations.userId],
-    references: [users.id],
-  }),
-}));
-
-export const usersRelations = relations(users, ({ many }) => ({
-  participations: many(participations),
-  beneficiaries: many(beneficiaries),
-  documents: many(documents),
-  registrations: many(noteRegistrations),
-}));
-
-export const notesRelations = relations(notes, ({ many }) => ({
-  participations: many(participations),
-  registrations: many(noteRegistrations),
-}));
-
-export const participationsRelations = relations(participations, ({ one, many }) => ({
-  user: one(users, {
-    fields: [participations.userId],
-    references: [users.id],
-  }),
-  note: one(notes, {
-    fields: [participations.noteId],
-    references: [notes.id],
-  }),
-  payments: many(payments),
-  documents: many(participationDocuments),
-}));
-
-export const participationDocumentsRelations = relations(participationDocuments, ({ one }) => ({
-  participation: one(participations, {
-    fields: [participationDocuments.participationId],
-    references: [participations.id],
-  }),
-}));
-
-export const paymentsRelations = relations(payments, ({ one }) => ({
-  participation: one(participations, {
-    fields: [payments.participationId],
-    references: [participations.id],
-  }),
-}));
-
-export const beneficiariesRelations = relations(beneficiaries, ({ one }) => ({
-  user: one(users, {
-    fields: [beneficiaries.userId],
-    references: [users.id],
-  }),
-}));
-
-export const documentsRelations = relations(documents, ({ one }) => ({
-  user: one(users, {
-    fields: [documents.userId],
-    references: [users.id],
-  }),
-}));
-
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
+export const insertBorrowerSchema = z.object({
+  businessName: z.string().min(1),
+  contactName: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().min(1),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  taxId: z.string().optional(),
+  businessType: z.string().optional(),
+  notes: z.string().optional(),
 });
 
-export const insertNoteSchema = createInsertSchema(notes).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertParticipationSchema = createInsertSchema(participations).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertPaymentSchema = createInsertSchema(payments).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertBeneficiarySchema = createInsertSchema(beneficiaries).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertDocumentSchema = createInsertSchema(documents).omit({
-  id: true,
-  uploadedAt: true,
-});
-
-export const insertParticipationDocumentSchema = createInsertSchema(participationDocuments).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertNoteRegistrationSchema = createInsertSchema(noteRegistrations).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertActivitySchema = createInsertSchema(activities).omit({
-  id: true,
-  createdAt: true,
-});
-
+// TypeScript types for Firestore documents
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export interface User extends InsertUser {
+  id: string;
+  createdAt: Date | Timestamp;
+}
 
 export type InsertNote = z.infer<typeof insertNoteSchema>;
-export type Note = typeof notes.$inferSelect;
+export interface Note extends Omit<InsertNote, 'contractDate' | 'paymentStartDate' | 'maturityDate' | 'fundingStartDate' | 'fundingEndDate' | 'fundingWindowEnd' | 'firstPaymentDate'> {
+  id: string;
+  contractDate?: Date | Timestamp;
+  paymentStartDate?: Date | Timestamp;
+  maturityDate?: Date | Timestamp;
+  fundingStartDate?: Date | Timestamp;
+  fundingEndDate?: Date | Timestamp;
+  fundingWindowEnd?: Date | Timestamp;
+  firstPaymentDate?: Date | Timestamp;
+  createdAt: Date | Timestamp;
+}
 
 export type InsertParticipation = z.infer<typeof insertParticipationSchema>;
-export type Participation = typeof participations.$inferSelect;
+export interface Participation extends Omit<InsertParticipation, 'purchaseDate'> {
+  id: string;
+  purchaseDate: Date | Timestamp;
+  createdAt: Date | Timestamp;
+}
 
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-export type Payment = typeof payments.$inferSelect;
+export interface Payment extends Omit<InsertPayment, 'paymentDate'> {
+  id: string;
+  paymentDate: Date | Timestamp;
+  createdAt: Date | Timestamp;
+}
 
 export type InsertBeneficiary = z.infer<typeof insertBeneficiarySchema>;
-export type Beneficiary = typeof beneficiaries.$inferSelect;
+export interface Beneficiary extends InsertBeneficiary {
+  id: string;
+  createdAt: Date | Timestamp;
+}
 
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
-export type Document = typeof documents.$inferSelect;
+export interface Document extends InsertDocument {
+  id: string;
+  uploadedAt: Date | Timestamp;
+}
 
 export type InsertParticipationDocument = z.infer<typeof insertParticipationDocumentSchema>;
-export type ParticipationDocument = typeof participationDocuments.$inferSelect;
+export interface ParticipationDocument extends InsertParticipationDocument {
+  id: string;
+  createdAt: Date | Timestamp;
+}
 
 export type InsertNoteRegistration = z.infer<typeof insertNoteRegistrationSchema>;
-export type NoteRegistration = typeof noteRegistrations.$inferSelect;
+export interface NoteRegistration extends InsertNoteRegistration {
+  id: string;
+  createdAt: Date | Timestamp;
+}
 
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
-export type Activity = typeof activities.$inferSelect;
+export interface Activity extends Omit<InsertActivity, 'activityDate'> {
+  id: string;
+  activityDate: Date | Timestamp;
+  createdAt: Date | Timestamp;
+}
+
+export type InsertBorrower = z.infer<typeof insertBorrowerSchema>;
+export interface Borrower extends InsertBorrower {
+  id: string;
+  createdAt: Date | Timestamp;
+}
+
+// Firestore collection names
+export const COLLECTIONS = {
+  USERS: "users",
+  NOTES: "notes",
+  PARTICIPATIONS: "participations",
+  PAYMENTS: "payments",
+  BENEFICIARIES: "beneficiaries",
+  DOCUMENTS: "documents",
+  PARTICIPATION_DOCUMENTS: "participation_documents",
+  NOTE_REGISTRATIONS: "note_registrations",
+  ACTIVITIES: "activities",
+  BORROWERS: "borrowers",
+} as const;

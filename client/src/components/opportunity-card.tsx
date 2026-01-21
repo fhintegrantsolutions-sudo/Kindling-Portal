@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Clock, Percent, Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import type { Note } from "@shared/schema";
 import { formatCurrency, formatRate, formatTerm } from "@/lib/api";
 import { RegistrationDialog } from "./registration-dialog";
@@ -18,6 +18,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   const minInvestment = opportunity.minInvestment ? parseFloat(opportunity.minInvestment) : 0;
   const rate = parseFloat(opportunity.rate || "0");
   const closingDate = opportunity.fundingEndDate || opportunity.maturityDate;
+  const daysUntilClose = closingDate ? differenceInDays(new Date(closingDate), new Date()) : null;
 
   return (
     <>
@@ -25,12 +26,17 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         <CardHeader>
           <div className="flex justify-between items-start mb-2">
             <Badge variant="secondary" className="font-medium bg-primary/10 text-primary hover:bg-primary/20" data-testid={`badge-status-${opportunity.id}`}>
-              {opportunity.status === "Funding" ? "Now Funding" : "Open for Investment"}
+              {opportunity.status === "Funding" ? "Now Funding" : "Pre Register Now"}
             </Badge>
-            {closingDate && (
-              <span className="text-xs font-medium text-muted-foreground flex items-center gap-1" data-testid={`text-closing-${opportunity.id}`}>
-                <Clock className="w-3 h-3" /> Closes {format(new Date(closingDate), "MMM d")}
-              </span>
+            {closingDate && daysUntilClose !== null && (
+              <div className="text-xs font-medium text-muted-foreground flex flex-col items-end gap-0.5" data-testid={`text-closing-${opportunity.id}`}>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Closes {format(new Date(closingDate), "MMMM d")}
+                </span>
+                <span className="text-[10px] text-primary font-semibold">
+                  {daysUntilClose > 0 ? `${daysUntilClose} days open for funding` : daysUntilClose === 0 ? 'Closes today' : 'Closed'}
+                </span>
+              </div>
             )}
           </div>
           <CardTitle className="font-serif text-2xl leading-tight mb-2" data-testid={`text-title-${opportunity.id}`}>

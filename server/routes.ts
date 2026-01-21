@@ -7,9 +7,30 @@ import {
   insertBeneficiarySchema,
   insertDocumentSchema,
   insertParticipationDocumentSchema,
-  insertNoteRegistrationSchema
+  insertNoteRegistrationSchema,
+  insertBorrowerSchema
 } from "@shared/schema";
 import { z } from "zod";
+import { sendWelcomeEmail, sendAccountingNotification, sendPaymentConfirmation } from "./notifications";
+
+// Middleware to require admin role
+async function requireAdmin(req: any, res: any, next: any) {
+  try {
+    // For now, check if user is admin based on username
+    // In production, this should use proper session/JWT authentication
+    const username = req.headers["x-username"] || "kdavidsh";
+    const user = await storage.getUserByUsername(username as string);
+    
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(500).json({ error: "Authentication failed" });
+  }
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -28,9 +49,29 @@ export async function registerRoutes(
 
   app.get("/api/notes/opportunities", async (req, res) => {
     try {
+      const preRegister = await storage.getNotesByStatus("Pre Register");
       const funding = await storage.getNotesByStatus("Funding");
       const opportunity = await storage.getNotesByStatus("Opportunity");
-      res.json([...funding, ...opportunity]);
+      const notes = [...preRegister, ...funding, ...opportunity];
+      
+      // Enrich notes with borrower business names
+      const borrowers = await storage.getBorrowers();
+      const enrichedNotes = notes.map(note => {
+        const borrower = borrowers.find(b => b.id === note.borrower);
+        return {
+          ...note,
+          borrower: borrower?.businessName || note.borrower
+        };
+      });
+      
+      // Sort by closing date (fundingEndDate or maturityDate), earliest first
+      const sortedNotes = enrichedNotes.sort((a, b) => {
+        const dateA = new Date(a.fundingEndDate || a.maturityDate || '9999-12-31').getTime();
+        const dateB = new Date(b.fundingEndDate || b.maturityDate || '9999-12-31').getTime();
+        return dateA - dateB;
+      });
+      
+      res.json(sortedNotes);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch opportunities" });
     }
@@ -282,6 +323,241 @@ export async function registerRoutes(
       }
       console.error("Registration error:", error);
       res.status(500).json({ error: "Failed to create registration" });
+    }
+  });
+
+  // Admin Routes
+  // Get all users
+  app.get("/api/admin/users", requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  // Get all note registrations
+  app.get("/api/admin/registrations", requireAdmin, async (req, res) => {
+    try {
+      const registrations = await storage.getAllNoteRegistrations();
+      res.json(registrations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch registrations" });
+    }
+  });
+
+  // Approve registration and create user
+  app.post("/api/admin/registrations/:id/approve", requireAdmin, async (req, res) => {
+    try {
+      const registration = await storage.getNoteRegistration(req.params.id);
+      if (!registration) {
+        return res.status(404).json({ error: "Registration not found" });
+      }
+
+      // Generate temporary password
+      const tempPassword = Math.random().toString(36).slice(-8);
+      const username = registration.email.split("@")[0];
+
+      // Create user account
+      const newUser = await storage.createUser({
+        username,
+        password: tempPassword,
+        name: `${registration.firstName} ${registration.lastName}`,
+        email: registration.email,
+        phone: registration.phone,
+        address: registration.mailingAddress,
+        city: registration.city,
+        state: registration.state,
+        zipCode: registration.zipCode,
+        role: "lender",
+      });
+
+      // Update registration with user ID and status
+      await storage.updateNoteRegistration(req.params.id, {
+        userId: newUser.id,
+        status: "Approved",
+      });
+
+      // Send welcome email
+      try {
+        await sendWelcomeEmail(
+          registration.email,
+          `${registration.firstName} ${registration.lastName}`,
+          username,
+          tempPassword
+        );
+      } catch (emailError) {
+        console.error("Failed to send welcome email:", emailError);
+      }
+
+      // Send accounting notification
+      try {
+        const note = await storage.getNote(registration.noteId);
+        if (note) {
+          await sendAccountingNotification(
+            req.params.id,
+            registration.investmentAmount,
+            `${registration.firstName} ${registration.lastName}`,
+            note.title
+          );
+        }
+      } catch (emailError) {
+        console.error("Failed to send accounting notification:", emailError);
+      }
+
+      res.json({ message: "Registration approved and user created", user: newUser });
+    } catch (error) {
+      console.error("Approval error:", error);
+      res.status(500).json({ error: "Failed to approve registration" });
+    }
+  });
+
+  // Get all participations with user and note details
+  app.get("/api/admin/participations", requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getUsers();
+      const allParticipations = [];
+      
+      for (const user of users) {
+        const participations = await storage.getParticipationsByUser(user.id);
+        allParticipations.push(...participations.map(p => ({
+          ...p,
+          user: { id: user.id, name: user.name, email: user.email },
+        })));
+      }
+      
+      res.json(allParticipations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch participations" });
+    }
+  });
+
+  // Update participation funding status
+  app.patch("/api/admin/participations/:id/funding-status", requireAdmin, async (req, res) => {
+    try {
+      const { received, deposited, cleared } = req.body;
+      const participation = await storage.updateParticipation(req.params.id, {
+        fundingStatus: {
+          received: received ?? false,
+          deposited: deposited ?? false,
+          cleared: cleared ?? false,
+        },
+      });
+
+      if (!participation) {
+        return res.status(404).json({ error: "Participation not found" });
+      }
+
+      // If cleared, send confirmation email
+      if (cleared && !participation.fundingStatus?.cleared) {
+        const user = await storage.getUser(participation.userId);
+        const note = await storage.getNote(participation.noteId);
+        if (user && note) {
+          try {
+            await sendPaymentConfirmation(
+              user.email,
+              participation.investedAmount,
+              note.title,
+              new Date()
+            );
+          } catch (emailError) {
+            console.error("Failed to send payment confirmation:", emailError);
+          }
+        }
+      }
+
+      res.json(participation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update funding status" });
+    }
+  });
+
+  // Create new note
+  app.post("/api/admin/notes", requireAdmin, async (req, res) => {
+    try {
+      const validatedNote = insertNoteSchema.parse(req.body);
+      const note = await storage.createNote(validatedNote);
+      res.status(201).json(note);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
+  // Update note
+  app.patch("/api/admin/notes/:id", requireAdmin, async (req, res) => {
+    try {
+      const note = await storage.updateNote(req.params.id, req.body);
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      res.json(note);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update note" });
+    }
+  });
+
+  // Get all borrowers
+  app.get("/api/admin/borrowers", requireAdmin, async (req, res) => {
+    try {
+      const borrowers = await storage.getBorrowers();
+      res.json(borrowers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch borrowers" });
+    }
+  });
+
+  // Get single borrower
+  app.get("/api/admin/borrowers/:id", requireAdmin, async (req, res) => {
+    try {
+      const borrower = await storage.getBorrower(req.params.id);
+      if (!borrower) {
+        return res.status(404).json({ error: "Borrower not found" });
+      }
+      res.json(borrower);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch borrower" });
+    }
+  });
+
+  // Create borrower
+  app.post("/api/admin/borrowers", requireAdmin, async (req, res) => {
+    try {
+      const validatedBorrower = insertBorrowerSchema.parse(req.body);
+      const borrower = await storage.createBorrower(validatedBorrower);
+      res.status(201).json(borrower);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create borrower" });
+    }
+  });
+
+  // Update borrower
+  app.patch("/api/admin/borrowers/:id", requireAdmin, async (req, res) => {
+    try {
+      const borrower = await storage.updateBorrower(req.params.id, req.body);
+      if (!borrower) {
+        return res.status(404).json({ error: "Borrower not found" });
+      }
+      res.json(borrower);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update borrower" });
+    }
+  });
+
+  app.delete("/api/admin/borrowers/:id", requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteBorrower(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      log(`Error deleting borrower: ${error}`);
+      res.status(500).json({ error: "Failed to delete borrower" });
     }
   });
 

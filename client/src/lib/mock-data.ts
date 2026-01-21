@@ -9,7 +9,8 @@ import {
   Plus,
   Trash2,
   Upload,
-  Download
+  Download,
+  Building2
 } from "lucide-react";
 
 export const NAV_ITEMS = [
