@@ -12,6 +12,8 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { sendWelcomeEmail, sendAccountingNotification, sendPaymentConfirmation } from "./notifications";
+import { auditMiddleware, setUserContext } from "./audit-middleware";
+import { complianceStorage } from "./compliance-storage";
 
 // Middleware to require admin role
 async function requireAdmin(req: any, res: any, next: any) {
@@ -25,7 +27,12 @@ async function requireAdmin(req: any, res: any, next: any) {
       return res.status(403).json({ error: "Admin access required" });
     }
     
-    req.user = user;
+    // Set user context for audit logging
+    req.user = {
+      id: user.id.toString(),
+      email: user.username,
+      name: user.username,
+    };
     next();
   } catch (error) {
     res.status(500).json({ error: "Authentication failed" });
@@ -36,6 +43,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  
+  // Apply audit middleware to all routes
+  app.use(setUserContext);
+  app.use(auditMiddleware);
   
   // Notes
   app.get("/api/notes", async (req, res) => {
@@ -558,6 +569,137 @@ export async function registerRoutes(
     } catch (error) {
       log(`Error deleting borrower: ${error}`);
       res.status(500).json({ error: "Failed to delete borrower" });
+    }
+  });
+
+  // ============================================================================
+  // COMPLIANCE ROUTES - Entity & KYC Management
+  // ============================================================================
+
+  // Get all entities
+  app.get("/api/admin/entities", requireAdmin, async (req, res) => {
+    try {
+      const entities = await complianceStorage.getEntities();
+      res.json(entities);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch entities" });
+    }
+  });
+
+  // Get single entity
+  app.get("/api/admin/entities/:id", requireAdmin, async (req, res) => {
+    try {
+      const entity = await complianceStorage.getEntity(req.params.id);
+      if (!entity) {
+        return res.status(404).json({ error: "Entity not found" });
+      }
+      res.json(entity);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch entity" });
+    }
+  });
+
+  // Get entity users
+  app.get("/api/admin/entities/:id/users", requireAdmin, async (req, res) => {
+    try {
+      const entityUsers = await complianceStorage.getEntityUsers(req.params.id);
+      res.json(entityUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch entity users" });
+    }
+  });
+
+  // Get entity documents
+  app.get("/api/admin/entities/:id/documents", requireAdmin, async (req, res) => {
+    try {
+      const documents = await complianceStorage.getDocuments({ entityId: req.params.id });
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch entity documents" });
+    }
+  });
+
+  // Update entity KYC status
+  app.patch("/api/admin/entities/:id/kyc-status", requireAdmin, async (req, res) => {
+    try {
+      const { status, rejectionReason } = req.body;
+      
+      const updateData: any = {
+        kycStatus: status,
+        kycReviewedAt: new Date(),
+        kycReviewedBy: req.user?.id,
+      };
+
+      if (status === 'rejected' && rejectionReason) {
+        updateData.rejectionReason = rejectionReason;
+      }
+
+      const entity = await complianceStorage.updateEntity(req.params.id, updateData);
+      if (!entity) {
+        return res.status(404).json({ error: "Entity not found" });
+      }
+      res.json(entity);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update KYC status" });
+    }
+  });
+
+  // Approve document
+  app.post("/api/admin/documents/:id/approve", requireAdmin, async (req, res) => {
+    try {
+      const document = await complianceStorage.updateDocument(req.params.id, {
+        status: 'approved',
+        reviewedAt: new Date(),
+        reviewedBy: req.user?.id,
+      });
+      
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to approve document" });
+    }
+  });
+
+  // Reject document
+  app.post("/api/admin/documents/:id/reject", requireAdmin, async (req, res) => {
+    try {
+      const { reason } = req.body;
+      
+      const document = await complianceStorage.updateDocument(req.params.id, {
+        status: 'rejected',
+        reviewedAt: new Date(),
+        reviewedBy: req.user?.id,
+        rejectionReason: reason,
+      });
+      
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reject document" });
+    }
+  });
+
+  // Get audit logs
+  app.get("/api/admin/audit-logs", requireAdmin, async (req, res) => {
+    try {
+      const { userId, action, resource, startDate, endDate, limit } = req.query;
+      
+      const logs = await complianceStorage.getAuditLogs({
+        userId: userId as string,
+        action: action as string,
+        resource: resource as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined,
+        limit: limit ? parseInt(limit as string) : 100,
+      });
+      
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch audit logs" });
     }
   });
 

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, X, UserCheck, DollarSign, Building2, LayoutDashboard, FileText } from "lucide-react";
+import { LogOut, Menu, X, UserCheck, DollarSign, Building2, LayoutDashboard, FileText, Users } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const ADMIN_NAV_ITEMS = [
   { label: "Overview", icon: LayoutDashboard, href: "/admin" },
   { label: "Registrations", icon: UserCheck, href: "/admin/registrations" },
+  { label: "Entities & KYC", icon: Users, href: "/admin/entities" },
   { label: "Payments", icon: DollarSign, href: "/admin/payments" },
   { label: "Notes", icon: FileText, href: "/admin/notes" },
   { label: "Borrowers", icon: Building2, href: "/admin/borrowers" },
