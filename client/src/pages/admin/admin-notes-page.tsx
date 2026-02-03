@@ -302,11 +302,18 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
             const years = months ? (parseFloat(months) / 12).toFixed(2) : "";
             let maturityDate = formData.maturityDate;
             
-            // Calculate maturity date if payment start date exists
+            // Calculate maturity date if payment start date exists (last payment date)
             if (formData.paymentStartDate && months) {
-              const startDate = new Date(formData.paymentStartDate);
-              startDate.setMonth(startDate.getMonth() + parseInt(months));
-              maturityDate = startDate.toISOString().split('T')[0];
+              const [year, month, day] = formData.paymentStartDate.split('-').map(Number);
+              const startDate = new Date(year, month - 1, day);
+              // Add (termMonths - 1) because first payment is at month 0
+              startDate.setMonth(startDate.getMonth() + parseInt(months) - 1);
+              
+              // Format as YYYY-MM-DD without timezone issues
+              const newYear = startDate.getFullYear();
+              const newMonth = String(startDate.getMonth() + 1).padStart(2, '0');
+              const newDay = String(startDate.getDate()).padStart(2, '0');
+              maturityDate = `${newYear}-${newMonth}-${newDay}`;
             }
             
             onFormDataChange({ ...formData, termMonths: months, termYears: years, maturityDate });
@@ -346,91 +353,147 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
         </div>
       </TabsContent>
 
-      <TabsContent value="dates" className="space-y-4 mt-4">
-        <div className="grid gap-4 md:grid-cols-2">
-      <div className="space-y-2">
-        <Label htmlFor="contractDate">Contract Date</Label>
-        <Input
-          id="contractDate"
-          type="date"
-          value={formData.contractDate}
-          onChange={(e) => onFormDataChange({ ...formData, contractDate: e.target.value })}
-        />
-      </div>
+      <TabsContent value="dates" className="space-y-6 mt-4">
+        {/* Funding Dates */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground">Funding Period</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="fundingStartDate">Funding Start Date</Label>
+              <Input
+                id="fundingStartDate"
+                type="date"
+                value={formData.fundingStartDate}
+                onChange={(e) => onFormDataChange({ ...formData, fundingStartDate: e.target.value })}
+              />
+            </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="paymentStartDate">Payment Start Date</Label>
-        <Input
-          id="paymentStartDate"
-          type="date"
-          value={formData.paymentStartDate}
-          onChange={(e) => {
-            const startDate = e.target.value;
-            let maturityDate = formData.maturityDate;
-            
-            // Calculate maturity date if term months exists
-            if (startDate && formData.termMonths) {
-              const date = new Date(startDate);
-              date.setMonth(date.getMonth() + parseInt(formData.termMonths));
-              maturityDate = date.toISOString().split('T')[0];
-            }
-            
-            onFormDataChange({ ...formData, paymentStartDate: startDate, maturityDate });
-          }}
-        />
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="fundingEndDate">Funding End Date</Label>
+              <Input
+                id="fundingEndDate"
+                type="date"
+                value={formData.fundingEndDate}
+                onChange={(e) => {
+                  const date = e.target.value;
+                  let fundingWindowEnd = formData.fundingWindowEnd;
+                  
+                  // Auto-format funding window end (e.g., "February 20th")
+                  if (date) {
+                    // Parse date parts to avoid timezone issues
+                    const [year, month, day] = date.split('-').map(Number);
+                    const d = new Date(year, month - 1, day);
+                    const monthName = d.toLocaleDateString('en-US', { month: 'long' });
+                    const dayNum = d.getDate();
+                    const suffix = dayNum === 1 || dayNum === 21 || dayNum === 31 ? 'st' : 
+                                  dayNum === 2 || dayNum === 22 ? 'nd' : 
+                                  dayNum === 3 || dayNum === 23 ? 'rd' : 'th';
+                    fundingWindowEnd = `${monthName} ${dayNum}${suffix}`;
+                  }
+                  
+                  onFormDataChange({ ...formData, fundingEndDate: date, fundingWindowEnd });
+                }}
+              />
+            </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="maturityDate">Maturity Date</Label>
-        <Input
-          id="maturityDate"
-          type="date"
-          value={formData.maturityDate}
-          onChange={(e) => onFormDataChange({ ...formData, maturityDate: e.target.value })}
-        />
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="fundingWindowEnd">Funding Window End</Label>
+              <Input
+                id="fundingWindowEnd"
+                type="text"
+                value={formData.fundingWindowEnd}
+                onChange={(e) => onFormDataChange({ ...formData, fundingWindowEnd: e.target.value })}
+                placeholder="e.g., February 20th"
+              />
+            </div>
+          </div>
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="fundingStartDate">Funding Start Date</Label>
-        <Input
-          id="fundingStartDate"
-          type="date"
-          value={formData.fundingStartDate}
-          onChange={(e) => onFormDataChange({ ...formData, fundingStartDate: e.target.value })}
-        />
-      </div>
+        {/* Contract & Payment Dates */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground">Contract Date</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="contractDate">Contract Date</Label>
+              <Input
+                id="contractDate"
+                type="date"
+                value={formData.contractDate}
+                onChange={(e) => onFormDataChange({ ...formData, contractDate: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="fundingEndDate">Funding End Date</Label>
-        <Input
-          id="fundingEndDate"
-          type="date"
-          value={formData.fundingEndDate}
-          onChange={(e) => onFormDataChange({ ...formData, fundingEndDate: e.target.value })}
-        />
-      </div>
+        {/* Payment Dates */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-muted-foreground">Payment Schedule</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="paymentStartDate">Payment Start Date</Label>
+              <Input
+                id="paymentStartDate"
+                type="date"
+                value={formData.paymentStartDate}
+                onChange={(e) => {
+                  const startDate = e.target.value;
+                  let maturityDate = formData.maturityDate;
+                  let firstPaymentDate = formData.firstPaymentDate;
+                  
+                  // Calculate maturity date if term months exists (last payment date)
+                  if (startDate && formData.termMonths) {
+                    const [year, month, day] = startDate.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    // Add (termMonths - 1) because first payment is month 0
+                    date.setMonth(date.getMonth() + parseInt(formData.termMonths) - 1);
+                    
+                    // Format as YYYY-MM-DD without timezone issues
+                    const newYear = date.getFullYear();
+                    const newMonth = String(date.getMonth() + 1).padStart(2, '0');
+                    const newDay = String(date.getDate()).padStart(2, '0');
+                    maturityDate = `${newYear}-${newMonth}-${newDay}`;
+                  }
+                  
+                  // Auto-format first payment date (e.g., "January 15th")
+                  if (startDate) {
+                    const [year, month, day] = startDate.split('-').map(Number);
+                    const d = new Date(year, month - 1, day);
+                    const monthName = d.toLocaleDateString('en-US', { month: 'long' });
+                    const dayNum = d.getDate();
+                    const suffix = dayNum === 1 || dayNum === 21 || dayNum === 31 ? 'st' : 
+                                  dayNum === 2 || dayNum === 22 ? 'nd' : 
+                                  dayNum === 3 || dayNum === 23 ? 'rd' : 'th';
+                    firstPaymentDate = `${monthName} ${dayNum}${suffix}`;
+                  }
+                  
+                  onFormDataChange({ ...formData, paymentStartDate: startDate, maturityDate, firstPaymentDate });
+                }}
+              />
+            </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="fundingWindowEnd">Funding Window End</Label>
-        <Input
-          id="fundingWindowEnd"
-          type="text"
-          value={formData.fundingWindowEnd}
-          onChange={(e) => onFormDataChange({ ...formData, fundingWindowEnd: e.target.value })}
-          placeholder="e.g., End of Q1 2025"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="firstPaymentDate">First Payment Date</Label>
-        <Input
-          id="firstPaymentDate"
-          type="text"
-          value={formData.firstPaymentDate}
-          onChange={(e) => onFormDataChange({ ...formData, firstPaymentDate: e.target.value })}
-          placeholder="e.g., January 15th"
-        />
-      </div>
+            <div className="space-y-2">
+              <Label htmlFor="firstPaymentDate">First Payment Date</Label>
+              <Input
+                id="firstPaymentDate"
+                type="text"
+                value={formData.firstPaymentDate}
+                onChange={(e) => onFormDataChange({ ...formData, firstPaymentDate: e.target.value })}
+                placeholder="e.g., January 15th"
+              />
+            </div>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="maturityDate">Maturity Date</Label>
+              <Input
+                id="maturityDate"
+                type="date"
+                value={formData.maturityDate}
+                onChange={(e) => onFormDataChange({ ...formData, maturityDate: e.target.value })}
+              />
+            </div>
+          </div>
         </div>
       </TabsContent>
 
@@ -474,6 +537,7 @@ export default function AdminNotesPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [selectedNoteId, setSelectedNoteId] = useState<string>("all");
   const [formData, setFormData] = useState({
     noteId: "",
     borrower: "",
@@ -899,6 +963,52 @@ export default function AdminNotesPage() {
           </Card>
         </div>
 
+        {/* Filters */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Label htmlFor="note-filter" className="text-xs mb-1 block">Filter by Note</Label>
+                <Select value={selectedNoteId} onValueChange={setSelectedNoteId}>
+                  <SelectTrigger id="note-filter" className="w-full">
+                    <SelectValue placeholder="All Notes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Notes</SelectItem>
+                    {Array.from(new Set(notes.map((note: Note) => note.noteId)))
+                      .sort()
+                      .map((noteId) => (
+                        <SelectItem key={noteId} value={noteId}>
+                          {noteId}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <Label htmlFor="year-filter" className="text-xs mb-1 block">Filter by Year</Label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger id="year-filter" className="w-full">
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {Array.from(new Set(notes
+                      .filter((note: Note) => note.contractDate)
+                      .map((note: Note) => new Date(note.contractDate!).getFullYear())))
+                      .sort((a, b) => b - a)
+                      .map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Notes View with Tabs */}
         <Tabs defaultValue="cards" className="w-full">
           <TabsList>
@@ -919,7 +1029,13 @@ export default function AdminNotesPage() {
                 </CardContent>
               </Card>
             ) : (
-              [...notes].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((note: Note) => {
+              [...notes]
+                .filter((note: Note) => 
+                  (selectedNoteId === "all" || note.noteId === selectedNoteId) &&
+                  (selectedYear === "all" || (note.contractDate && new Date(note.contractDate).getFullYear().toString() === selectedYear))
+                )
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                .map((note: Note) => {
                 const borrower = borrowers.find((b: any) => b.id === note.borrower);
                 return (
                   <Card key={note.id}>
@@ -1100,7 +1216,13 @@ export default function AdminNotesPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {[...notes].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((note: Note) => {
+                      {[...notes]
+                        .filter((note: Note) => 
+                          (selectedNoteId === "all" || note.noteId === selectedNoteId) &&
+                          (selectedYear === "all" || (note.contractDate && new Date(note.contractDate).getFullYear().toString() === selectedYear))
+                        )
+                        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                        .map((note: Note) => {
                         const borrower = borrowers.find((b: any) => b.id === note.borrower);
                         return (
                           <TableRow key={note.id}>

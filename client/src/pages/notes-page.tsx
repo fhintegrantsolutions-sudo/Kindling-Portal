@@ -18,6 +18,15 @@ export default function NotesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("oldest");
+  const [noteFilter, setNoteFilter] = useState("all");
+  const [yearFilter, setYearFilter] = useState("all");
+
+  // Get unique notes and years for filters
+  const uniqueNotes = Array.from(new Set(participations?.map(p => p.note.noteId) || [])).sort();
+  const uniqueYears = Array.from(new Set(participations?.map(p => {
+    const year = new Date(p.purchaseDate).getFullYear();
+    return year;
+  }) || [])).sort((a, b) => b - a);
 
   const filteredParticipations = participations?.filter(p => {
     const matchesSearch = p.note.noteId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -25,8 +34,10 @@ export default function NotesPage() {
       p.note.type.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || p.note.status === statusFilter;
+    const matchesNote = noteFilter === "all" || p.note.noteId === noteFilter;
+    const matchesYear = yearFilter === "all" || new Date(p.purchaseDate).getFullYear().toString() === yearFilter;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesNote && matchesYear;
   }) || [];
 
   const sortedParticipations = [...filteredParticipations].sort((a, b) => {
@@ -53,6 +64,30 @@ export default function NotesPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 data-testid="input-search-notes"
               />
+            </div>
+            <div className="flex gap-2 w-full md:w-72">
+              <Select value={noteFilter} onValueChange={setNoteFilter}>
+                <SelectTrigger className="flex-1" data-testid="select-note-filter">
+                  <SelectValue placeholder="All Notes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Notes</SelectItem>
+                  {uniqueNotes.map(noteId => (
+                    <SelectItem key={noteId} value={noteId}>{noteId}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={yearFilter} onValueChange={setYearFilter}>
+                <SelectTrigger className="flex-1" data-testid="select-year-filter">
+                  <SelectValue placeholder="All Years" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {uniqueYears.map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Select value={sortOrder} onValueChange={setSortOrder}>
               <SelectTrigger className="w-full md:w-72" data-testid="select-sort-order">

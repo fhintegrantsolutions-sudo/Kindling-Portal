@@ -703,5 +703,161 @@ export async function registerRoutes(
     }
   });
 
+  // ===== ROLES & PERMISSIONS ROUTES =====
+  
+  // Get all roles with their permissions
+  app.get("/api/admin/roles", requireAdmin, async (req, res) => {
+    try {
+      const roles = await complianceStorage.getRoles();
+      
+      // Fetch permissions for each role
+      const rolesWithPermissions = await Promise.all(
+        roles.map(async (role) => {
+          const permissions = await complianceStorage.getRolePermissions(role.id);
+          return {
+            ...role,
+            permissions,
+          };
+        })
+      );
+      
+      res.json(rolesWithPermissions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  });
+
+  // Create new role
+  app.post("/api/admin/roles", requireAdmin, async (req, res) => {
+    try {
+      const { name, description } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: "name is required" });
+      }
+      
+      const role = await complianceStorage.createRole({
+        name,
+        description,
+      });
+      
+      res.json(role);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to create role" });
+    }
+  });
+
+  // Update role
+  app.patch("/api/admin/roles/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description } = req.body;
+      
+      const role = await complianceStorage.updateRole(id, {
+        name,
+        description,
+      });
+      
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      
+      res.json(role);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to update role" });
+    }
+  });
+
+  // Delete role
+  app.delete("/api/admin/roles/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      await complianceStorage.deleteRole(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to delete role" });
+    }
+  });
+
+  // Get all permissions
+  app.get("/api/admin/permissions", requireAdmin, async (req, res) => {
+    try {
+      const permissions = await complianceStorage.getPermissions();
+      res.json(permissions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch permissions" });
+    }
+  });
+
+  // Add permission to role
+  app.post("/api/admin/roles/:roleId/permissions", requireAdmin, async (req, res) => {
+    try {
+      const { roleId } = req.params;
+      const { permissionId } = req.body;
+      
+      if (!permissionId) {
+        return res.status(400).json({ error: "permissionId is required" });
+      }
+      
+      await complianceStorage.addRolePermission(roleId, permissionId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to add permission" });
+    }
+  });
+
+  // Remove permission from role
+  app.delete("/api/admin/roles/:roleId/permissions/:permissionId", requireAdmin, async (req, res) => {
+    try {
+      const { roleId, permissionId } = req.params;
+      
+      await complianceStorage.removeRolePermission(roleId, permissionId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to remove permission" });
+    }
+  });
+
+  // Get user roles
+  app.get("/api/admin/users/:userId/roles", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const roles = await complianceStorage.getUserRoles(userId);
+      res.json(roles);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user roles" });
+    }
+  });
+
+  // Assign role to user
+  app.post("/api/admin/users/:userId/roles", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { roleId } = req.body;
+      
+      if (!roleId) {
+        return res.status(400).json({ error: "roleId is required" });
+      }
+      
+      await complianceStorage.assignUserRole(userId, roleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to assign role" });
+    }
+  });
+
+  // Remove role from user
+  app.delete("/api/admin/users/:userId/roles/:roleId", requireAdmin, async (req, res) => {
+    try {
+      const { userId, roleId } = req.params;
+      
+      await complianceStorage.removeUserRole(userId, roleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to remove role" });
+    }
+  });
+
   return httpServer;
 }

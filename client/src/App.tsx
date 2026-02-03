@@ -16,6 +16,7 @@ import AdminPaymentsPage from "@/pages/admin/admin-payments-page";
 import AdminNotesPage from "@/pages/admin/admin-notes-page";
 import AdminBorrowersPage from "@/pages/admin/admin-borrowers-page";
 import AdminEntitiesPage from "@/pages/admin/admin-entities-page";
+import AdminRolesPage from "@/pages/admin/admin-roles-page";
 import { useEffect } from "react";
 
 function Router() {
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/admin/notes" component={AdminNotesPage} />
       <Route path="/admin/borrowers" component={AdminBorrowersPage} />
       <Route path="/admin/entities" component={AdminEntitiesPage} />
+      <Route path="/admin/roles" component={AdminRolesPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -502,17 +502,15 @@ async function seedCompliance() {
   }
 }
 
-// Run if executed directly
-if (require.main === module) {
-  seedCompliance()
-    .then(() => {
-      console.log('✅ Seeding completed successfully');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('❌ Seeding failed:', error);
-      process.exit(1);
-    });
-}
+// Run if executed directly (ESM compatible)
+seedCompliance()
+  .then(() => {
+    console.log('✅ Seeding completed successfully');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Failed to seed:', error);
+    process.exit(1);
+  });
 
 export { seedCompliance, defaultRoles, defaultPermissions, rolePermissions, defaultAccounts };
