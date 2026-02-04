@@ -52,6 +52,15 @@ export const insertParticipationSchema = z.object({
     received: z.boolean().default(false),
     deposited: z.boolean().default(false),
     cleared: z.boolean().default(false),
+    fundingType: z.enum(["wire", "check", "ach", "other"]).optional(),
+    investmentAmount: z.string().optional(),
+    checkNumber: z.string().optional(),
+    wireReferenceNumber: z.string().optional(),
+    checkImageUrl: z.string().optional(),
+    receivedDate: z.union([z.date(), z.string()]).optional(),
+    depositedDate: z.union([z.date(), z.string()]).optional(),
+    clearedDate: z.union([z.date(), z.string()]).optional(),
+    notes: z.string().optional(),
   }).optional(),
 });
 

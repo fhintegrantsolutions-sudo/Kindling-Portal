@@ -12,8 +12,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, FileText, Building2, Calendar, DollarSign, FileDown, Upload } from "lucide-react";
+import { Plus, Edit, Trash2, FileText, Building2, Calendar, DollarSign, FileDown, Upload, Users } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const PROJECT_TYPES = [
   "Real Estate - Single Family",
@@ -535,6 +536,7 @@ export default function AdminNotesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isLendersDialogOpen, setIsLendersDialogOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [selectedNoteId, setSelectedNoteId] = useState<string>("all");
@@ -584,6 +586,20 @@ export default function AdminNotesPage() {
       if (!response.ok) throw new Error("Failed to fetch borrowers");
       return response.json();
     },
+  });
+
+  // Fetch lenders for a specific note
+  const { data: noteLenders = [], isLoading: isLoadingLenders, refetch: refetchLenders } = useQuery({
+    queryKey: ["admin", "noteLenders", selectedNote?.id],
+    queryFn: async () => {
+      if (!selectedNote?.id) return [];
+      const response = await fetch(`/api/admin/notes/${selectedNote.id}/lenders`, {
+        headers: { "x-username": "admin" },
+      });
+      if (!response.ok) throw new Error("Failed to fetch lenders");
+      return response.json();
+    },
+    enabled: !!selectedNote && isLendersDialogOpen,
   });
 
   // Create note mutation
@@ -855,6 +871,11 @@ export default function AdminNotesPage() {
   const handleDelete = (note: Note) => {
     setSelectedNote(note);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleViewLenders = (note: Note) => {
+    setSelectedNote(note);
+    setIsLendersDialogOpen(true);
   };
 
   const confirmDelete = () => {
@@ -1270,6 +1291,15 @@ export default function AdminNotesPage() {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
+                                  title="View Lenders"
+                                  onClick={() => handleViewLenders(note)}
+                                >
+                                  <Users className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
                                   onClick={() => handleEdit(note)}
                                 >
                                   <Edit className="h-4 w-4" />
@@ -1336,6 +1366,99 @@ export default function AdminNotesPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Lenders Dialog */}
+        <Dialog open={isLendersDialogOpen} onOpenChange={setIsLendersDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Lenders for {selectedNote?.noteId} - {selectedNote?.title}
+              </DialogTitle>
+              <DialogDescription>
+                All investors participating in this note
+              </DialogDescription>
+            </DialogHeader>
+            
+            {isLoadingLenders ? (
+              <div className="py-8 text-center text-muted-foreground">Loading lenders...</div>
+            ) : noteLenders.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                No lenders have invested in this note yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>{noteLenders.length} lender{noteLenders.length !== 1 ? 's' : ''}</span>
+                  <span>
+                    Total Invested: {formatCurrency(
+                      noteLenders.reduce((sum: number, l: any) => 
+                        sum + parseFloat(l.fundingStatus?.investmentAmount || l.investedAmount || "0"), 0
+                      )
+                    )}
+                  </span>
+                </div>
+                
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lender</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead className="text-right">Registered</TableHead>
+                      <TableHead className="text-right">Actual</TableHead>
+                      <TableHead>Payment Type</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {noteLenders.map((lender: any) => {
+                      const fundingStatus = lender.fundingStatus || {};
+                      const actualAmount = fundingStatus.investmentAmount || lender.investedAmount;
+                      const statusLabel = fundingStatus.cleared 
+                        ? "Funds Cleared" 
+                        : fundingStatus.deposited 
+                        ? "Funds Deposited" 
+                        : fundingStatus.received 
+                        ? "Funds Received" 
+                        : "Awaiting Funds";
+                      const statusVariant = fundingStatus.cleared 
+                        ? "default" 
+                        : fundingStatus.deposited 
+                        ? "secondary" 
+                        : fundingStatus.received 
+                        ? "outline" 
+                        : "destructive";
+                      
+                      return (
+                        <TableRow key={lender.id}>
+                          <TableCell className="font-medium">
+                            {lender.user?.name || "Unknown"}
+                          </TableCell>
+                          <TableCell>{lender.user?.email || "-"}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(parseFloat(lender.investedAmount || "0"))}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(parseFloat(actualAmount || "0"))}
+                          </TableCell>
+                          <TableCell>
+                            {fundingStatus.fundingType ? (
+                              <Badge variant="outline" className="capitalize">
+                                {fundingStatus.fundingType}
+                              </Badge>
+                            ) : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={statusVariant}>{statusLabel}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

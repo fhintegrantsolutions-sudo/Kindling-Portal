@@ -17,6 +17,9 @@ import AdminNotesPage from "@/pages/admin/admin-notes-page";
 import AdminBorrowersPage from "@/pages/admin/admin-borrowers-page";
 import AdminEntitiesPage from "@/pages/admin/admin-entities-page";
 import AdminRolesPage from "@/pages/admin/admin-roles-page";
+import AdminInvestorWorkflowPage from "@/pages/admin/admin-investor-workflow-page";
+import AdminLendersPage from "@/pages/admin/admin-lenders-page";
+import AdminUsersPage from "@/pages/admin/admin-users-page";
 import { useEffect } from "react";
 
 function Router() {
@@ -42,12 +45,15 @@ function Router() {
       <Route path="/opportunities" component={OpportunitiesPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/admin" component={AdminOverviewPage} />
+      <Route path="/admin/investor-workflow" component={AdminInvestorWorkflowPage} />
       <Route path="/admin/registrations" component={AdminRegistrationsPage} />
       <Route path="/admin/payments" component={AdminPaymentsPage} />
       <Route path="/admin/notes" component={AdminNotesPage} />
       <Route path="/admin/borrowers" component={AdminBorrowersPage} />
       <Route path="/admin/entities" component={AdminEntitiesPage} />
       <Route path="/admin/roles" component={AdminRolesPage} />
+      <Route path="/admin/lenders" component={AdminLendersPage} />
+      <Route path="/admin/users" component={AdminUsersPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,16 +1,19 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, X, UserCheck, DollarSign, Building2, LayoutDashboard, FileText, Users, Shield } from "lucide-react";
+import { LogOut, Menu, X, UserCheck, DollarSign, Building2, LayoutDashboard, FileText, Users, Shield, Workflow, UserCog } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const ADMIN_NAV_ITEMS = [
   { label: "Overview", icon: LayoutDashboard, href: "/admin" },
+  { label: "Investor Workflow", icon: Workflow, href: "/admin/investor-workflow" },
   { label: "Registrations", icon: UserCheck, href: "/admin/registrations" },
+  { label: "User Management", icon: UserCog, href: "/admin/users" },
   { label: "Entities & KYC", icon: Users, href: "/admin/entities" },
   { label: "Roles & Permissions", icon: Shield, href: "/admin/roles" },
+  { label: "Lenders", icon: Users, href: "/admin/lenders" },
   { label: "Payments", icon: DollarSign, href: "/admin/payments" },
   { label: "Notes", icon: FileText, href: "/admin/notes" },
   { label: "Borrowers", icon: Building2, href: "/admin/borrowers" },

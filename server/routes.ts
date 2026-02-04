@@ -445,15 +445,58 @@ export async function registerRoutes(
     }
   });
 
+  // Get participations by note ID with user details
+  app.get("/api/admin/notes/:noteId/lenders", requireAdmin, async (req, res) => {
+    try {
+      const participations = await storage.getParticipationsByNote(req.params.noteId);
+      const users = await storage.getUsers();
+      
+      const lenders = participations.map(p => {
+        const user = users.find(u => u.id === p.userId);
+        return {
+          ...p,
+          user: user ? { id: user.id, name: user.name, email: user.email } : null,
+        };
+      });
+      
+      res.json(lenders);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch lenders for note" });
+    }
+  });
+
   // Update participation funding status
   app.patch("/api/admin/participations/:id/funding-status", requireAdmin, async (req, res) => {
     try {
-      const { received, deposited, cleared } = req.body;
+      const { 
+        received, 
+        deposited, 
+        cleared,
+        fundingType,
+        investmentAmount,
+        checkNumber,
+        wireReferenceNumber,
+        checkImageUrl,
+        receivedDate,
+        depositedDate,
+        clearedDate,
+        notes,
+      } = req.body;
+      
       const participation = await storage.updateParticipation(req.params.id, {
         fundingStatus: {
           received: received ?? false,
           deposited: deposited ?? false,
           cleared: cleared ?? false,
+          fundingType: fundingType || undefined,
+          investmentAmount: investmentAmount || undefined,
+          checkNumber: checkNumber || undefined,
+          wireReferenceNumber: wireReferenceNumber || undefined,
+          checkImageUrl: checkImageUrl || undefined,
+          receivedDate: receivedDate || undefined,
+          depositedDate: depositedDate || undefined,
+          clearedDate: clearedDate || undefined,
+          notes: notes || undefined,
         },
       });
 
@@ -461,7 +504,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Participation not found" });
       }
 
-      // If cleared, send confirmation email
+      // If cleared, send confirmation email and create user if needed
       if (cleared && !participation.fundingStatus?.cleared) {
         const user = await storage.getUser(participation.userId);
         const note = await storage.getNote(participation.noteId);
