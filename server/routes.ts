@@ -20,7 +20,7 @@ async function requireAdmin(req: any, res: any, next: any) {
   try {
     // For now, check if user is admin based on username
     // In production, this should use proper session/JWT authentication
-    const username = req.headers["x-username"] || "kdavidsh";
+    const username = req.headers["x-username"] || "fhintegrantsolutions";
     const user = await storage.getUserByUsername(username as string);
     
     if (!user || user.role !== "admin") {
