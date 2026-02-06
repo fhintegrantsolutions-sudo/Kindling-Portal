@@ -82,7 +82,13 @@ export default function NoteDetailPage() {
   const noteMonthlyPayment = note.monthlyPayment ? parseFloat(note.monthlyPayment) : 0;
   
   const participationShare = notePrincipal > 0 ? investedAmount / notePrincipal : 0;
-  const monthlyPayment = noteMonthlyPayment * participationShare;
+  // Use participation-level paymentAmount if available, otherwise calculate proportionally from note
+  const participationPaymentAmount = participation.paymentAmount 
+    ? parseFloat(participation.paymentAmount) 
+    : (participation.fundingStatus?.paymentAmount ? parseFloat(participation.fundingStatus.paymentAmount) : 0);
+  const monthlyPayment = participationPaymentAmount > 0 
+    ? participationPaymentAmount 
+    : noteMonthlyPayment * participationShare;
   
   const sortedPayments = payments?.slice().sort((a, b) => 
     new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime()

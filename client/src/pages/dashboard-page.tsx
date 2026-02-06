@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useMyParticipations, useMyActivities, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
+import { useMyParticipations, useMyActivities, useCurrentUser, formatCurrency, formatCurrencyPrecise } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, addMonths } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
@@ -14,6 +14,10 @@ import { Slider } from "@/components/ui/slider";
 
 export default function DashboardPage() {
   const { data: participations, isLoading } = useMyParticipations();
+  const { data: currentUser } = useCurrentUser();
+
+  // Get first name from user
+  const firstName = currentUser?.name?.split(' ')[0] || 'there';
 
   const chartData = useMemo(() => {
     if (!participations || participations.length === 0) return [];
@@ -28,11 +32,20 @@ export default function DashboardPage() {
       const monthlyRate = rate / 100 / 12;
       const share = notePrincipal > 0 ? invested / notePrincipal : 0;
       
-      const noteMonthlyPayment = p.note.monthlyPayment 
-        ? parseFloat(p.note.monthlyPayment) 
-        : (invested * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / (Math.pow(1 + monthlyRate, termMonths) - 1);
+      // Use participation-level payment amount if available
+      const participationPayment = p.paymentAmount 
+        ? parseFloat(p.paymentAmount) 
+        : (p.fundingStatus?.paymentAmount ? parseFloat(p.fundingStatus.paymentAmount) : 0);
       
-      const scaledPayment = p.note.monthlyPayment ? noteMonthlyPayment * share : noteMonthlyPayment;
+      let scaledPayment: number;
+      if (participationPayment > 0) {
+        scaledPayment = participationPayment;
+      } else if (p.note.monthlyPayment) {
+        scaledPayment = parseFloat(p.note.monthlyPayment) * share;
+      } else {
+        // Calculate amortized payment
+        scaledPayment = (invested * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / (Math.pow(1 + monthlyRate, termMonths) - 1);
+      }
       
       let startDate = p.note.paymentStartDate 
         ? new Date(p.note.paymentStartDate) 
@@ -95,31 +108,47 @@ export default function DashboardPage() {
     ? participations.reduce((sum, p) => sum + parseFloat(p.investedAmount) * parseFloat(p.note.rate), 0) / totalInvested
     : 0;
   
-  // Calculate monthly interest and principal for all participations
-  const monthlyInterest = participations?.reduce((sum, p) => {
-    const invested = parseFloat(p.investedAmount);
-    const rate = parseFloat(p.note.rate);
-    return sum + (invested * (rate / 100)) / 12;
-  }, 0) || 0;
-  
-  const monthlyPrincipal = participations?.reduce((sum, p) => {
+  // Calculate total monthly payment from all participations
+  // Use participation-level paymentAmount if available, otherwise calculate from note
+  const totalMonthlyPayment = participations?.reduce((sum, p) => {
+    // Check for participation-level payment amount first
+    const participationPayment = p.paymentAmount 
+      ? parseFloat(p.paymentAmount) 
+      : (p.fundingStatus?.paymentAmount ? parseFloat(p.fundingStatus.paymentAmount) : 0);
+    
+    if (participationPayment > 0) {
+      return sum + participationPayment;
+    }
+    
+    // Fallback: calculate from note-level data
     const invested = parseFloat(p.investedAmount);
     const notePrincipal = parseFloat(p.note.principal);
-    const noteMonthlyPayment = p.note.monthlyPayment ? parseFloat(p.note.monthlyPayment) : 0;
-    const share = notePrincipal > 0 ? invested / notePrincipal : 0;
-    const scaledPayment = noteMonthlyPayment * share;
-    const interest = (invested * (parseFloat(p.note.rate) / 100)) / 12;
-    return sum + Math.max(0, scaledPayment - interest);
+    const rate = parseFloat(p.note.rate);
+    const termMonths = p.note.termMonths;
+    const monthlyRate = rate / 100 / 12;
+    
+    // If note has monthlyPayment, scale by share
+    if (p.note.monthlyPayment) {
+      const share = notePrincipal > 0 ? invested / notePrincipal : 0;
+      return sum + parseFloat(p.note.monthlyPayment) * share;
+    }
+    
+    // Otherwise calculate amortized payment for this participation
+    if (monthlyRate > 0) {
+      const payment = invested * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / 
+                      (Math.pow(1 + monthlyRate, termMonths) - 1);
+      return sum + payment;
+    }
+    
+    return sum + invested / termMonths;
   }, 0) || 0;
-  
-  const totalMonthlyPayment = monthlyInterest + monthlyPrincipal;
 
   return (
     <Layout>
       <div className="space-y-8">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground" data-testid="text-dashboard-title">Dashboard</h1>
-          <p className="text-muted-foreground" data-testid="text-welcome">Welcome back, Karen. Here's your portfolio overview.</p>
+          <p className="text-muted-foreground" data-testid="text-welcome">Welcome back, {firstName}. Here's your portfolio overview.</p>
         </div>
 
         {/* Stats Grid */}

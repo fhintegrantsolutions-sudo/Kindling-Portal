@@ -9,8 +9,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Search, Shield, Plus, X, Mail, Phone, MapPin, UserCog } from "lucide-react";
+import { Users, Search, Shield, Plus, X, Mail, Phone, MapPin, UserCog, DollarSign, FileText } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatCurrency } from "@/lib/utils";
+
+interface Participation {
+  id: string;
+  userId: string;
+  noteId: string;
+  investedAmount: string;
+  purchaseDate: string;
+  status: string;
+  note?: {
+    id: string;
+    noteId: string;
+    title: string;
+  };
+}
 
 interface User {
   id: string;
@@ -79,6 +94,23 @@ export default function AdminUsersPage() {
     enabled: !!selectedUser && isRolesDialogOpen,
   });
 
+  // Fetch all participations to filter by user
+  const { data: allParticipations = [] } = useQuery<Participation[]>({
+    queryKey: ["admin", "participations"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/participations", {
+        headers: { "x-username": "admin" },
+      });
+      if (!response.ok) throw new Error("Failed to fetch participations");
+      return response.json();
+    },
+  });
+
+  // Get participations for selected user
+  const userParticipations = selectedUser 
+    ? allParticipations.filter(p => p.userId === selectedUser.id)
+    : [];
+
   // Assign role to user
   const assignRole = useMutation({
     mutationFn: async ({ userId, roleId }: { userId: string; roleId: string }) => {
@@ -135,18 +167,20 @@ export default function AdminUsersPage() {
     },
   });
 
-  // Filter users
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      !searchTerm ||
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.username?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter and sort users by name
+  const filteredUsers = users
+    .filter((user) => {
+      const matchesSearch =
+        !searchTerm ||
+        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.username?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
 
-    return matchesSearch && matchesRole;
-  });
+      return matchesSearch && matchesRole;
+    })
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   // Get unique roles from users for filter
   const uniqueUserRoles = [...new Set(users.map((u) => u.role).filter(Boolean))];
@@ -299,7 +333,6 @@ export default function AdminUsersPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Username</TableHead>
                     <TableHead>Base Role</TableHead>
-                    <TableHead>Location</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -314,9 +347,6 @@ export default function AdminUsersPage() {
                         <Badge variant={user.role === "admin" ? "default" : "secondary"}>
                           {user.role || "lender"}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {user.city && user.state ? `${user.city}, ${user.state}` : "-"}
                       </TableCell>
                       <TableCell>
                         {user.createdAt
@@ -352,7 +382,7 @@ export default function AdminUsersPage() {
 
         {/* User Details Dialog */}
         <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>User Details</DialogTitle>
               <DialogDescription>
@@ -410,6 +440,56 @@ export default function AdminUsersPage() {
                     </p>
                   </div>
                 )}
+
+                {/* Note Participations */}
+                <div className="pt-4 border-t">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">Note Participations</p>
+                  </div>
+                  {userParticipations.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No note participations</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {userParticipations.map((participation) => (
+                        <div 
+                          key={participation.id} 
+                          className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                        >
+                          <div>
+                            <p className="text-sm font-medium">
+                              {participation.note?.noteId || participation.noteId}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {participation.note?.title}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-primary">
+                              {formatCurrency(parseFloat(participation.investedAmount))}
+                            </p>
+                            <Badge variant="outline" className="text-xs">
+                              {participation.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="pt-2 border-t mt-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Total Invested:</span>
+                          <span className="font-semibold">
+                            {formatCurrency(
+                              userParticipations.reduce(
+                                (sum, p) => sum + parseFloat(p.investedAmount || "0"),
+                                0
+                              )
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <DialogFooter>

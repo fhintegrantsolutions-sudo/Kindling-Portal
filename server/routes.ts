@@ -18,10 +18,19 @@ import { complianceStorage } from "./compliance-storage";
 // Middleware to require admin role
 async function requireAdmin(req: any, res: any, next: any) {
   try {
-    // For now, check if user is admin based on username
+    // For now, check if user is admin based on username or email
     // In production, this should use proper session/JWT authentication
-    const username = req.headers["x-username"] || "fhintegrantsolutions";
-    const user = await storage.getUserByUsername(username as string);
+    const identifier = req.headers["x-username"] || "fhintegrantsolutions";
+    
+    // Try to find user by username first, then by email
+    let user = await storage.getUserByUsername(identifier as string);
+    if (!user) {
+      user = await storage.getUserByEmail(identifier as string);
+    }
+    // Also try common admin patterns
+    if (!user && identifier === "admin") {
+      user = await storage.getUserByEmail("admin@kindling.com");
+    }
     
     if (!user || user.role !== "admin") {
       return res.status(403).json({ error: "Admin access required" });
@@ -30,8 +39,8 @@ async function requireAdmin(req: any, res: any, next: any) {
     // Set user context for audit logging
     req.user = {
       id: user.id.toString(),
-      email: user.username,
-      name: user.username,
+      email: user.email || user.username,
+      name: user.name || user.username,
     };
     next();
   } catch (error) {
@@ -103,7 +112,12 @@ export async function registerRoutes(
       if (!note) {
         return res.status(404).json({ error: "Note not found" });
       }
-      res.json(note);
+      // Enrich with borrower name
+      const borrower = await storage.getBorrower(note.borrower);
+      res.json({
+        ...note,
+        borrower: borrower?.businessName || note.borrower
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch note" });
     }
@@ -132,28 +146,53 @@ export async function registerRoutes(
     }
   });
 
-  // Get demo user's participations (for now, hardcoded demo user)
+  // Get demo user's participations (check x-user-id header or use default)
   app.get("/api/my-participations", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("kdavidsh");
-      if (!demoUser) {
-        return res.status(404).json({ error: "Demo user not found" });
+      const userId = req.headers["x-user-id"] as string;
+      let user;
+      if (userId) {
+        user = await storage.getUser(userId);
       }
-      const participations = await storage.getParticipationsByUser(demoUser.id);
-      res.json(participations);
+      if (!user) {
+        user = await storage.getUserByUsername("hdavidsh");
+      }
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const participations = await storage.getParticipationsByUser(user.id);
+      
+      // Enrich notes with borrower names
+      const borrowers = await storage.getBorrowers();
+      const enrichedParticipations = participations.map(p => ({
+        ...p,
+        note: p.note ? {
+          ...p.note,
+          borrower: borrowers.find(b => b.id === p.note.borrower)?.businessName || p.note.borrower
+        } : p.note
+      }));
+      
+      res.json(enrichedParticipations);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch participations" });
     }
   });
 
-  // Get current user profile (demo user for now)
+  // Get current user profile (check x-user-id header or use default)
   app.get("/api/me", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("kdavidsh");
-      if (!demoUser) {
-        return res.status(404).json({ error: "Demo user not found" });
+      const userId = req.headers["x-user-id"] as string;
+      let user;
+      if (userId) {
+        user = await storage.getUser(userId);
       }
-      const { password, ...userWithoutPassword } = demoUser;
+      if (!user) {
+        user = await storage.getUserByUsername("hdavidsh");
+      }
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch user" });
@@ -163,11 +202,18 @@ export async function registerRoutes(
   // Get current user's beneficiaries
   app.get("/api/my-beneficiaries", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("kdavidsh");
-      if (!demoUser) {
-        return res.status(404).json({ error: "Demo user not found" });
+      const userId = req.headers["x-user-id"] as string;
+      let user;
+      if (userId) {
+        user = await storage.getUser(userId);
       }
-      const beneficiaries = await storage.getBeneficiariesByUser(demoUser.id);
+      if (!user) {
+        user = await storage.getUserByUsername("hdavidsh");
+      }
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const beneficiaries = await storage.getBeneficiariesByUser(user.id);
       res.json(beneficiaries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch beneficiaries" });
@@ -177,11 +223,18 @@ export async function registerRoutes(
   // Get current user's documents
   app.get("/api/my-documents", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("kdavidsh");
-      if (!demoUser) {
-        return res.status(404).json({ error: "Demo user not found" });
+      const userId = req.headers["x-user-id"] as string;
+      let user;
+      if (userId) {
+        user = await storage.getUser(userId);
       }
-      const documents = await storage.getDocumentsByUser(demoUser.id);
+      if (!user) {
+        user = await storage.getUserByUsername("hdavidsh");
+      }
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      const documents = await storage.getDocumentsByUser(user.id);
       res.json(documents);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch documents" });
@@ -208,6 +261,13 @@ export async function registerRoutes(
       if (!participation) {
         return res.status(404).json({ error: "Participation not found" });
       }
+      
+      // Enrich with borrower name
+      if (participation.note) {
+        const borrower = await storage.getBorrower(participation.note.borrower);
+        participation.note.borrower = borrower?.businessName || participation.note.borrower;
+      }
+      
       res.json(participation);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch participation" });
