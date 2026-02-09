@@ -379,10 +379,18 @@ export async function registerRoutes(
   // Note Registrations
   app.post("/api/registrations", async (req, res) => {
     try {
-      const demoUser = await storage.getUserByUsername("kdavidsh");
+      // Get current user from header or default to hdavidsh
+      const headerUserId = req.headers["x-user-id"] as string;
+      let user;
+      if (headerUserId) {
+        user = await storage.getUser(headerUserId);
+      }
+      if (!user) {
+        user = await storage.getUserByUsername("hdavidsh");
+      }
       const registrationData = {
         ...req.body,
-        userId: demoUser?.id || null,
+        userId: user?.id, // Use undefined instead of null if no user
         investmentAmount: String(req.body.investmentAmount),
       };
       const validatedRegistration = insertNoteRegistrationSchema.parse(registrationData);
@@ -493,10 +501,26 @@ export async function registerRoutes(
       
       for (const user of users) {
         const participations = await storage.getParticipationsByUser(user.id);
-        allParticipations.push(...participations.map(p => ({
-          ...p,
-          user: { id: user.id, name: user.name, email: user.email },
-        })));
+        
+        // Add payment summaries for each participation
+        for (const p of participations) {
+          const payments = await storage.getPaymentsByParticipation(p.id);
+          const totalPaidPrincipal = payments.reduce((sum, pay) => sum + parseFloat(pay.principalAmount || '0'), 0);
+          const totalPaidInterest = payments.reduce((sum, pay) => sum + parseFloat(pay.interestAmount || '0'), 0);
+          const totalPaid = totalPaidPrincipal + totalPaidInterest;
+          const paymentCount = payments.length;
+          
+          allParticipations.push({
+            ...p,
+            user: { id: user.id, name: user.name, email: user.email },
+            paymentSummary: {
+              totalPaidPrincipal: totalPaidPrincipal.toFixed(2),
+              totalPaidInterest: totalPaidInterest.toFixed(2),
+              totalPaid: totalPaid.toFixed(2),
+              paymentCount,
+            },
+          });
+        }
       }
       
       res.json(allParticipations);
