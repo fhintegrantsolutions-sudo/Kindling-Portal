@@ -55,6 +55,11 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
                   <CheckCircle2 className="w-3 h-3" /> Registered
                 </Badge>
               )}
+              {opportunity.interestType && (
+                <Badge variant="outline" className="font-medium bg-background border-border" data-testid={`badge-interest-type-${opportunity.id}`}>
+                  {opportunity.interestType}
+                </Badge>
+              )}
             </div>
             {closingDate && daysUntilClose !== null && (
               <div className="text-xs font-medium text-muted-foreground flex flex-col items-end gap-0.5" data-testid={`text-closing-${opportunity.id}`}>

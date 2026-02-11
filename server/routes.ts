@@ -432,6 +432,42 @@ export async function registerRoutes(
     }
   });
 
+  // Get current user's note registrations
+  app.get("/api/my-registrations", async (req, res) => {
+    try {
+      const headerUserId = req.headers["x-user-id"] as string;
+      let user;
+      if (headerUserId) {
+        user = await storage.getUser(headerUserId);
+      }
+      if (!user) {
+        user = await storage.getUserByUsername("hdavidsh");
+      }
+
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      const registrations = await storage.getNoteRegistrationsByUser(user.id);
+
+      // Fetch the note details for each registration
+      const registrationsWithNotes = await Promise.all(
+        registrations.map(async (reg) => {
+          const note = await storage.getNote(reg.noteId);
+          return {
+            ...reg,
+            note
+          };
+        })
+      );
+
+      res.json(registrationsWithNotes);
+    } catch (error) {
+      console.error("Get registrations error:", error);
+      res.status(500).json({ error: "Failed to fetch registrations" });
+    }
+  });
+
   // Check if user has already registered for a note
   app.get("/api/registrations/check/:noteId", async (req, res) => {
     try {

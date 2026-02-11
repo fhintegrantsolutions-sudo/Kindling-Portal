@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument, Activity } from "@shared/schema";
+import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument, Activity, NoteRegistration } from "@shared/schema";
 
 export type ParticipationWithNote = Participation & { note: Note };
+export type RegistrationWithNote = NoteRegistration & { note: Note | null };
 
 async function fetchJSON<T>(url: string): Promise<T> {
   const response = await fetch(url);
@@ -34,6 +35,13 @@ export function useMyParticipations() {
   return useQuery<ParticipationWithNote[]>({
     queryKey: ["my-participations"],
     queryFn: () => fetchJSON("/api/my-participations"),
+  });
+}
+
+export function useMyRegistrations() {
+  return useQuery<RegistrationWithNote[]>({
+    queryKey: ["my-registrations"],
+    queryFn: () => fetchJSON("/api/my-registrations"),
   });
 }
 
