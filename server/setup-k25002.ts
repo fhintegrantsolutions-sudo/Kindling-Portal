@@ -157,7 +157,6 @@ async function setupK25002() {
       investedAmount: lender.amount.toFixed(2),
       amount: lender.amount,
       paymentAmount: lender.paymentAmount.toFixed(2),
-      purchaseDate: CONTRACT_DATE.toISOString(),
       status: 'Active',
       fundingStatus: {
         received: true,

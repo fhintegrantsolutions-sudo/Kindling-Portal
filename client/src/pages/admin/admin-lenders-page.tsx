@@ -26,7 +26,6 @@ interface Participation {
   noteId: string;
   investedAmount: string;
   paymentAmount?: string;
-  purchaseDate: string;
   status: string;
   fundingStatus?: {
     received?: boolean;

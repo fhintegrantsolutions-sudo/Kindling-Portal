@@ -110,7 +110,16 @@ export default function NoteDetailPage() {
   const notePrincipal = parseFloat(note.principal);
   const rate = parseFloat(note.rate);
   const noteMonthlyPayment = note.monthlyPayment ? parseFloat(note.monthlyPayment) : 0;
-  
+
+  // Safe date conversion helper for Firestore Timestamps
+  const convertToDate = (dateValue: any): Date => {
+    if (!dateValue) return new Date();
+    if (typeof dateValue === 'string') return new Date(dateValue);
+    if (dateValue instanceof Date) return dateValue;
+    if (typeof dateValue === 'object' && dateValue.toDate) return dateValue.toDate();
+    return new Date();
+  };
+
   const participationShare = notePrincipal > 0 ? investedAmount / notePrincipal : 0;
   // Use participation-level paymentAmount if available, otherwise calculate proportionally from note
   const participationPaymentAmount = participation.paymentAmount 
@@ -507,8 +516,8 @@ export default function NoteDetailPage() {
                 <p className="font-medium">{(participationShare * 100).toFixed(1)}%</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Purchase Date</p>
-                <p className="font-medium">{format(new Date(participation.purchaseDate), "MMM d, yyyy")}</p>
+                <p className="text-muted-foreground">Contract Date</p>
+                <p className="font-medium">{format(convertToDate(note.contractDate), "MMM d, yyyy")}</p>
               </div>
               {note.firstPaymentDate && (
                 <div>

@@ -100,7 +100,6 @@ async function importK24001Lenders() {
         userId,
         noteId: K24001_NOTE_ID,
         investedAmount: lender.amount,
-        purchaseDate: K24001_CONTRACT_DATE,
         status: 'Active',
         fundingStatus: {
           received: true,

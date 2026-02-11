@@ -13,8 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function NotesPage() {
+  const queryClient = useQueryClient();
   const { data: participations, isLoading: isLoadingParticipations } = useMyParticipations();
   const { data: registrations, isLoading: isLoadingRegistrations } = useMyRegistrations();
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,16 +26,31 @@ export default function NotesPage() {
   const [yearFilter, setYearFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("active");
 
+  const handleRegistrationUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
+  };
+
+  const handleParticipationUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ["my-participations"] });
+  };
+
   const isLoading = isLoadingParticipations || isLoadingRegistrations;
+
+  // Helper to safely convert Date or Timestamp to Date
+  const convertToDate = (dateValue: any): Date => {
+    if (!dateValue) return new Date();
+    if (typeof dateValue === 'string') return new Date(dateValue);
+    if (dateValue instanceof Date) return dateValue;
+    if (typeof dateValue === 'object' && dateValue.toDate) return dateValue.toDate();
+    return new Date();
+  };
 
   // Get unique notes and years for filters
   const uniqueNotes = Array.from(new Set(participations?.map(p => p.note.noteId) || [])).sort();
   const uniqueYears = Array.from(new Set(participations?.map(p => {
-    if (!p.purchaseDate) return new Date().getFullYear();
-    const purchaseDate = typeof p.purchaseDate === 'string' ? new Date(p.purchaseDate) :
-                        p.purchaseDate instanceof Date ? p.purchaseDate :
-                        (p.purchaseDate as any)?.toDate ? (p.purchaseDate as any).toDate() : new Date();
-    const year = purchaseDate.getFullYear();
+    if (!p.note.contractDate) return new Date().getFullYear();
+    const contractDate = convertToDate(p.note.contractDate);
+    const year = contractDate.getFullYear();
     return year;
   }) || [])).sort((a, b) => b - a);
 
@@ -44,25 +61,22 @@ export default function NotesPage() {
 
     const matchesStatus = statusFilter === "all" || p.note.status === statusFilter;
     const matchesNote = noteFilter === "all" || p.note.noteId === noteFilter;
-    const purchaseDate = !p.purchaseDate ? new Date() :
-                        typeof p.purchaseDate === 'string' ? new Date(p.purchaseDate) :
-                        p.purchaseDate instanceof Date ? p.purchaseDate :
-                        (p.purchaseDate as any)?.toDate ? (p.purchaseDate as any).toDate() : new Date();
-    const matchesYear = yearFilter === "all" || purchaseDate.getFullYear().toString() === yearFilter;
+    const contractDate = p.note.contractDate ? convertToDate(p.note.contractDate) : new Date();
+    const matchesYear = yearFilter === "all" || contractDate.getFullYear().toString() === yearFilter;
 
     return matchesSearch && matchesStatus && matchesNote && matchesYear;
   }) || [];
 
   const sortedParticipations = [...filteredParticipations].sort((a, b) => {
-    const dateA = !a.purchaseDate ? 0 :
-                  typeof a.purchaseDate === 'string' ? new Date(a.purchaseDate).getTime() :
-                  a.purchaseDate instanceof Date ? a.purchaseDate.getTime() :
-                  (a.purchaseDate as any)?.toDate ? (a.purchaseDate as any).toDate().getTime() : 0;
-    const dateB = !b.purchaseDate ? 0 :
-                  typeof b.purchaseDate === 'string' ? new Date(b.purchaseDate).getTime() :
-                  b.purchaseDate instanceof Date ? b.purchaseDate.getTime() :
-                  (b.purchaseDate as any)?.toDate ? (b.purchaseDate as any).toDate().getTime() : 0;
-    return sortOrder === "oldest" ? dateA - dateB : dateB - dateA;
+    // Sort by note ID (e.g., K25004, K25003, etc.)
+    const noteIdA = a.note.noteId;
+    const noteIdB = b.note.noteId;
+
+    if (sortOrder === "oldest") {
+      return noteIdA.localeCompare(noteIdB);
+    } else {
+      return noteIdB.localeCompare(noteIdA);
+    }
   });
 
   // Categorize participations
@@ -91,7 +105,12 @@ export default function NotesPage() {
         </>
       ) : participationsList.length > 0 ? (
         participationsList.map((participation) => (
-          <NoteCard key={participation.id} note={participation.note} participation={participation} />
+          <NoteCard
+            key={participation.id}
+            note={participation.note}
+            participation={participation}
+            onRegistrationUpdate={handleParticipationUpdate}
+          />
         ))
       ) : (
         <div className="col-span-full text-center py-12">
@@ -114,7 +133,12 @@ export default function NotesPage() {
       ) : registeredOnlyNotes.length > 0 ? (
         registeredOnlyNotes.map((registration) => (
           registration.note && (
-            <NoteCard key={registration.id} note={registration.note} />
+            <NoteCard
+              key={registration.id}
+              note={registration.note}
+              registration={registration}
+              onRegistrationUpdate={handleRegistrationUpdate}
+            />
           )
         ))
       ) : (

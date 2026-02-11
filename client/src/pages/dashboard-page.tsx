@@ -12,6 +12,15 @@ import { format, addMonths } from "date-fns";
 import { useMemo, useState, useEffect } from "react";
 import { Slider } from "@/components/ui/slider";
 
+// Helper to safely convert Date or Timestamp to Date
+const convertToDate = (dateValue: any): Date => {
+  if (!dateValue) return new Date();
+  if (typeof dateValue === 'string') return new Date(dateValue);
+  if (dateValue instanceof Date) return dateValue;
+  if (typeof dateValue === 'object' && dateValue.toDate) return dateValue.toDate();
+  return new Date();
+};
+
 export default function DashboardPage() {
   const { data: participations, isLoading } = useMyParticipations();
   const { data: currentUser } = useCurrentUser();
@@ -51,9 +60,9 @@ export default function DashboardPage() {
         scaledPayment = (invested * monthlyRate * Math.pow(1 + monthlyRate, termMonths)) / (Math.pow(1 + monthlyRate, termMonths) - 1);
       }
       
-      let startDate = p.note.paymentStartDate 
-        ? new Date(p.note.paymentStartDate) 
-        : new Date(p.purchaseDate);
+      let startDate = p.note.paymentStartDate
+        ? convertToDate(p.note.paymentStartDate)
+        : p.note.contractDate ? convertToDate(p.note.contractDate) : new Date();
       startDate.setDate(25);
       
       let balance = invested;

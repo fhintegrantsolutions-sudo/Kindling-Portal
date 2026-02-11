@@ -153,7 +153,6 @@ async function seed() {
       userId: user.id,
       noteId: note1.id,
       investedAmount: "25000.00",
-      purchaseDate: new Date("2024-08-15"),
       status: "Active",
     });
     console.log("✓ Created participation for K24001");
@@ -162,7 +161,6 @@ async function seed() {
       userId: user.id,
       noteId: note2.id,
       investedAmount: "50000.00",
-      purchaseDate: new Date("2024-11-30"),
       status: "Active",
     });
     console.log("✓ Created participation for K24002");
@@ -171,7 +169,6 @@ async function seed() {
       userId: user.id,
       noteId: note3.id,
       investedAmount: "75000.00",
-      purchaseDate: new Date("2025-02-20"),
       status: "Active",
     });
     console.log("✓ Created participation for K25001");
@@ -180,7 +177,6 @@ async function seed() {
       userId: user.id,
       noteId: note4.id,
       investedAmount: "100000.00",
-      purchaseDate: new Date("2025-05-15"),
       status: "Active",
     });
     console.log("✓ Created participation for K25002");

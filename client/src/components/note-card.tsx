@@ -1,90 +1,69 @@
+import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
-import { Calendar, DollarSign, Percent, ArrowRight } from "lucide-react";
-import { format } from "date-fns";
+import { Calendar, DollarSign, Percent, ArrowRight, Edit } from "lucide-react";
 import { Link } from "wouter";
-import type { Note, Participation } from "@shared/schema";
+import type { Note, Participation, NoteRegistration } from "@shared/schema";
 import { formatCurrency, formatCurrencyPrecise, formatRate, formatTerm } from "@/lib/api";
+import { EditInvestmentDialog } from "./edit-investment-dialog";
 
 interface NoteCardProps {
   note: Note;
   participation?: Participation;
+  registration?: NoteRegistration;
+  onRegistrationUpdate?: () => void;
 }
 
-function getNextPaymentDisplay(note: Note, participation?: Participation): string {
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  
-  let paymentDay = 25;
-  if (note.paymentStartDate) {
-    const dateStr = note.paymentStartDate.toString();
-    const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-      paymentDay = parseInt(match[3], 10);
-    }
-  } else if (note.firstPaymentDate) {
-    const dayMatch = note.firstPaymentDate.match(/(\d+)(st|nd|rd|th)/);
-    if (dayMatch) {
-      paymentDay = parseInt(dayMatch[1], 10);
-    }
-  }
-  
-  let isNewlyFunded = false;
-  if (participation?.purchaseDate) {
-    const purchaseDate = new Date(participation.purchaseDate);
-    isNewlyFunded = purchaseDate.getMonth() === currentMonth && purchaseDate.getFullYear() === currentYear;
-  }
-  
-  let targetMonth = currentMonth;
-  let targetYear = currentYear;
-  
-  if (isNewlyFunded) {
-    targetMonth = currentMonth + 1;
-    if (targetMonth > 11) {
-      targetMonth = 0;
-      targetYear = currentYear + 1;
-    }
-  }
-  
-  const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-  const clampedDay = Math.min(paymentDay, daysInMonth);
-  
-  const nextPaymentDate = new Date(targetYear, targetMonth, clampedDay);
-  return format(nextPaymentDate, "MMM d, yyyy");
-}
+export function NoteCard({ note, participation, registration, onRegistrationUpdate }: NoteCardProps) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-export function NoteCard({ note, participation }: NoteCardProps) {
-  const investedAmount = participation 
-    ? parseFloat(participation.investedAmount) 
+  const investedAmount = participation
+    ? parseFloat(participation.investedAmount)
+    : registration?.investmentAmount
+    ? parseFloat(registration.investmentAmount)
     : parseFloat(note.principal);
   const notePrincipal = parseFloat(note.principal);
   const rate = parseFloat(note.rate);
   const noteMonthlyPayment = note.monthlyPayment ? parseFloat(note.monthlyPayment) : 0;
-  
+
   const participationShare = notePrincipal > 0 ? investedAmount / notePrincipal : 0;
   const monthlyPayment = participation ? noteMonthlyPayment * participationShare : noteMonthlyPayment;
 
-  const nextPaymentDisplay = getNextPaymentDisplay(note, participation);
+  // Check if this is an upcoming note participation that can be edited
+  const isUpcomingParticipation = participation && (
+    note.status === "Funding" ||
+    note.status === "Pre Register" ||
+    note.clientStatus === "Funding in Progress" ||
+    note.clientStatus === "Coming Soon"
+  );
 
   // Use actual payment count if available
   const paymentCount = (participation as any)?.paymentCount ?? 0;
+
+  // Helper to safely convert Date or Timestamp to Date
+  const convertToDate = (dateValue: any): Date => {
+    if (!dateValue) return new Date();
+    if (typeof dateValue === 'string') return new Date(dateValue);
+    if (dateValue instanceof Date) return dateValue;
+    if (typeof dateValue === 'object' && dateValue.toDate) return dateValue.toDate();
+    return new Date();
+  };
 
   // Calculate term progress based on actual payments made
   const calculateTermProgress = () => {
     if (!note.termMonths) return 0;
 
-    // If we have payment count, use that; otherwise estimate from purchase date
+    // If we have payment count, use that; otherwise estimate from contract date
     let monthsElapsed = 0;
     if (paymentCount > 0) {
       monthsElapsed = paymentCount;
-    } else if (participation?.purchaseDate) {
-      const purchaseDate = new Date(participation.purchaseDate);
+    } else if (note.contractDate) {
+      const contractDate = convertToDate(note.contractDate);
       const now = new Date();
-      monthsElapsed = (now.getFullYear() - purchaseDate.getFullYear()) * 12 + (now.getMonth() - purchaseDate.getMonth());
+      monthsElapsed = (now.getFullYear() - contractDate.getFullYear()) * 12 + (now.getMonth() - contractDate.getMonth());
     }
 
     const progress = Math.min(100, Math.max(0, (monthsElapsed / note.termMonths) * 100));
@@ -92,7 +71,7 @@ export function NoteCard({ note, participation }: NoteCardProps) {
   };
 
   const termProgress = calculateTermProgress();
-  const monthsElapsed = paymentCount > 0 ? paymentCount : (participation?.purchaseDate ? Math.floor((new Date().getTime() - new Date(participation.purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0);
+  const monthsElapsed = paymentCount > 0 ? paymentCount : (note.contractDate ? Math.floor((new Date().getTime() - convertToDate(note.contractDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0);
 
   return (
     <Card className="group hover:border-primary/50 transition-all duration-300 hover:shadow-md border-border/60" data-testid={`card-note-${note.id}`}>
@@ -117,16 +96,16 @@ export function NoteCard({ note, participation }: NoteCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground flex items-center gap-1.5 text-xs uppercase tracking-wide">
+        <div className="grid grid-cols-3 gap-8 text-sm">
+          <div className="flex flex-col gap-2">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs uppercase tracking-wide whitespace-nowrap">
               <DollarSign className="w-3 h-3" /> {participation ? "Invested" : "Principal"}
             </span>
-            <span className="font-semibold text-lg text-foreground" data-testid={`text-principal-${note.id}`}>
+            <span className="font-semibold text-lg text-foreground whitespace-nowrap" data-testid={`text-principal-${note.id}`}>
               {formatCurrency(investedAmount)}
             </span>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2">
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs uppercase tracking-wide">
               <Percent className="w-3 h-3" /> Rate
             </span>
@@ -134,20 +113,12 @@ export function NoteCard({ note, participation }: NoteCardProps) {
               {formatRate(rate)}
             </span>
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2">
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs uppercase tracking-wide">
               <Calendar className="w-3 h-3" /> Term
             </span>
             <span className="font-medium" data-testid={`text-term-${note.id}`}>
               {formatTerm(note.termMonths)}
-            </span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-muted-foreground flex items-center gap-1.5 text-xs uppercase tracking-wide">
-              Next Payment
-            </span>
-            <span className="font-medium" data-testid={`text-next-payment-${note.id}`}>
-              {nextPaymentDisplay}
             </span>
           </div>
         </div>
@@ -176,7 +147,16 @@ export function NoteCard({ note, participation }: NoteCardProps) {
         )}
       </CardContent>
       <CardFooter className="pt-2 border-t border-border/50 bg-secondary/20">
-        {participation ? (
+        {isUpcomingParticipation ? (
+          <Button
+            variant="outline"
+            className="w-full justify-between hover:bg-primary hover:text-primary-foreground font-medium text-sm"
+            onClick={() => setEditDialogOpen(true)}
+            data-testid={`button-edit-investment-${note.id}`}
+          >
+            Edit Investment Amount <Edit className="w-4 h-4 ml-2" />
+          </Button>
+        ) : participation ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -202,6 +182,15 @@ export function NoteCard({ note, participation }: NoteCardProps) {
           </Button>
         )}
       </CardFooter>
+
+      {isUpcomingParticipation && participation && (
+        <EditInvestmentDialog
+          participation={participation}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onSuccess={onRegistrationUpdate}
+        />
+      )}
     </Card>
   );
 }

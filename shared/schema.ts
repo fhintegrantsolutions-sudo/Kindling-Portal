@@ -46,7 +46,6 @@ export const insertParticipationSchema = z.object({
   userId: z.string().min(1),
   noteId: z.string().min(1),
   investedAmount: z.string(),
-  purchaseDate: z.union([z.date(), z.string()]),
   status: z.string().default("Active"),
   userNotes: z.string().optional(),
   fundingStatus: z.object({
@@ -167,9 +166,8 @@ export interface Note extends Omit<InsertNote, 'contractDate' | 'paymentStartDat
 }
 
 export type InsertParticipation = z.infer<typeof insertParticipationSchema>;
-export interface Participation extends Omit<InsertParticipation, 'purchaseDate'> {
+export interface Participation extends InsertParticipation {
   id: string;
-  purchaseDate: Date | Timestamp;
   createdAt: Date | Timestamp;
 }
 

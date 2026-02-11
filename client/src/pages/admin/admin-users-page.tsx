@@ -18,12 +18,12 @@ interface Participation {
   userId: string;
   noteId: string;
   investedAmount: string;
-  purchaseDate: string;
   status: string;
   note?: {
     id: string;
     noteId: string;
     title: string;
+    contractDate?: string;
   };
 }
 
@@ -106,13 +106,13 @@ export default function AdminUsersPage() {
     },
   });
 
-  // Get participations for selected user, sorted by purchase date (oldest to newest)
+  // Get participations for selected user, sorted by contract date (oldest to newest)
   const userParticipations = selectedUser
     ? allParticipations
         .filter(p => p.userId === selectedUser.id)
         .sort((a, b) => {
-          const dateA = new Date(a.purchaseDate).getTime();
-          const dateB = new Date(b.purchaseDate).getTime();
+          const dateA = a.note?.contractDate ? new Date(a.note.contractDate).getTime() : 0;
+          const dateB = b.note?.contractDate ? new Date(b.note.contractDate).getTime() : 0;
           return dateA - dateB;
         })
     : [];

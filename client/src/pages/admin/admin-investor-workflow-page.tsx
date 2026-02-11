@@ -154,7 +154,6 @@ export default function AdminInvestorWorkflowPage() {
         },
         body: JSON.stringify({
           ...data,
-          purchaseDate: new Date().toISOString(),
           status: "Active",
         }),
       });

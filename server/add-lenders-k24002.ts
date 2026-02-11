@@ -274,7 +274,6 @@ async function addLendersToK24002() {
       userId: userId,
       noteId: noteId,
       investedAmount: lender.investedAmount,
-      purchaseDate: new Date('2024-11-29').toISOString(), // K24002 contract date
       status: 'Active',
       fundingStatus: {
         received: true,

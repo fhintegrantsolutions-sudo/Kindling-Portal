@@ -294,7 +294,6 @@ export class FirestoreStorage implements IStorage {
         const participation = {
           id: doc.id,
           ...data,
-          purchaseDate: timestampToDate(data.purchaseDate),
           createdAt: timestampToDate(data.createdAt),
         } as Participation;
         
@@ -319,7 +318,6 @@ export class FirestoreStorage implements IStorage {
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      purchaseDate: timestampToDate(doc.data().purchaseDate),
       createdAt: timestampToDate(doc.data().createdAt),
     } as Participation));
   }
@@ -328,7 +326,6 @@ export class FirestoreStorage implements IStorage {
     const docRef = db.collection(COLLECTIONS.PARTICIPATIONS).doc();
     const participationData = {
       ...insertParticipation,
-      purchaseDate: dateToTimestamp(insertParticipation.purchaseDate as any) || FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
     };
     await docRef.set(participationData);
@@ -336,26 +333,40 @@ export class FirestoreStorage implements IStorage {
     return {
       id: doc.id,
       ...doc.data(),
-      purchaseDate: timestampToDate(doc.data()?.purchaseDate),
       createdAt: timestampToDate(doc.data()?.createdAt),
     } as Participation;
   }
 
   async updateParticipation(id: string, participationUpdate: Partial<InsertParticipation>): Promise<Participation | undefined> {
     const docRef = db.collection(COLLECTIONS.PARTICIPATIONS).doc(id);
-    const updateData: any = { ...participationUpdate };
-    if (participationUpdate.purchaseDate) {
-      updateData.purchaseDate = dateToTimestamp(participationUpdate.purchaseDate as any);
+
+    // Check if document exists first
+    const existingDoc = await docRef.get();
+    if (!existingDoc.exists) {
+      console.error(`Participation ${id} not found`);
+      return undefined;
     }
+
+    const updateData: any = {
+      ...participationUpdate,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    console.log(`Updating participation ${id} with:`, updateData);
     await docRef.update(updateData);
+    console.log(`Successfully updated participation ${id}`);
+
     const doc = await docRef.get();
     if (!doc.exists) return undefined;
-    return {
+
+    const result = {
       id: doc.id,
       ...doc.data(),
-      purchaseDate: timestampToDate(doc.data()?.purchaseDate),
       createdAt: timestampToDate(doc.data()?.createdAt),
     } as Participation;
+
+    console.log(`Returning updated participation ${id} with investedAmount:`, result.investedAmount);
+    return result;
   }
 
   // Payments
@@ -537,7 +548,6 @@ export class FirestoreStorage implements IStorage {
     const participation = {
       id: doc.id,
       ...data,
-      purchaseDate: timestampToDate(data.purchaseDate),
       createdAt: timestampToDate(data.createdAt),
     } as Participation;
     

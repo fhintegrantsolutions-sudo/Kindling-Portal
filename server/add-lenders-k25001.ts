@@ -117,12 +117,11 @@ async function addLendersK25001() {
 
     if (participationSnapshot.empty) {
       // Create participation with placeholder amount (to be updated later)
-      const purchaseDate = contractDateStr.split('T')[0];
+      const contractDate = contractDateStr.split('T')[0];
       await db.collection("participations").add({
         userId,
         noteId,
         investedAmount: "0.00", // Placeholder - update with actual amounts
-        purchaseDate: contractDateStr,
         status: "Active",
         fundingStatus: {
           received: true,
@@ -130,9 +129,9 @@ async function addLendersK25001() {
           cleared: true,
           fundingType: "check",
           investmentAmount: "0.00",
-          receivedDate: purchaseDate,
-          depositedDate: purchaseDate,
-          clearedDate: purchaseDate,
+          receivedDate: contractDate,
+          depositedDate: contractDate,
+          clearedDate: contractDate,
         },
         createdAt: new Date().toISOString(),
       });

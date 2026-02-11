@@ -432,6 +432,53 @@ export async function registerRoutes(
     }
   });
 
+  // Update a note registration
+  app.patch("/api/registrations/:id", async (req, res) => {
+    try {
+      const registrationId = req.params.id;
+      const { investmentAmount } = req.body;
+
+      if (!investmentAmount) {
+        return res.status(400).json({ error: "Investment amount is required" });
+      }
+
+      const updatedRegistration = await storage.updateNoteRegistration(registrationId, {
+        investmentAmount: String(investmentAmount),
+      });
+
+      res.json(updatedRegistration);
+    } catch (error) {
+      console.error("Update registration error:", error);
+      res.status(500).json({ error: "Failed to update registration" });
+    }
+  });
+
+  // Update a participation's invested amount
+  app.patch("/api/participations/:id", async (req, res) => {
+    try {
+      const participationId = req.params.id;
+      const { investedAmount } = req.body;
+
+      console.log("PATCH /api/participations/:id - Received:", { participationId, investedAmount, body: req.body });
+
+      if (!investedAmount) {
+        return res.status(400).json({ error: "Invested amount is required" });
+      }
+
+      const updateData = { investedAmount: String(investedAmount) };
+      console.log("PATCH /api/participations/:id - Updating with:", updateData);
+
+      const updatedParticipation = await storage.updateParticipation(participationId, updateData);
+
+      console.log("PATCH /api/participations/:id - Updated participation:", updatedParticipation);
+
+      res.json(updatedParticipation);
+    } catch (error) {
+      console.error("Update participation error:", error);
+      res.status(500).json({ error: "Failed to update participation" });
+    }
+  });
+
   // Get current user's note registrations
   app.get("/api/my-registrations", async (req, res) => {
     try {
