@@ -70,18 +70,29 @@ export function NoteCard({ note, participation }: NoteCardProps) {
 
   const nextPaymentDisplay = getNextPaymentDisplay(note, participation);
 
-  // Calculate term progress
+  // Use actual payment count if available
+  const paymentCount = (participation as any)?.paymentCount ?? 0;
+
+  // Calculate term progress based on actual payments made
   const calculateTermProgress = () => {
-    if (!participation?.purchaseDate || !note.termMonths) return 0;
-    const purchaseDate = new Date(participation.purchaseDate);
-    const now = new Date();
-    const monthsElapsed = (now.getFullYear() - purchaseDate.getFullYear()) * 12 + (now.getMonth() - purchaseDate.getMonth());
+    if (!note.termMonths) return 0;
+
+    // If we have payment count, use that; otherwise estimate from purchase date
+    let monthsElapsed = 0;
+    if (paymentCount > 0) {
+      monthsElapsed = paymentCount;
+    } else if (participation?.purchaseDate) {
+      const purchaseDate = new Date(participation.purchaseDate);
+      const now = new Date();
+      monthsElapsed = (now.getFullYear() - purchaseDate.getFullYear()) * 12 + (now.getMonth() - purchaseDate.getMonth());
+    }
+
     const progress = Math.min(100, Math.max(0, (monthsElapsed / note.termMonths) * 100));
     return progress;
   };
-  
+
   const termProgress = calculateTermProgress();
-  const monthsElapsed = participation?.purchaseDate ? Math.floor((new Date().getTime() - new Date(participation.purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0;
+  const monthsElapsed = paymentCount > 0 ? paymentCount : (participation?.purchaseDate ? Math.floor((new Date().getTime() - new Date(participation.purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0);
 
   return (
     <Card className="group hover:border-primary/50 transition-all duration-300 hover:shadow-md border-border/60" data-testid={`card-note-${note.id}`}>

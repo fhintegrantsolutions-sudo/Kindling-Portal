@@ -54,12 +54,16 @@ const lenders = [
   { firstName: 'Zachary', lastName: 'Kuntz', phone: '(785) 656-1493', email: 'zakuntz514@gmail.com', address: '1220 Dogwood Circle', city: 'Leesville', state: 'LA', zip: '71446', investedAmount: 15000 },
 ];
 
-const NOTE_ID = 'K25003';
+// Firestore document ID for K25003 note
+const NOTE_ID = 'MRJTeqrQaFo7ULxrfhvn';
 
 async function importLenders() {
   for (const lender of lenders) {
-    // Check for existing user by email
-    const existingUserSnap = await db.collection('users').where('email', '==', lender.email).get();
+    // Normalize email to lowercase for case-insensitive matching
+    const normalizedEmail = lender.email.toLowerCase();
+
+    // Check for existing user by email (case-insensitive)
+    const existingUserSnap = await db.collection('users').where('email', '==', normalizedEmail).get();
     let userId: string;
     if (!existingUserSnap.empty) {
       userId = existingUserSnap.docs[0].id;
@@ -77,7 +81,7 @@ async function importLenders() {
     } else {
       const userRef = await db.collection('users').add({
         name: lender.firstName + ' ' + lender.lastName,
-        email: lender.email,
+        email: normalizedEmail,
         phone: lender.phone,
         address: lender.address,
         city: lender.city,

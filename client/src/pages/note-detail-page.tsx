@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  ArrowLeft, 
-  DollarSign, 
-  Percent, 
-  Calendar, 
-  FileText, 
+import {
+  ArrowLeft,
+  DollarSign,
+  Percent,
+  Calendar,
+  FileText,
   Download,
   CheckCircle2,
   Clock,
@@ -20,10 +20,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
-import { 
-  useParticipation, 
-  useParticipationPayments, 
+import { useState, useEffect, useRef } from "react";
+import {
+  useParticipation,
+  useParticipationPayments,
   useParticipationDocuments,
+  useUpdateParticipationNotes,
   formatCurrency,
   formatCurrencyPrecise,
   formatRate,
@@ -43,10 +45,38 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recha
 export default function NoteDetailPage() {
   const [, params] = useRoute("/notes/:id");
   const participationId = params?.id || "";
-  
+
   const { data: participation, isLoading: loadingParticipation } = useParticipation(participationId);
   const { data: payments, isLoading: loadingPayments } = useParticipationPayments(participationId);
   const { data: documents, isLoading: loadingDocuments } = useParticipationDocuments(participationId);
+
+  // User notes state and auto-save
+  const [userNotes, setUserNotes] = useState("");
+  const updateNotesMutation = useUpdateParticipationNotes();
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Initialize notes from participation data
+  useEffect(() => {
+    if (participation?.userNotes) {
+      setUserNotes(participation.userNotes);
+    }
+  }, [participation?.userNotes]);
+
+  // Debounced save function
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    setUserNotes(newValue);
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new timeout to save after 1 second of no typing
+    saveTimeoutRef.current = setTimeout(() => {
+      updateNotesMutation.mutate({ participationId, userNotes: newValue });
+    }, 1000);
+  };
 
   if (loadingParticipation) {
     return (
@@ -424,7 +454,9 @@ export default function NoteDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <Textarea 
+                <Textarea
+                  value={userNotes}
+                  onChange={handleNotesChange}
                   placeholder="Add your personal notes about this investment..."
                   className="min-h-[120px] resize-none"
                   data-testid="textarea-user-notes"

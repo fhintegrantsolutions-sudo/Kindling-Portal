@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Note, Participation, Beneficiary, Document, Payment, ParticipationDocument, Activity } from "@shared/schema";
 
 export type ParticipationWithNote = Participation & { note: Note };
@@ -7,6 +7,18 @@ async function fetchJSON<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}`);
+  }
+  return response.json();
+}
+
+async function patchJSON<T>(url: string, data: any): Promise<T> {
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to patch ${url}`);
   }
   return response.json();
 }
@@ -152,5 +164,18 @@ export function useMyActivities(limit: number = 10) {
   return useQuery<Activity[]>({
     queryKey: ["my-activities", limit],
     queryFn: () => fetchJSON(`/api/my-activities?limit=${limit}`),
+  });
+}
+
+export function useUpdateParticipationNotes() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ participationId, userNotes }: { participationId: string; userNotes: string }) =>
+      patchJSON(`/api/participations/${participationId}/notes`, { userNotes }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["participation", variables.participationId] });
+      queryClient.invalidateQueries({ queryKey: ["my-participations"] });
+    },
   });
 }

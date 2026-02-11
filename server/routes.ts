@@ -161,17 +161,27 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
       const participations = await storage.getParticipationsByUser(user.id);
-      
-      // Enrich notes with borrower names
+
+      // Enrich notes with borrower names and add payment count
       const borrowers = await storage.getBorrowers();
-      const enrichedParticipations = participations.map(p => ({
-        ...p,
-        note: p.note ? {
-          ...p.note,
-          borrower: borrowers.find(b => b.id === p.note.borrower)?.businessName || p.note.borrower
-        } : p.note
+      const enrichedParticipations = await Promise.all(participations.map(async (p) => {
+        // Get payment count for this participation
+        const payments = await storage.getPaymentsByParticipation(p.id);
+        const paymentCount = payments.length;
+
+        console.log(`Participation ${p.id} (${p.note?.noteId}): ${paymentCount} payments`);
+
+        return {
+          ...p,
+          paymentCount,
+          note: p.note ? {
+            ...p.note,
+            borrower: borrowers.find(b => b.id === p.note.borrower)?.businessName || p.note.borrower
+          } : p.note
+        };
       }));
-      
+
+      console.log(`Returning ${enrichedParticipations.length} participations with payment counts`);
       res.json(enrichedParticipations);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch participations" });
@@ -261,16 +271,33 @@ export async function registerRoutes(
       if (!participation) {
         return res.status(404).json({ error: "Participation not found" });
       }
-      
+
       // Enrich with borrower name
       if (participation.note) {
         const borrower = await storage.getBorrower(participation.note.borrower);
         participation.note.borrower = borrower?.businessName || participation.note.borrower;
       }
-      
+
       res.json(participation);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch participation" });
+    }
+  });
+
+  // Update participation user notes
+  app.patch("/api/participations/:id/notes", async (req, res) => {
+    try {
+      const { userNotes } = req.body;
+      console.log(`Updating notes for ${req.params.id}:`, userNotes);
+      const participation = await storage.updateParticipation(req.params.id, { userNotes });
+      if (!participation) {
+        return res.status(404).json({ error: "Participation not found" });
+      }
+      console.log(`Updated participation has userNotes:`, participation.userNotes);
+      res.json(participation);
+    } catch (error) {
+      console.error('Error updating notes:', error);
+      res.status(500).json({ error: "Failed to update notes" });
     }
   });
 
@@ -402,6 +429,45 @@ export async function registerRoutes(
       }
       console.error("Registration error:", error);
       res.status(500).json({ error: "Failed to create registration" });
+    }
+  });
+
+  // Check if user has already registered for a note
+  app.get("/api/registrations/check/:noteId", async (req, res) => {
+    try {
+      const { noteId } = req.params;
+      const headerUserId = req.headers["x-user-id"] as string;
+      let user;
+      if (headerUserId) {
+        user = await storage.getUser(headerUserId);
+      }
+      if (!user) {
+        user = await storage.getUserByUsername("hdavidsh");
+      }
+
+      if (!user) {
+        return res.status(401).json({ error: "User not found" });
+      }
+
+      // Check if user has filled out the registration form
+      const registrations = await storage.getAllNoteRegistrations();
+      const hasFormRegistration = registrations.some(
+        (reg) => reg.noteId === noteId && reg.userId === user.id
+      );
+
+      // Also check if user already has a participation (actual investment) in this note
+      const userParticipations = await storage.getParticipationsByUser(user.id);
+      const hasParticipation = userParticipations.some(
+        (p) => p.noteId === noteId
+      );
+
+      // User has "registered" if they either filled out the form OR already have a participation
+      const hasRegistered = hasFormRegistration || hasParticipation;
+
+      res.json({ hasRegistered });
+    } catch (error) {
+      console.error("Check registration error:", error);
+      res.status(500).json({ error: "Failed to check registration status" });
     }
   });
 

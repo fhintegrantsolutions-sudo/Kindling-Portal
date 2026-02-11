@@ -54,6 +54,7 @@ interface RegistrationDialogProps {
   opportunity: Note;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onRegistrationSuccess?: () => void;
 }
 
 const ENTITY_TYPES = [
@@ -75,7 +76,7 @@ const US_STATES = [
   "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
 ];
 
-export function RegistrationDialog({ opportunity, open, onOpenChange }: RegistrationDialogProps) {
+export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistrationSuccess }: RegistrationDialogProps) {
   const { toast } = useToast();
   const { data: user } = useCurrentUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -165,6 +166,7 @@ export function RegistrationDialog({ opportunity, open, onOpenChange }: Registra
       });
       reset();
       onOpenChange(false);
+      onRegistrationSuccess?.();
     } catch (error) {
       toast({
         title: "Registration Failed",

@@ -48,6 +48,7 @@ export const insertParticipationSchema = z.object({
   investedAmount: z.string(),
   purchaseDate: z.union([z.date(), z.string()]),
   status: z.string().default("Active"),
+  userNotes: z.string().optional(),
   fundingStatus: z.object({
     received: z.boolean().default(false),
     deposited: z.boolean().default(false),

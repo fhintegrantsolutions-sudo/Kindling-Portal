@@ -44,6 +44,15 @@ interface Participation {
     id: string;
     noteId: string;
     title: string;
+    borrower?: string;
+    principal?: string;
+    rate?: string;
+    termMonths?: number;
+    projectType?: string;
+    status?: string;
+    type?: string;
+    interestType?: string;
+    description?: string;
   };
   user?: {
     id: string;
@@ -364,12 +373,14 @@ export default function AdminLendersPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {data.participations.map((p: Participation) => {
+                              {data.participations
+                                .sort((a, b) => (b.note?.noteId || "").localeCompare(a.note?.noteId || ""))
+                                .map((p: Participation) => {
                                 const actualAmount = p.fundingStatus?.investmentAmount || p.investedAmount;
                                 const summary = p.paymentSummary;
                                 return (
-                                  <TableRow 
-                                    key={p.id} 
+                                  <TableRow
+                                    key={p.id}
                                     className="cursor-pointer hover:bg-muted/50"
                                     onClick={() => setSelectedParticipation(p)}
                                   >
@@ -463,12 +474,14 @@ export default function AdminLendersPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {data.participations.map((p: Participation) => {
+                              {data.participations
+                                .sort((a, b) => (a.user?.name || "").localeCompare(b.user?.name || ""))
+                                .map((p: Participation) => {
                                 const actualAmount = p.fundingStatus?.investmentAmount || p.investedAmount;
                                 const summary = p.paymentSummary;
                                 return (
-                                  <TableRow 
-                                    key={p.id} 
+                                  <TableRow
+                                    key={p.id}
                                     className="cursor-pointer hover:bg-muted/50"
                                     onClick={() => setSelectedParticipation(p)}
                                   >
@@ -519,6 +532,85 @@ export default function AdminLendersPage() {
             
             {selectedParticipation && (
               <div className="space-y-6">
+                {/* Note Information */}
+                {selectedParticipation.note && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Note Information</h3>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                          <div>
+                            <dt className="text-muted-foreground">Note ID</dt>
+                            <dd className="font-mono font-semibold">{selectedParticipation.note.noteId}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground">Title</dt>
+                            <dd className="font-medium">{selectedParticipation.note.title || "-"}</dd>
+                          </div>
+                          {selectedParticipation.note.borrower && (
+                            <div>
+                              <dt className="text-muted-foreground">Borrower</dt>
+                              <dd className="font-medium">{selectedParticipation.note.borrower}</dd>
+                            </div>
+                          )}
+                          {selectedParticipation.note.projectType && (
+                            <div>
+                              <dt className="text-muted-foreground">Project Type</dt>
+                              <dd className="font-medium">{selectedParticipation.note.projectType}</dd>
+                            </div>
+                          )}
+                          {selectedParticipation.note.principal && (
+                            <div>
+                              <dt className="text-muted-foreground">Principal</dt>
+                              <dd className="font-semibold">{formatCurrency(parseFloat(selectedParticipation.note.principal))}</dd>
+                            </div>
+                          )}
+                          {selectedParticipation.note.rate && (
+                            <div>
+                              <dt className="text-muted-foreground">Interest Rate</dt>
+                              <dd className="font-semibold">{parseFloat(selectedParticipation.note.rate).toFixed(2)}%</dd>
+                            </div>
+                          )}
+                          {selectedParticipation.note.termMonths && (
+                            <div>
+                              <dt className="text-muted-foreground">Term</dt>
+                              <dd className="font-medium">{selectedParticipation.note.termMonths} months ({Math.floor(selectedParticipation.note.termMonths / 12)} years)</dd>
+                            </div>
+                          )}
+                          {selectedParticipation.note.interestType && (
+                            <div>
+                              <dt className="text-muted-foreground">Interest Type</dt>
+                              <dd className="font-medium">{selectedParticipation.note.interestType}</dd>
+                            </div>
+                          )}
+                          {selectedParticipation.note.status && (
+                            <div>
+                              <dt className="text-muted-foreground">Note Status</dt>
+                              <dd>
+                                <Badge variant={selectedParticipation.note.status === "Active" ? "default" : "secondary"}>
+                                  {selectedParticipation.note.status}
+                                </Badge>
+                              </dd>
+                            </div>
+                          )}
+                          {selectedParticipation.note.type && (
+                            <div>
+                              <dt className="text-muted-foreground">Type</dt>
+                              <dd className="font-medium">{selectedParticipation.note.type}</dd>
+                            </div>
+                          )}
+                        </dl>
+                        {selectedParticipation.note.description && (
+                          <div className="mt-4 pt-4 border-t">
+                            <dt className="text-muted-foreground mb-1">Description</dt>
+                            <dd className="text-sm">{selectedParticipation.note.description}</dd>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
                 {/* Yearly Summary Table */}
                 {selectedPayments.length > 0 && (
                   <div>

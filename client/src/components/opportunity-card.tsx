@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Clock, Percent, Calendar } from "lucide-react";
+import { ArrowUpRight, Clock, Percent, Calendar, CheckCircle2 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import type { Note } from "@shared/schema";
 import { formatCurrency, formatRate, formatTerm } from "@/lib/api";
@@ -14,20 +14,48 @@ interface OpportunityCardProps {
 
 export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [hasRegistered, setHasRegistered] = useState(false);
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(true);
 
   const minInvestment = opportunity.minInvestment ? parseFloat(opportunity.minInvestment) : 0;
   const rate = parseFloat(opportunity.rate || "0");
   const closingDate = opportunity.fundingEndDate || opportunity.maturityDate;
   const daysUntilClose = closingDate ? differenceInDays(new Date(closingDate), new Date()) : null;
 
+  // Check if user has already registered for this opportunity
+  useEffect(() => {
+    const checkRegistrationStatus = async () => {
+      try {
+        const response = await fetch(`/api/registrations/check/${opportunity.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setHasRegistered(data.hasRegistered);
+        }
+      } catch (error) {
+        console.error("Failed to check registration status:", error);
+      } finally {
+        setIsCheckingRegistration(false);
+      }
+    };
+
+    checkRegistrationStatus();
+  }, [opportunity.id]);
+
   return (
     <>
       <Card className="flex flex-col h-full border-border/60 shadow-sm hover:shadow-lg transition-all duration-300" data-testid={`card-opportunity-${opportunity.id}`}>
         <CardHeader>
           <div className="flex justify-between items-start mb-2">
-            <Badge variant="secondary" className="font-medium bg-primary/10 text-primary hover:bg-primary/20" data-testid={`badge-status-${opportunity.id}`}>
-              {opportunity.status === "Funding" ? "Now Funding" : "Pre Register Now"}
-            </Badge>
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="secondary" className="font-medium bg-primary/10 text-primary hover:bg-primary/20" data-testid={`badge-status-${opportunity.id}`}>
+                {opportunity.status === "Funding" ? "Now Funding" : "Pre Register Now"}
+              </Badge>
+              {hasRegistered && (
+                <Badge variant="secondary" className="font-medium bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 flex items-center gap-1" data-testid={`badge-registered-${opportunity.id}`}>
+                  <CheckCircle2 className="w-3 h-3" /> Registered
+                </Badge>
+              )}
+            </div>
             {closingDate && daysUntilClose !== null && (
               <div className="text-xs font-medium text-muted-foreground flex flex-col items-end gap-0.5" data-testid={`text-closing-${opportunity.id}`}>
                 <span className="flex items-center gap-1">
@@ -92,9 +120,24 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         </CardContent>
 
         <CardFooter className="pt-2">
-          <Button onClick={() => setDialogOpen(true)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-11 text-base shadow-md hover:shadow-lg transition-all" data-testid={`button-register-${opportunity.id}`}>
-            Register to Participate
-          </Button>
+          {hasRegistered ? (
+            <Button
+              disabled
+              className="w-full bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 font-medium h-11 text-base border border-emerald-500/30 flex items-center justify-center gap-2"
+              data-testid={`button-register-${opportunity.id}`}
+            >
+              <CheckCircle2 className="w-4 h-4" /> Already Registered
+            </Button>
+          ) : (
+            <Button
+              onClick={() => setDialogOpen(true)}
+              disabled={isCheckingRegistration}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-11 text-base shadow-md hover:shadow-lg transition-all"
+              data-testid={`button-register-${opportunity.id}`}
+            >
+              {isCheckingRegistration ? "Loading..." : "Register to Participate"}
+            </Button>
+          )}
         </CardFooter>
       </Card>
 
@@ -102,6 +145,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         opportunity={opportunity}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        onRegistrationSuccess={() => setHasRegistered(true)}
       />
     </>
   );

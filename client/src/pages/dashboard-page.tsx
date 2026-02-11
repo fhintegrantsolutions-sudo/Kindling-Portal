@@ -21,10 +21,14 @@ export default function DashboardPage() {
 
   const chartData = useMemo(() => {
     if (!participations || participations.length === 0) return [];
-    
+
+    // Filter to only active notes
+    const activeParticipations = participations.filter(p => p.note?.status === "Active");
+    if (activeParticipations.length === 0) return [];
+
     const monthlyData: Record<string, { month: string; interest: number; principal: number }> = {};
-    
-    participations.forEach((p) => {
+
+    activeParticipations.forEach((p) => {
       const invested = parseFloat(p.investedAmount);
       const notePrincipal = parseFloat(p.note.principal);
       const rate = parseFloat(p.note.rate);
@@ -102,15 +106,18 @@ export default function DashboardPage() {
 
   const maxSliderValue = Math.max(0, chartData.length - 12);
 
-  const totalInvested = participations?.reduce((sum, p) => sum + parseFloat(p.investedAmount), 0) || 0;
-  const activeNotes = participations?.length || 0;
-  const weightedRate = totalInvested > 0 && participations?.length
-    ? participations.reduce((sum, p) => sum + parseFloat(p.investedAmount) * parseFloat(p.note.rate), 0) / totalInvested
+  // Filter participations to only include notes with status "Active"
+  const activeParticipations = participations?.filter(p => p.note?.status === "Active") || [];
+
+  const totalInvested = activeParticipations.reduce((sum, p) => sum + parseFloat(p.investedAmount), 0);
+  const activeNotes = activeParticipations.length;
+  const weightedRate = totalInvested > 0 && activeParticipations.length
+    ? activeParticipations.reduce((sum, p) => sum + parseFloat(p.investedAmount) * parseFloat(p.note.rate), 0) / totalInvested
     : 0;
   
-  // Calculate total monthly payment from all participations
+  // Calculate total monthly payment from all active participations
   // Use participation-level paymentAmount if available, otherwise calculate from note
-  const totalMonthlyPayment = participations?.reduce((sum, p) => {
+  const totalMonthlyPayment = activeParticipations.reduce((sum, p) => {
     // Check for participation-level payment amount first
     const participationPayment = p.paymentAmount 
       ? parseFloat(p.paymentAmount) 

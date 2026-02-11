@@ -106,9 +106,15 @@ export default function AdminUsersPage() {
     },
   });
 
-  // Get participations for selected user
-  const userParticipations = selectedUser 
-    ? allParticipations.filter(p => p.userId === selectedUser.id)
+  // Get participations for selected user, sorted by purchase date (oldest to newest)
+  const userParticipations = selectedUser
+    ? allParticipations
+        .filter(p => p.userId === selectedUser.id)
+        .sort((a, b) => {
+          const dateA = new Date(a.purchaseDate).getTime();
+          const dateB = new Date(b.purchaseDate).getTime();
+          return dateA - dateB;
+        })
     : [];
 
   // Assign role to user
