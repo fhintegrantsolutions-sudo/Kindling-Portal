@@ -52,13 +52,10 @@ const NOTE_STATUSES = [
 
 const CLIENT_STATUSES = [
   "Coming Soon",
-  "Available",
   "Funding in Progress",
   "Fully Funded",
   "Active",
-  "Secondary Market",
-  "Closed",
-  "Not Available",
+  "Paid Off",
 ];
 
 interface Note {
@@ -1031,13 +1028,21 @@ export default function AdminNotesPage() {
         </Card>
 
         {/* Notes View with Tabs */}
-        <Tabs defaultValue="cards" className="w-full">
-          <TabsList>
-            <TabsTrigger value="cards">Card View</TabsTrigger>
-            <TabsTrigger value="table">Table View</TabsTrigger>
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="active">Active Notes</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming Notes</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="cards" className="space-y-4 mt-4">
+          {/* Active Notes Tab */}
+          <TabsContent value="active" className="space-y-4 mt-4">
+            <Tabs defaultValue="cards" className="w-full">
+              <TabsList>
+                <TabsTrigger value="cards">Card View</TabsTrigger>
+                <TabsTrigger value="table">Table View</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="cards" className="space-y-4 mt-4">
             {isLoading ? (
               <Card>
                 <CardContent className="p-6">Loading notes...</CardContent>
@@ -1051,7 +1056,8 @@ export default function AdminNotesPage() {
               </Card>
             ) : (
               [...notes]
-                .filter((note: Note) => 
+                .filter((note: Note) =>
+                  note.status === "Active" &&
                   (selectedNoteId === "all" || note.noteId === selectedNoteId) &&
                   (selectedYear === "all" || (note.contractDate && new Date(note.contractDate).getFullYear().toString() === selectedYear))
                 )
@@ -1205,9 +1211,9 @@ export default function AdminNotesPage() {
               );
             })
           )}
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="table" className="mt-4">
+              <TabsContent value="table" className="mt-4">
             {isLoading ? (
               <Card>
                 <CardContent className="p-6">Loading notes...</CardContent>
@@ -1238,7 +1244,8 @@ export default function AdminNotesPage() {
                     </TableHeader>
                     <TableBody>
                       {[...notes]
-                        .filter((note: Note) => 
+                        .filter((note: Note) =>
+                          note.status === "Active" &&
                           (selectedNoteId === "all" || note.noteId === selectedNoteId) &&
                           (selectedYear === "all" || (note.contractDate && new Date(note.contractDate).getFullYear().toString() === selectedYear))
                         )
@@ -1322,6 +1329,315 @@ export default function AdminNotesPage() {
                 </CardContent>
               </Card>
             )}
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          {/* Upcoming Notes Tab */}
+          <TabsContent value="upcoming" className="space-y-4 mt-4">
+            <Tabs defaultValue="cards" className="w-full">
+              <TabsList>
+                <TabsTrigger value="cards">Card View</TabsTrigger>
+                <TabsTrigger value="table">Table View</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="cards" className="space-y-4 mt-4">
+                {isLoading ? (
+                  <Card>
+                    <CardContent className="p-6">Loading notes...</CardContent>
+                  </Card>
+                ) : notes.filter((note: Note) =>
+                    ["Pre Register", "Under Review", "Approved", "Funding"].includes(note.status) ||
+                    ["Coming Soon", "Available", "Funding in Progress"].includes(note.clientStatus)
+                  ).length === 0 ? (
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No upcoming notes.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  [...notes]
+                    .filter((note: Note) =>
+                      (["Pre Register", "Under Review", "Approved", "Funding"].includes(note.status) ||
+                       ["Coming Soon", "Available", "Funding in Progress"].includes(note.clientStatus)) &&
+                      (selectedNoteId === "all" || note.noteId === selectedNoteId) &&
+                      (selectedYear === "all" || (note.contractDate && new Date(note.contractDate).getFullYear().toString() === selectedYear))
+                    )
+                    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                    .map((note: Note) => {
+                    const borrower = borrowers.find((b: any) => b.id === note.borrower);
+                    return (
+                      <Card key={note.id}>
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                              <FileText className="h-4 w-4" />
+                              {note.title}
+                            </CardTitle>
+                            <CardDescription className="text-xs">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span>Note ID: {note.noteId} • {borrower?.businessName || "Unknown Borrower"}</span>
+                                <span className="text-xs text-muted-foreground">Backend:</span>
+                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                  note.status === 'Active' ? 'bg-green-100 text-green-800' :
+                                  note.status === 'Funding' ? 'bg-blue-100 text-blue-800' :
+                                  note.status === 'Pre Register' ? 'bg-purple-100 text-purple-800' :
+                                  note.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                                  note.status === 'Approved' ? 'bg-cyan-100 text-cyan-800' :
+                                  note.status === 'Reselling' ? 'bg-orange-100 text-orange-800' :
+                                  note.status === 'Secondary Market' ? 'bg-indigo-100 text-indigo-800' :
+                                  note.status === 'Paid Off' ? 'bg-gray-100 text-gray-800' :
+                                  note.status === 'Default' ? 'bg-red-100 text-red-800' :
+                                  note.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {note.status}
+                                </span>
+                                <span className="text-xs text-muted-foreground">Client:</span>
+                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                  note.clientStatus === 'Available' ? 'bg-green-100 text-green-800' :
+                                  note.clientStatus === 'Funding in Progress' ? 'bg-blue-100 text-blue-800' :
+                                  note.clientStatus === 'Coming Soon' ? 'bg-purple-100 text-purple-800' :
+                                  note.clientStatus === 'Fully Funded' ? 'bg-cyan-100 text-cyan-800' :
+                                  note.clientStatus === 'Active' ? 'bg-green-100 text-green-800' :
+                                  note.clientStatus === 'Secondary Market' ? 'bg-indigo-100 text-indigo-800' :
+                                  note.clientStatus === 'Not Available' ? 'bg-red-100 text-red-800' :
+                                  note.clientStatus === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {note.clientStatus}
+                                </span>
+                              </div>
+                            </CardDescription>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(note)}
+                              title="Edit note"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(note)}
+                              title="Delete note"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-2 space-y-3">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Loan Amount</div>
+                            <div className="text-base font-bold">{formatCurrency(parseFloat(note.principal))}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Interest Rate</div>
+                            <div className="text-base font-bold">{note.rate}%</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Term</div>
+                            <div className="text-base font-bold">{note.termMonths} months</div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 md:grid-cols-2 text-sm">
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Project Type</div>
+                            <div>{note.projectType}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Payment Status</div>
+                            <div>{note.loanPaymentStatus}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Contract Date</div>
+                            <div>{note.contractDate ? new Date(note.contractDate).toLocaleDateString() : "N/A"}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Maturity Date</div>
+                            <div>{note.maturityDate ? new Date(note.maturityDate).toLocaleDateString() : "N/A"}</div>
+                          </div>
+                        </div>
+
+                        {note.description && (
+                          <div>
+                            <div className="text-xs font-medium text-muted-foreground">Description</div>
+                            <p className="text-xs">{note.description}</p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-2 border-t text-xs">
+                          <div className="text-xs text-muted-foreground">
+                            Created {new Date(note.createdAt).toLocaleDateString()}
+                          </div>
+                          <div className="flex gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => createFundingInstructions.mutate(note.id)}
+                              disabled={createFundingInstructions.isPending}
+                            >
+                              <FileDown className="mr-2 h-4 w-4" />
+                              {createFundingInstructions.isPending ? "Generating..." : "Create Funding Instructions"}
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => document.getElementById(`upload-${note.id}`)?.click()}
+                              disabled={uploadFundingInstructions.isPending}
+                            >
+                              <Upload className="mr-1.5 h-3 w-3" />
+                              {uploadFundingInstructions.isPending ? "Uploading..." : "Upload PDF"}
+                            </Button>
+                            <input
+                              id={`upload-${note.id}`}
+                              type="file"
+                              accept="application/pdf"
+                              className="hidden"
+                              onChange={(e) => handleFileUpload(note.id, e)}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+              </TabsContent>
+
+              <TabsContent value="table" className="mt-4">
+                {isLoading ? (
+                  <Card>
+                    <CardContent className="p-6">Loading notes...</CardContent>
+                  </Card>
+                ) : notes.filter((note: Note) =>
+                    ["Pre Register", "Under Review", "Approved", "Funding"].includes(note.status) ||
+                    ["Coming Soon", "Available", "Funding in Progress"].includes(note.clientStatus)
+                  ).length === 0 ? (
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground">No upcoming notes.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Note ID</TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Borrower</TableHead>
+                            <TableHead className="text-right">Loan Amount</TableHead>
+                            <TableHead className="text-right">Rate</TableHead>
+                            <TableHead className="text-right">Term</TableHead>
+                            <TableHead>Backend Status</TableHead>
+                            <TableHead>Client Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {[...notes]
+                            .filter((note: Note) =>
+                              (["Pre Register", "Under Review", "Approved", "Funding"].includes(note.status) ||
+                               ["Coming Soon", "Available", "Funding in Progress"].includes(note.clientStatus)) &&
+                              (selectedNoteId === "all" || note.noteId === selectedNoteId) &&
+                              (selectedYear === "all" || (note.contractDate && new Date(note.contractDate).getFullYear().toString() === selectedYear))
+                            )
+                            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                            .map((note: Note) => {
+                            const borrower = borrowers.find((b: any) => b.id === note.borrower);
+                            return (
+                              <TableRow key={note.id}>
+                                <TableCell className="font-medium">{note.noteId}</TableCell>
+                                <TableCell>{note.title || '-'}</TableCell>
+                                <TableCell>{borrower?.businessName || "Unknown"}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(parseFloat(note.principal || "0"))}</TableCell>
+                                <TableCell className="text-right">{note.rate}%</TableCell>
+                                <TableCell className="text-right">{note.termMonths} mo</TableCell>
+                                <TableCell>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    note.status === 'Active' ? 'bg-green-100 text-green-800' :
+                                    note.status === 'Funding' ? 'bg-blue-100 text-blue-800' :
+                                    note.status === 'Pre Register' ? 'bg-purple-100 text-purple-800' :
+                                    note.status === 'Under Review' ? 'bg-yellow-100 text-yellow-800' :
+                                    note.status === 'Approved' ? 'bg-cyan-100 text-cyan-800' :
+                                    note.status === 'Reselling' ? 'bg-orange-100 text-orange-800' :
+                                    note.status === 'Secondary Market' ? 'bg-indigo-100 text-indigo-800' :
+                                    note.status === 'Paid Off' ? 'bg-gray-100 text-gray-800' :
+                                    note.status === 'Default' ? 'bg-red-100 text-red-800' :
+                                    note.status === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {note.status}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    note.clientStatus === 'Available' ? 'bg-green-100 text-green-800' :
+                                    note.clientStatus === 'Funding in Progress' ? 'bg-blue-100 text-blue-800' :
+                                    note.clientStatus === 'Coming Soon' ? 'bg-purple-100 text-purple-800' :
+                                    note.clientStatus === 'Fully Funded' ? 'bg-cyan-100 text-cyan-800' :
+                                    note.clientStatus === 'Active' ? 'bg-green-100 text-green-800' :
+                                    note.clientStatus === 'Secondary Market' ? 'bg-indigo-100 text-indigo-800' :
+                                    note.clientStatus === 'Not Available' ? 'bg-red-100 text-red-800' :
+                                    note.clientStatus === 'Closed' ? 'bg-gray-100 text-gray-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {note.clientStatus}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      title="View Lenders"
+                                      onClick={() => handleViewLenders(note)}
+                                    >
+                                      <Users className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleEdit(note)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => handleDelete(note)}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
 

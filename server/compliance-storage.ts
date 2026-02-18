@@ -729,30 +729,42 @@ class FirestoreComplianceStorage implements ComplianceStorage {
   // USER ROLES
   // ============================================
   async getUserRoles(userId: string): Promise<Role[]> {
+    console.log(`[getUserRoles] Fetching roles for userId: ${userId}`);
     const snapshot = await db.collection(COMPLIANCE_COLLECTIONS.USER_ROLES)
       .where("userId", "==", userId)
       .get();
-    
-    const roleIds = snapshot.docs.map(doc => doc.data().roleId);
+
+    console.log(`[getUserRoles] Found ${snapshot.docs.length} user role assignments`);
+    const roleIds = snapshot.docs.map(doc => {
+      const data = doc.data();
+      console.log(`[getUserRoles] UserRole doc ${doc.id}:`, data);
+      return data.roleId;
+    });
     if (roleIds.length === 0) return [];
 
     const roles: Role[] = [];
     for (const roleId of roleIds) {
+      console.log(`[getUserRoles] Fetching role ${roleId}`);
       const role = await this.getRole(roleId);
+      console.log(`[getUserRoles] Role ${roleId} result:`, role);
       if (role) roles.push(role);
     }
+    console.log(`[getUserRoles] Returning ${roles.length} roles`);
     return roles;
   }
 
   async assignUserRole(userRole: InsertUserRole): Promise<UserRole> {
+    console.log(`[assignUserRole] Assigning role:`, userRole);
     const docRef = db.collection(COMPLIANCE_COLLECTIONS.USER_ROLES).doc();
     const data = {
       ...userRole,
       assignedAt: dateToTimestamp(userRole.assignedAt as any) || FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
     };
+    console.log(`[assignUserRole] Writing to Firestore collection ${COMPLIANCE_COLLECTIONS.USER_ROLES}:`, data);
     await docRef.set(data);
     const doc = await docRef.get();
+    console.log(`[assignUserRole] Document written with ID: ${doc.id}, exists: ${doc.exists}`);
     return {
       id: doc.id,
       ...doc.data(),

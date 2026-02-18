@@ -54,6 +54,7 @@ export default function AdminInvestorWorkflowPage() {
   const [selectedItem, setSelectedItem] = useState<WorkflowItem | null>(null);
   const [isCreateParticipationOpen, setIsCreateParticipationOpen] = useState(false);
   const [isFundingDialogOpen, setIsFundingDialogOpen] = useState(false);
+  const [selectedNoteFilter, setSelectedNoteFilter] = useState<string>("all");
   const [fundingDetails, setFundingDetails] = useState({
     received: false,
     deposited: false,
@@ -287,30 +288,44 @@ export default function AdminInvestorWorkflowPage() {
         });
       });
 
-    // Stage 3: Fully funded lenders
+    // Stage 3: Fully funded lenders (exclude if contract date has passed)
+    const now = new Date();
     participations
       .filter((p: any) => p.fundingStatus?.cleared)
       .forEach((part: any) => {
         const user = users.find((u: any) => u.id === part.userId);
         const note = notes.find((n: any) => n.id === part.noteId);
         
-        items.push({
-          id: `funded-${part.id}`,
-          stage: "funded",
-          participation: part,
-          user,
-          note,
-        });
+        // Only include if note's contract date hasn't passed (or no contract date)
+        if (note) {
+          const contractDate = note.contractDate ? new Date(note.contractDate) : null;
+          // If no contract date, or contract date is in the future, include it
+          if (!contractDate || contractDate > now) {
+            items.push({
+              id: `funded-${part.id}`,
+              stage: "funded",
+              participation: part,
+              user,
+              note,
+            });
+          }
+        }
       });
 
     return items;
   };
 
   const workflowItems = buildWorkflowItems();
+  
+  // Filter by selected note
+  const filteredItems = selectedNoteFilter === "all"
+    ? workflowItems
+    : workflowItems.filter(item => item.note?.id === selectedNoteFilter);
+  
   const stageItems = {
-    registration: workflowItems.filter((i) => i.stage === "registration"),
-    participation: workflowItems.filter((i) => i.stage === "participation"),
-    funded: workflowItems.filter((i) => i.stage === "funded"),
+    registration: filteredItems.filter((i) => i.stage === "registration"),
+    participation: filteredItems.filter((i) => i.stage === "participation"),
+    funded: filteredItems.filter((i) => i.stage === "funded"),
   };
 
   const isLoading = loadingRegistrations || loadingUsers || loadingParticipations;
@@ -478,11 +493,31 @@ export default function AdminInvestorWorkflowPage() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Investor Workflow</h1>
-          <p className="text-muted-foreground">
-            Track investors from registration through to fully funded lender status
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Investor Workflow</h1>
+            <p className="text-muted-foreground">
+              Track investors from registration through to fully funded lender status
+            </p>
+          </div>
+          
+          {/* Note Filter */}
+          <div className="w-64">
+            <Label htmlFor="note-filter" className="text-sm mb-2 block">Filter by Note</Label>
+            <Select value={selectedNoteFilter} onValueChange={setSelectedNoteFilter}>
+              <SelectTrigger id="note-filter">
+                <SelectValue placeholder="All Notes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Notes</SelectItem>
+                {notes.map((note: any) => (
+                  <SelectItem key={note.id} value={note.id}>
+                    {note.noteId} - {note.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Pipeline Overview */}

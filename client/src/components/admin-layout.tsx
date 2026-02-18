@@ -1,22 +1,24 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { LogOut, Menu, X, UserCheck, DollarSign, Building2, LayoutDashboard, FileText, Users, Shield, Workflow, UserCog } from "lucide-react";
+import { LogOut, Menu, X, UserCheck, DollarSign, Building2, LayoutDashboard, FileText, Users, Shield, Workflow, UserCog, Link2, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const ADMIN_NAV_ITEMS = [
-  { label: "Overview", icon: LayoutDashboard, href: "/admin" },
-  { label: "Investor Workflow", icon: Workflow, href: "/admin/investor-workflow" },
-  { label: "Registrations", icon: UserCheck, href: "/admin/registrations" },
-  { label: "User Management", icon: UserCog, href: "/admin/users" },
-  { label: "Entities & KYC", icon: Users, href: "/admin/entities" },
-  { label: "Roles & Permissions", icon: Shield, href: "/admin/roles" },
-  { label: "Lenders", icon: Users, href: "/admin/lenders" },
-  { label: "Payments", icon: DollarSign, href: "/admin/payments" },
-  { label: "Notes", icon: FileText, href: "/admin/notes" },
-  { label: "Borrowers", icon: Building2, href: "/admin/borrowers" },
+  { label: "Overview", icon: LayoutDashboard, href: "/portal/admin" },
+  { label: "Access Requests", icon: UserPlus, href: "/portal/admin/access-requests" },
+  { label: "Investor Workflow", icon: Workflow, href: "/portal/admin/investor-workflow" },
+  { label: "Registrations", icon: UserCheck, href: "/portal/admin/registrations" },
+  { label: "User Management", icon: UserCog, href: "/portal/admin/users" },
+  { label: "Entities & KYC", icon: Users, href: "/portal/admin/entities" },
+  { label: "Roles & Permissions", icon: Shield, href: "/portal/admin/roles" },
+  { label: "Referrals", icon: Link2, href: "/portal/admin/referrals" },
+  { label: "Lenders", icon: Users, href: "/portal/admin/lenders" },
+  { label: "Payments", icon: DollarSign, href: "/portal/admin/payments" },
+  { label: "Notes", icon: FileText, href: "/portal/admin/notes" },
+  { label: "Borrowers", icon: Building2, href: "/portal/admin/borrowers" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -74,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <p className="text-xs text-sidebar-foreground/60 truncate">admin@kindling.com</p>
           </div>
         </div>
-        <Link href="/">
+        <Link href="/portal">
           <Button variant="outline" className="w-full justify-start gap-2 border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
             <LogOut className="h-4 w-4" />
             Exit Admin

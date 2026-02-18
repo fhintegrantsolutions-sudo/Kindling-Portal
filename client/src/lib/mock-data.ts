@@ -14,10 +14,10 @@ import {
 } from "lucide-react";
 
 export const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "My Notes", icon: PieChart, href: "/notes" },
-  { label: "Next Note Opportunity", icon: TrendingUp, href: "/opportunities" },
-  { label: "Profile & Documents", icon: User, href: "/profile" },
+  { label: "Dashboard", icon: LayoutDashboard, href: "/portal" },
+  { label: "My Notes", icon: PieChart, href: "/portal/notes" },
+  { label: "Next Note Opportunity", icon: TrendingUp, href: "/portal/opportunities" },
+  { label: "Profile & Documents", icon: User, href: "/portal/profile" },
 ];
 
 export const MOCK_USER = {

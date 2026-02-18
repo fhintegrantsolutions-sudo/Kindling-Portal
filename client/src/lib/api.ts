@@ -46,19 +46,26 @@ export function useMyRegistrations() {
 }
 
 export function useCurrentUser() {
-  return useQuery<{ 
-    id: string; 
-    username: string; 
-    name: string; 
+  return useQuery<{
+    id: string;
+    username: string;
+    name: string;
     email: string;
     phone?: string | null;
     address?: string | null;
     city?: string | null;
     state?: string | null;
     zipCode?: string | null;
-  }>({
+  } | null>({
     queryKey: ["me"],
-    queryFn: () => fetchJSON("/api/me"),
+    queryFn: async () => {
+      const response = await fetch("/api/me", { credentials: "include" });
+      if (response.status === 401) return null;
+      if (!response.ok) throw new Error("Failed to fetch user");
+      return response.json();
+    },
+    staleTime: 60 * 1000,
+    retry: false,
   });
 }
 
@@ -73,6 +80,31 @@ export function useMyDocuments() {
   return useQuery<Document[]>({
     queryKey: ["my-documents"],
     queryFn: () => fetchJSON("/api/my-documents"),
+  });
+}
+
+export function useMyEntity() {
+  return useQuery<{
+    entity: {
+      id: string;
+      entityType: "individual" | "llc" | "corporation" | "trust" | "partnership";
+      legalName: string;
+      taxId?: string;
+      formationDate?: Date | string;
+      formationState?: string;
+      kycStatus: "pending" | "verified" | "rejected" | "expired";
+      accreditedInvestor: boolean;
+      status: "active" | "suspended" | "closed";
+    } | null;
+    entityCount: number;
+    relationship?: string;
+    lender?: any;
+  }>({
+    queryKey: ["my-entity"],
+    queryFn: async () => {
+      const user = await fetchJSON<{ id: string }>("/api/me");
+      return fetchJSON(`/api/admin/users/${user.id}/entity`);
+    },
   });
 }
 
@@ -103,6 +135,29 @@ export function useUserDocuments(userId: string) {
   return useQuery<Document[]>({
     queryKey: ["documents", userId],
     queryFn: () => fetchJSON(`/api/documents/user/${userId}`),
+    enabled: !!userId,
+  });
+}
+
+export function useUserEntity(userId: string) {
+  return useQuery<{
+    entity: {
+      id: string;
+      entityType: "individual" | "llc" | "corporation" | "trust" | "partnership";
+      legalName: string;
+      taxId?: string;
+      formationDate?: Date | string;
+      formationState?: string;
+      kycStatus: "pending" | "verified" | "rejected" | "expired";
+      accreditedInvestor: boolean;
+      status: "active" | "suspended" | "closed";
+    } | null;
+    entityCount: number;
+    relationship?: string;
+    lender?: any;
+  }>({
+    queryKey: ["user-entity", userId],
+    queryFn: () => fetchJSON(`/api/admin/users/${userId}/entity`),
     enabled: !!userId,
   });
 }

@@ -147,12 +147,14 @@ export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistra
   const onSubmit = async (data: RegistrationFormData) => {
     setIsSubmitting(true);
     try {
+      const referralCode = localStorage.getItem("referralCode") || undefined;
       const response = await fetch("/api/registrations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           noteId: opportunity.id,
           ...data,
+          ...(referralCode ? { referralCode } : {}),
         }),
       });
 
@@ -164,6 +166,7 @@ export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistra
         title: "Registration Submitted",
         description: `Your interest in ${opportunity.noteId} has been registered. We will contact you shortly with next steps.`,
       });
+      localStorage.removeItem("referralCode");
       reset();
       onOpenChange(false);
       onRegistrationSuccess?.();

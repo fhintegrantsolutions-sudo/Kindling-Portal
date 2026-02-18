@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
-  insertNoteSchema, 
+import {
+  insertNoteSchema,
   insertParticipationSchema,
   insertBeneficiarySchema,
   insertDocumentSchema,
@@ -14,34 +14,34 @@ import { z } from "zod";
 import { sendWelcomeEmail, sendAccountingNotification, sendPaymentConfirmation } from "./notifications";
 import { auditMiddleware, setUserContext } from "./audit-middleware";
 import { complianceStorage } from "./compliance-storage";
+import { referralStorage } from "./referral-storage";
+import bcrypt from "bcryptjs";
 
-// Middleware to require admin role
+// Middleware to require admin role (checks session, then falls back to header for dev tools)
 async function requireAdmin(req: any, res: any, next: any) {
   try {
-    // For now, check if user is admin based on username or email
-    // In production, this should use proper session/JWT authentication
-    const identifier = req.headers["x-username"] || "fhintegrantsolutions";
-    
-    // Try to find user by username first, then by email
-    let user = await storage.getUserByUsername(identifier as string);
+    let user;
+
+    // Check session first
+    if (req.session?.userId) {
+      user = await storage.getUser(req.session.userId);
+    }
+
+    // Fall back to x-username header (for dev tools / admin UI that still uses headers)
     if (!user) {
-      user = await storage.getUserByEmail(identifier as string);
+      const identifier = req.headers["x-username"];
+      if (identifier) {
+        user = await storage.getUserByUsername(identifier as string);
+        if (!user) user = await storage.getUserByEmail(identifier as string);
+        if (!user && identifier === "admin") user = await storage.getUserByEmail("admin@kindling.com");
+      }
     }
-    // Also try common admin patterns
-    if (!user && identifier === "admin") {
-      user = await storage.getUserByEmail("admin@kindling.com");
-    }
-    
+
     if (!user || user.role !== "admin") {
       return res.status(403).json({ error: "Admin access required" });
     }
-    
-    // Set user context for audit logging
-    req.user = {
-      id: user.id.toString(),
-      email: user.email || user.username,
-      name: user.name || user.username,
-    };
+
+    req.user = { id: user.id.toString(), email: user.email || user.username, name: user.name || user.username };
     next();
   } catch (error) {
     res.status(500).json({ error: "Authentication failed" });
@@ -56,7 +56,58 @@ export async function registerRoutes(
   // Apply audit middleware to all routes
   app.use(setUserContext);
   app.use(auditMiddleware);
-  
+
+  // ============================================================================
+  // AUTH ROUTES
+  // ============================================================================
+
+  // Login
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Support both bcrypt-hashed and plain-text passwords (for existing accounts)
+      let passwordValid = false;
+      if (user.password) {
+        const isBcrypt = user.password.startsWith("$2");
+        if (isBcrypt) {
+          passwordValid = await bcrypt.compare(password, user.password);
+        } else {
+          passwordValid = password === user.password;
+        }
+      }
+
+      if (!passwordValid) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Create session
+      req.session.userId = user.id;
+      req.session.isAdmin = user.role === "admin";
+
+      const { password: _, ...userWithoutPassword } = user;
+      return res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Login error:", error);
+      return res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Logout
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
   // Notes
   app.get("/api/notes", async (req, res) => {
     try {
@@ -188,20 +239,28 @@ export async function registerRoutes(
     }
   });
 
-  // Get current user profile (check x-user-id header or use default)
+  // Get current user profile (session-based)
   app.get("/api/me", async (req, res) => {
     try {
-      const userId = req.headers["x-user-id"] as string;
       let user;
-      if (userId) {
-        user = await storage.getUser(userId);
+
+      // Check session first
+      if (req.session?.userId) {
+        user = await storage.getUser(req.session.userId);
       }
+
+      // Fall back to x-user-id header for dev/admin tools
       if (!user) {
-        user = await storage.getUserByUsername("hdavidsh");
+        const headerUserId = req.headers["x-user-id"] as string;
+        if (headerUserId) {
+          user = await storage.getUser(headerUserId);
+        }
       }
+
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(401).json({ error: "Not authenticated" });
       }
+
       const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -403,6 +462,58 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================================================
+  // ACCESS REQUESTS (public — no auth required)
+  // ============================================================================
+
+  app.post("/api/access-requests", async (req, res) => {
+    try {
+      const { firstName, lastName, email, phone, message, referralCode } = req.body;
+      if (!firstName || !lastName || !email || !phone) {
+        return res.status(400).json({ error: "First name, last name, email, and phone are required" });
+      }
+
+      const request = await storage.createAccessRequest({
+        firstName,
+        lastName,
+        email,
+        phone,
+        message: message || undefined,
+        referralCode: referralCode || undefined,
+        status: "pending",
+      });
+
+      return res.status(201).json(request);
+    } catch (error) {
+      console.error("Failed to create access request:", error);
+      res.status(500).json({ error: "Failed to submit access request" });
+    }
+  });
+
+  app.get("/api/admin/access-requests", requireAdmin, async (_req, res) => {
+    try {
+      const requests = await storage.getAccessRequests();
+      res.json(requests);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch access requests" });
+    }
+  });
+
+  app.patch("/api/admin/access-requests/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      if (!["pending", "approved", "rejected"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      const updated = await storage.updateAccessRequest(id, { status });
+      if (!updated) return res.status(404).json({ error: "Access request not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update access request" });
+    }
+  });
+
   // Note Registrations
   app.post("/api/registrations", async (req, res) => {
     try {
@@ -415,13 +526,50 @@ export async function registerRoutes(
       if (!user) {
         user = await storage.getUserByUsername("hdavidsh");
       }
+      const { referralCode, ...bodyWithoutReferral } = req.body;
       const registrationData = {
-        ...req.body,
-        userId: user?.id, // Use undefined instead of null if no user
+        ...bodyWithoutReferral,
+        userId: user?.id,
         investmentAmount: String(req.body.investmentAmount),
       };
       const validatedRegistration = insertNoteRegistrationSchema.parse(registrationData);
       const registration = await storage.createNoteRegistration(validatedRegistration);
+
+      // If a referral code was provided, update the referral record to "invested"
+      if (referralCode && user) {
+        try {
+          const code = await referralStorage.getReferralCodeByCode(referralCode);
+          if (code && code.isActive) {
+            const referrals = await referralStorage.getReferralsByReferrer(code.userId);
+            const existingReferral = referrals.find(
+              (r) => r.referredUserId === user!.id || r.referredEmail === user!.email
+            );
+            if (existingReferral) {
+              await referralStorage.updateReferral(existingReferral.id, {
+                status: "invested",
+                firstInvestmentDate: new Date(),
+                firstInvestmentAmount: Number(req.body.investmentAmount),
+              });
+            } else {
+              await referralStorage.createReferral({
+                referrerId: code.userId,
+                referredUserId: user.id,
+                referredEmail: user.email,
+                referredName: user.name,
+                referralCode,
+                status: "invested",
+                firstInvestmentDate: new Date(),
+                firstInvestmentAmount: Number(req.body.investmentAmount),
+              });
+            }
+            await referralStorage.updateReferralStats(code.userId);
+          }
+        } catch (referralError) {
+          // Don't fail the registration if referral tracking fails
+          console.error("Failed to update referral on registration:", referralError);
+        }
+      }
+
       res.status(201).json(registration);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1107,16 +1255,20 @@ export async function registerRoutes(
   });
 
   // Assign role to user
-  app.post("/api/admin/users/:userId/roles", requireAdmin, async (req, res) => {
+  app.post("/api/admin/users/:userId/roles", requireAdmin, async (req: any, res: any) => {
     try {
       const { userId } = req.params;
       const { roleId } = req.body;
-      
+
       if (!roleId) {
         return res.status(400).json({ error: "roleId is required" });
       }
-      
-      await complianceStorage.assignUserRole(userId, roleId);
+
+      await complianceStorage.assignUserRole({
+        userId,
+        roleId,
+        assignedBy: req.user.id,
+      });
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to assign role" });
@@ -1127,11 +1279,271 @@ export async function registerRoutes(
   app.delete("/api/admin/users/:userId/roles/:roleId", requireAdmin, async (req, res) => {
     try {
       const { userId, roleId } = req.params;
-      
+
       await complianceStorage.removeUserRole(userId, roleId);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to remove role" });
+    }
+  });
+
+  // Get user's primary entity with type
+  app.get("/api/admin/users/:userId/entity", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // Get all entities associated with the user
+      const entities = await complianceStorage.getEntitiesByUser(userId);
+
+      if (entities.length === 0) {
+        return res.json({ entity: null, entityCount: 0 });
+      }
+
+      // Get the primary entity (first one with 'owner' relationship, or just the first)
+      const entityUsers = await complianceStorage.getUserEntities(userId);
+      const primaryEntityUser = entityUsers.find(eu => eu.relationship === 'owner') || entityUsers[0];
+      const primaryEntity = entities.find(e => e.id === primaryEntityUser?.entityId) || entities[0];
+
+      // Get lender info to enrich response
+      const lender = await complianceStorage.getLenderByEntityId(primaryEntity.id);
+
+      res.json({
+        entity: primaryEntity,
+        entityCount: entities.length,
+        relationship: primaryEntityUser?.relationship,
+        lender: lender || null,
+      });
+    } catch (error) {
+      console.error("Failed to fetch user entity:", error);
+      res.status(500).json({ error: "Failed to fetch user entity" });
+    }
+  });
+
+  // ============================================================================
+  // REFERRAL ROUTES - Referral Tracking System
+  // ============================================================================
+
+  // Get all referral codes
+  app.get("/api/admin/referral-codes", requireAdmin, async (req, res) => {
+    try {
+      const referralCodes = await referralStorage.getReferralCodes();
+
+      // Enrich with user information
+      const users = await storage.getUsers();
+      const enrichedCodes = referralCodes.map(code => {
+        const user = users.find(u => u.id === code.userId);
+        return {
+          ...code,
+          user: user ? { id: user.id, name: user.name, email: user.email } : null,
+        };
+      });
+
+      res.json(enrichedCodes);
+    } catch (error) {
+      console.error("Failed to fetch referral codes:", error);
+      res.status(500).json({ error: "Failed to fetch referral codes" });
+    }
+  });
+
+  // Get referral code for a user
+  app.get("/api/admin/users/:userId/referral-code", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const referralCode = await referralStorage.getReferralCodeByUserId(userId);
+
+      // Return null if no code exists (don't auto-generate)
+      res.json(referralCode || null);
+    } catch (error) {
+      console.error("Failed to fetch referral code:", error);
+      res.status(500).json({ error: "Failed to fetch referral code" });
+    }
+  });
+
+  // Create or update referral code for a user
+  app.post("/api/admin/users/:userId/referral-code", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { code, isActive } = req.body;
+
+      console.log("POST referral-code:", { userId, code, isActive });
+
+      const existingCode = await referralStorage.getReferralCodeByUserId(userId);
+      console.log("Existing code:", existingCode);
+
+      let result;
+      if (existingCode) {
+        // Update existing code
+        result = await referralStorage.updateReferralCode(existingCode.id, {
+          code: code || existingCode.code,
+          isActive: isActive !== undefined ? isActive : existingCode.isActive,
+        });
+        console.log("Updated code:", result);
+      } else {
+        // Create new code
+        const uniqueCode = code ? await referralStorage.generateUniqueCode(code) :
+          await referralStorage.generateUniqueCode(userId.substring(0, 8));
+        console.log("Generated unique code:", uniqueCode);
+
+        result = await referralStorage.createReferralCode({
+          userId,
+          code: uniqueCode,
+          isActive: isActive !== undefined ? isActive : true,
+        });
+        console.log("Created code:", result);
+      }
+
+      if (!result) {
+        console.error("Result is null/undefined");
+        return res.status(500).json({ error: "Failed to create/update referral code - result is null" });
+      }
+
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Failed to create/update referral code:", error);
+      return res.status(500).json({ error: "Failed to create/update referral code" });
+    }
+  });
+
+  // Get all referrals with enriched data
+  app.get("/api/admin/referrals", requireAdmin, async (req, res) => {
+    try {
+      const referrals = await referralStorage.getReferrals();
+      const users = await storage.getUsers();
+
+      // Enrich with referrer information
+      const enrichedReferrals = referrals.map(referral => {
+        const referrer = users.find(u => u.id === referral.referrerId);
+        const referred = referral.referredUserId ? users.find(u => u.id === referral.referredUserId) : null;
+
+        return {
+          ...referral,
+          referrer: referrer ? { id: referrer.id, name: referrer.name, email: referrer.email } : null,
+          referred: referred ? { id: referred.id, name: referred.name, email: referred.email } : null,
+        };
+      });
+
+      res.json(enrichedReferrals);
+    } catch (error) {
+      console.error("Failed to fetch referrals:", error);
+      res.status(500).json({ error: "Failed to fetch referrals" });
+    }
+  });
+
+  // Get referrals by referrer
+  app.get("/api/admin/users/:userId/referrals", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const referrals = await referralStorage.getReferralsByReferrer(userId);
+
+      // Enrich with referred user information
+      const users = await storage.getUsers();
+      const enrichedReferrals = referrals.map(referral => {
+        const referred = referral.referredUserId ? users.find(u => u.id === referral.referredUserId) : null;
+
+        return {
+          ...referral,
+          referred: referred ? { id: referred.id, name: referred.name, email: referred.email } : null,
+        };
+      });
+
+      res.json(enrichedReferrals);
+    } catch (error) {
+      console.error("Failed to fetch user referrals:", error);
+      res.status(500).json({ error: "Failed to fetch user referrals" });
+    }
+  });
+
+  // Create a new referral (track when someone clicks a referral link)
+  app.post("/api/referrals/track", async (req, res) => {
+    try {
+      const { referralCode, referredEmail, referredName } = req.body;
+
+      if (!referralCode) {
+        return res.status(400).json({ error: "Referral code is required" });
+      }
+
+      // Verify referral code exists and is active
+      const code = await referralStorage.getReferralCodeByCode(referralCode);
+      if (!code) {
+        return res.status(404).json({ error: "Invalid referral code" });
+      }
+
+      if (!code.isActive) {
+        return res.status(400).json({ error: "Referral code is inactive" });
+      }
+
+      // Increment click count
+      await referralStorage.incrementClickCount(referralCode);
+
+      // Create referral record
+      const referral = await referralStorage.createReferral({
+        referrerId: code.userId,
+        referralCode,
+        referredEmail,
+        referredName,
+        status: "pending",
+      });
+
+      res.json(referral);
+    } catch (error) {
+      console.error("Failed to track referral:", error);
+      res.status(500).json({ error: "Failed to track referral" });
+    }
+  });
+
+  // Update referral status
+  app.patch("/api/admin/referrals/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const {
+        status,
+        referredUserId,
+        referredEmail,
+        referredName,
+        signupDate,
+        firstInvestmentDate,
+        firstInvestmentAmount,
+        notes
+      } = req.body;
+
+      const updateData: any = {};
+      if (status) updateData.status = status;
+      if (referredUserId) updateData.referredUserId = referredUserId;
+      if (referredEmail) updateData.referredEmail = referredEmail;
+      if (referredName) updateData.referredName = referredName;
+      if (signupDate) updateData.signupDate = new Date(signupDate);
+      if (firstInvestmentDate) updateData.firstInvestmentDate = new Date(firstInvestmentDate);
+      if (firstInvestmentAmount !== undefined) updateData.firstInvestmentAmount = firstInvestmentAmount;
+      if (notes !== undefined) updateData.notes = notes;
+
+      const referral = await referralStorage.updateReferral(id, updateData);
+
+      if (!referral) {
+        return res.status(404).json({ error: "Referral not found" });
+      }
+
+      // Update referrer's stats
+      await referralStorage.updateReferralStats(referral.referrerId);
+
+      res.json(referral);
+    } catch (error) {
+      console.error("Failed to update referral:", error);
+      res.status(500).json({ error: "Failed to update referral" });
+    }
+  });
+
+  // Get referral stats for a user
+  app.get("/api/admin/users/:userId/referral-stats", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // Update stats before returning
+      const stats = await referralStorage.updateReferralStats(userId);
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Failed to fetch referral stats:", error);
+      res.status(500).json({ error: "Failed to fetch referral stats" });
     }
   });
 

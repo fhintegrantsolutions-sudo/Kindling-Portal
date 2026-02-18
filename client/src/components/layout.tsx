@@ -7,11 +7,19 @@ import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentUser } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const [, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { data: user } = useCurrentUser();
+
+  const handleSignOut = async () => {
+    await fetch("/api/logout", { method: "POST", credentials: "include" });
+    queryClient.clear();
+    setLocation("/login");
+  };
   
   const initials = user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U';
 
@@ -63,12 +71,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || ''}</p>
           </div>
         </div>
-        <Link href="/auth" className="w-full">
-          <Button variant="outline" className="w-full justify-start gap-2 border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
-        </Link>
+        <Button variant="outline" onClick={handleSignOut} className="w-full justify-start gap-2 border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </Button>
       </div>
     </div>
   );

@@ -145,6 +145,17 @@ export const insertBorrowerSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const insertAccessRequestSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().min(1),
+  isTccMember: z.boolean().default(false),
+  message: z.string().optional(),
+  referralCode: z.string().optional(),
+  status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+});
+
 // TypeScript types for Firestore documents
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export interface User extends InsertUser {
@@ -215,6 +226,12 @@ export interface Borrower extends InsertBorrower {
   createdAt: Date | Timestamp;
 }
 
+export type InsertAccessRequest = z.infer<typeof insertAccessRequestSchema>;
+export interface AccessRequest extends InsertAccessRequest {
+  id: string;
+  createdAt: Date | Timestamp;
+}
+
 // Firestore collection names
 export const COLLECTIONS = {
   USERS: "users",
@@ -227,4 +244,5 @@ export const COLLECTIONS = {
   NOTE_REGISTRATIONS: "note_registrations",
   ACTIVITIES: "activities",
   BORROWERS: "borrowers",
+  ACCESS_REQUESTS: "access_requests",
 } as const;

@@ -8,10 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Search, Shield, Plus, X, Mail, Phone, MapPin, UserCog, DollarSign, FileText } from "lucide-react";
+import { Users, Search, Shield, X, Mail, Phone, MapPin, UserCog, FileText, Building2, Link2, Copy } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatCurrency } from "@/lib/utils";
+import { useUserEntity } from "@/lib/api";
 
 interface Participation {
   id: string;
@@ -94,6 +97,45 @@ export default function AdminUsersPage() {
     enabled: !!selectedUser && isRolesDialogOpen,
   });
 
+  // Fetch user's entity information
+  const { data: userEntityData, isLoading: userEntityLoading } = useUserEntity(selectedUser?.id || "");
+
+  // Fetch user's referral code
+  const { data: userReferralCode, isLoading: referralCodeLoading } = useQuery({
+    queryKey: ["admin", "users", selectedUser?.id, "referral-code"],
+    queryFn: async () => {
+      if (!selectedUser) return null;
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/referral-code`, {
+        headers: { "x-username": "admin" },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to fetch referral code:", errorData);
+        throw new Error(errorData.error || "Failed to fetch referral code");
+      }
+      const data = await response.json();
+      console.log("Fetched referral code:", data);
+      return data;
+    },
+    enabled: !!selectedUser && isDetailsDialogOpen,
+    retry: 2,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch user's referral stats
+  const { data: userReferralStats } = useQuery({
+    queryKey: ["admin", "users", selectedUser?.id, "referral-stats"],
+    queryFn: async () => {
+      if (!selectedUser) return null;
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/referral-stats`, {
+        headers: { "x-username": "admin" },
+      });
+      if (!response.ok) return null;
+      return response.json();
+    },
+    enabled: !!selectedUser && isDetailsDialogOpen,
+  });
+
   // Fetch all participations to filter by user
   const { data: allParticipations = [] } = useQuery<Participation[]>({
     queryKey: ["admin", "participations"],
@@ -173,6 +215,82 @@ export default function AdminUsersPage() {
     },
   });
 
+  // Toggle referral code status
+  const toggleReferralStatus = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const response = await fetch(`/api/admin/users/${userId}/referral-code`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-username": "admin",
+        },
+        body: JSON.stringify({ isActive }),
+      });
+      if (!response.ok) throw new Error("Failed to update referral status");
+      return response.json();
+    },
+    onSuccess: async (_data, { userId }) => {
+      await queryClient.refetchQueries({ queryKey: ["admin", "users", userId, "referral-code"] });
+      toast({
+        title: "Referral Status Updated",
+        description: "The referral code status has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update referral status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Generate referral code
+  const generateReferralCode = useMutation({
+    mutationFn: async (userId: string) => {
+      console.log("Generating referral code for user:", userId);
+      const response = await fetch(`/api/admin/users/${userId}/referral-code`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-username": "admin",
+        },
+        body: JSON.stringify({ isActive: true }),
+      });
+      console.log("Response status:", response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || "Failed to generate referral code");
+        } catch (e) {
+          throw new Error(`Failed to generate referral code: ${errorText.substring(0, 100)}`);
+        }
+      }
+      const data = await response.json();
+      console.log("Generated referral code:", data);
+      return data;
+    },
+    onSuccess: async (_data, userId) => {
+      console.log("Refetching queries for user:", userId);
+      await queryClient.refetchQueries({ queryKey: ["admin", "users", userId, "referral-code"] });
+      await queryClient.refetchQueries({ queryKey: ["admin", "users", userId, "referral-stats"] });
+      toast({
+        title: "Referral Code Generated",
+        description: "The referral code has been created and activated.",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Mutation error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate referral code.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter and sort users by name
   const filteredUsers = users
     .filter((user) => {
@@ -189,7 +307,7 @@ export default function AdminUsersPage() {
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   // Get unique roles from users for filter
-  const uniqueUserRoles = [...new Set(users.map((u) => u.role).filter(Boolean))];
+  const uniqueUserRoles = Array.from(new Set(users.map((u) => u.role).filter(Boolean)));
 
   const handleManageRoles = (user: User) => {
     setSelectedUser(user);
@@ -211,6 +329,15 @@ export default function AdminUsersPage() {
     if (selectedUser) {
       removeRole.mutate({ userId: selectedUser.id, roleId });
     }
+  };
+
+  const copyReferralLink = (code: string) => {
+    const link = `${window.location.origin}/login?ref=${code}`;
+    navigator.clipboard.writeText(link);
+    toast({
+      title: "Link Copied",
+      description: "Referral link copied to clipboard.",
+    });
   };
 
   // Get roles not yet assigned to user
@@ -438,6 +565,130 @@ export default function AdminUsersPage() {
                     {selectedUser.role || "lender"}
                   </Badge>
                 </div>
+
+                {/* Entity Information */}
+                {selectedUser && (
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-medium">Entity Information</p>
+                    </div>
+                    {userEntityLoading ? (
+                      <p className="text-sm text-muted-foreground">Loading entity...</p>
+                    ) : userEntityData?.entity ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Entity Type:</span>
+                          <Badge
+                            variant="secondary"
+                            className="capitalize"
+                          >
+                            {userEntityData.entity.entityType === "llc"
+                              ? "LLC"
+                              : userEntityData.entity.entityType}
+                          </Badge>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Legal Name:</span>
+                          <p className="text-sm font-medium">{userEntityData.entity.legalName}</p>
+                        </div>
+                        {userEntityData.relationship && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">Relationship:</span>
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {userEntityData.relationship.replace(/_/g, ' ')}
+                            </Badge>
+                          </div>
+                        )}
+                        {userEntityData.entityCount > 1 && (
+                          <p className="text-xs text-amber-600">
+                            Note: User has {userEntityData.entityCount} associated entities
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No entity associated</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Referral Information */}
+                {selectedUser && (
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm font-medium">Referral Program</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="referral-status" className="text-xs text-muted-foreground">
+                          {referralCodeLoading ? "Loading..." : (userReferralCode?.isActive ? "Active" : "Inactive")}
+                        </Label>
+                        <Switch
+                          id="referral-status"
+                          checked={userReferralCode?.isActive || false}
+                          onCheckedChange={(checked) => {
+                            if (selectedUser) {
+                              if (checked && !userReferralCode) {
+                                // Generate code when turning on
+                                generateReferralCode.mutate(selectedUser.id);
+                              } else if (userReferralCode) {
+                                // Toggle status when code exists
+                                toggleReferralStatus.mutate({
+                                  userId: selectedUser.id,
+                                  isActive: checked,
+                                });
+                              }
+                            }
+                          }}
+                          disabled={referralCodeLoading || toggleReferralStatus.isPending || generateReferralCode.isPending}
+                        />
+                      </div>
+                    </div>
+                    {referralCodeLoading ? (
+                      <p className="text-sm text-muted-foreground">Loading referral information...</p>
+                    ) : userReferralCode ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Referral Code</p>
+                            <p className="font-mono font-semibold text-primary">{userReferralCode.code}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyReferralLink(userReferralCode.code)}
+                          >
+                            <Copy className="h-4 w-4 mr-1" />
+                            Copy Link
+                          </Button>
+                        </div>
+                        {userReferralStats && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Total Referrals</p>
+                              <p className="text-lg font-semibold">{userReferralStats.totalReferrals}</p>
+                            </div>
+                            <div className="p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Clicks</p>
+                              <p className="text-lg font-semibold">{userReferralCode.clickCount}</p>
+                            </div>
+                            <div className="p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Signed Up</p>
+                              <p className="text-lg font-semibold">{userReferralStats.signedUpReferrals}</p>
+                            </div>
+                            <div className="p-2 bg-muted/30 rounded">
+                              <p className="text-xs text-muted-foreground">Invested</p>
+                              <p className="text-lg font-semibold">{userReferralStats.investedReferrals}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Toggle on to enable referral program for this user</p>
+                    )}
+                  </div>
+                )}
 
                 {selectedUser.createdAt && (
                   <div className="pt-4 border-t">

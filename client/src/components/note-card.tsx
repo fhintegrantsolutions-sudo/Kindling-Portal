@@ -56,6 +56,11 @@ export function NoteCard({ note, participation, registration, onRegistrationUpda
   const calculateTermProgress = () => {
     if (!note.termMonths) return 0;
 
+    // For upcoming notes, show 0 until first payment is made
+    if (isUpcomingParticipation && paymentCount === 0) {
+      return 0;
+    }
+
     // If we have payment count, use that; otherwise estimate from contract date
     let monthsElapsed = 0;
     if (paymentCount > 0) {
@@ -71,7 +76,7 @@ export function NoteCard({ note, participation, registration, onRegistrationUpda
   };
 
   const termProgress = calculateTermProgress();
-  const monthsElapsed = paymentCount > 0 ? paymentCount : (note.contractDate ? Math.floor((new Date().getTime() - convertToDate(note.contractDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0);
+  const monthsElapsed = (isUpcomingParticipation && paymentCount === 0) ? 0 : (paymentCount > 0 ? paymentCount : (note.contractDate ? Math.floor((new Date().getTime() - convertToDate(note.contractDate).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0));
 
   return (
     <Card className="group hover:border-primary/50 transition-all duration-300 hover:shadow-md border-border/60" data-testid={`card-note-${note.id}`}>
@@ -96,7 +101,7 @@ export function NoteCard({ note, participation, registration, onRegistrationUpda
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-8 text-sm">
+        <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-6 text-sm">
           <div className="flex flex-col gap-2">
             <span className="text-muted-foreground flex items-center gap-1.5 text-xs uppercase tracking-wide whitespace-nowrap">
               <DollarSign className="w-3 h-3" /> {participation ? "Invested" : "Principal"}

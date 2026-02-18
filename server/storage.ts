@@ -20,6 +20,8 @@ import {
   type InsertActivity,
   type Borrower,
   type InsertBorrower,
+  type AccessRequest,
+  type InsertAccessRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -125,6 +127,11 @@ export interface IStorage {
   createBorrower(borrower: InsertBorrower): Promise<Borrower>;
   updateBorrower(id: string, borrower: Partial<InsertBorrower>): Promise<Borrower | undefined>;
   deleteBorrower(id: string): Promise<void>;
+
+  // Access Requests
+  createAccessRequest(request: InsertAccessRequest): Promise<AccessRequest>;
+  getAccessRequests(): Promise<AccessRequest[]>;
+  updateAccessRequest(id: string, request: Partial<InsertAccessRequest>): Promise<AccessRequest | undefined>;
 }
 
 export class FirestoreStorage implements IStorage {
@@ -731,6 +738,43 @@ export class FirestoreStorage implements IStorage {
 
   async deleteBorrower(id: string): Promise<void> {
     await db.collection(COLLECTIONS.BORROWERS).doc(id).delete();
+  }
+
+  // Access Requests
+  async createAccessRequest(insertRequest: InsertAccessRequest): Promise<AccessRequest> {
+    const docRef = db.collection(COLLECTIONS.ACCESS_REQUESTS).doc();
+    const requestData = {
+      ...insertRequest,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+    await docRef.set(requestData);
+    const doc = await docRef.get();
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: timestampToDate(doc.data()?.createdAt),
+    } as AccessRequest;
+  }
+
+  async getAccessRequests(): Promise<AccessRequest[]> {
+    const snapshot = await db.collection(COLLECTIONS.ACCESS_REQUESTS).orderBy("createdAt", "desc").get();
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: timestampToDate(doc.data().createdAt),
+    } as AccessRequest));
+  }
+
+  async updateAccessRequest(id: string, request: Partial<InsertAccessRequest>): Promise<AccessRequest | undefined> {
+    const docRef = db.collection(COLLECTIONS.ACCESS_REQUESTS).doc(id);
+    await docRef.update(request);
+    const doc = await docRef.get();
+    if (!doc.exists) return undefined;
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: timestampToDate(doc.data()?.createdAt),
+    } as AccessRequest;
   }
 }
 
