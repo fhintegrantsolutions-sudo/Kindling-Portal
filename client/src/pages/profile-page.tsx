@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCurrentUser, useMyBeneficiaries, useMyDocuments, useMyEntity } from "@/lib/api";
-import { FileText, HelpCircle, Plus, Trash2, Upload, User, ExternalLink, Building2, Eye } from "lucide-react";
+import { FileText, HelpCircle, Plus, Trash2, Upload, User, ExternalLink, Building2, Eye, Link2, Copy } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -21,6 +22,22 @@ export default function ProfilePage() {
   const { data: myEntityData, isLoading: entityLoading } = useMyEntity();
   const [newBeneficiary, setNewBeneficiary] = useState({ name: "", relation: "", percentage: "", type: "Primary", dob: "", phone: "", address: "" });
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  const { data: referralCode } = useQuery<{ code: string; isActive: boolean; clickCount: number } | null>({
+    queryKey: ["my-referral-code"],
+    queryFn: async () => {
+      const res = await fetch("/api/my-referral-code", { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  const copyReferralLink = () => {
+    if (!referralCode) return;
+    const link = `${window.location.origin}/request-access?ref=${referralCode.code}`;
+    navigator.clipboard.writeText(link);
+    toast({ title: "Link Copied", description: "Your referral link has been copied to the clipboard." });
+  };
 
   const handleFileUpload = () => {
     toast({
@@ -78,12 +95,12 @@ export default function ProfilePage() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Full Name</Label>
-                        <Input defaultValue={user?.name || ""} data-testid="input-name" />
+                        <Label className="text-muted-foreground">Full Name</Label>
+                        <Input defaultValue={user?.name || ""} disabled data-testid="input-name" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Email</Label>
-                        <Input defaultValue={user?.email || ""} data-testid="input-email" />
+                        <Label className="text-muted-foreground">Email</Label>
+                        <Input defaultValue={user?.email || ""} disabled data-testid="input-email" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -416,6 +433,32 @@ export default function ProfilePage() {
                 </div>
               </CardContent>
             </Card>
+
+            {referralCode?.isActive && (
+              <Card className="border border-border">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-primary/10 rounded-full">
+                      <Link2 className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Referral Program</CardTitle>
+                      <CardDescription>Share your link with your trusted network</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Your referral code</p>
+                    <p className="font-mono font-semibold text-primary text-lg">{referralCode.code}</p>
+                  </div>
+                  <Button className="w-full gap-2" onClick={copyReferralLink}>
+                    <Copy className="h-4 w-4" />
+                    Copy Referral Link
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="bg-white border border-border">
               <CardContent className="pt-6">

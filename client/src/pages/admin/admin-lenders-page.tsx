@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useRef } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,8 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
-import { Users, DollarSign, Search, Filter, ChevronRight, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Users, DollarSign, Search, Filter, ChevronRight, FileText, Upload, Trash2, Download } from "lucide-react";
+
+const DOC_TYPES = [
+  { type: "amortization_schedule", label: "Amortization Schedule" },
+  { type: "acknowledgement_letter", label: "Acknowledgement Letter" },
+];
 
 interface Payment {
   id: string;
@@ -72,6 +80,10 @@ export default function AdminLendersPage() {
   const [noteFilter, setNoteFilter] = useState<string>("all");
   const [selectedParticipation, setSelectedParticipation] = useState<Participation | null>(null);
   const [viewMode, setViewMode] = useState<string>("lenders");
+  const [draggingOver, setDraggingOver] = useState<{ participationId: string; type: string } | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Fetch all participations with user and note details
   const { data: participations = [], isLoading } = useQuery({
@@ -83,6 +95,70 @@ export default function AdminLendersPage() {
       if (!response.ok) throw new Error("Failed to fetch participations");
       return response.json();
     },
+  });
+
+  // Fetch documents for selected participation
+  const { data: participationDocs = [] } = useQuery<any[]>({
+    queryKey: ["admin", "participation-docs", selectedParticipation?.id],
+    queryFn: async () => {
+      if (!selectedParticipation?.id) return [];
+      const res = await fetch(`/api/participations/${selectedParticipation.id}/documents`, {
+        headers: { "x-username": "admin" },
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!selectedParticipation?.id,
+  });
+
+  const uploadDoc = useMutation({
+    mutationFn: async ({ participationId, type, file }: { participationId: string; type: string; file: File }) => {
+      const buffer = await file.arrayBuffer();
+      const res = await fetch(
+        `/api/admin/participations/${participationId}/documents?type=${encodeURIComponent(type)}`,
+        {
+          method: "POST",
+          headers: {
+            "x-username": "admin",
+            "Content-Type": "application/octet-stream",
+            "x-filename": file.name,
+          },
+          body: buffer,
+        }
+      );
+      const text = await res.text();
+      if (!res.ok || text.trimStart().startsWith("<")) {
+        let msg = `Status ${res.status}`;
+        try {
+          const data = JSON.parse(text);
+          msg = data.error || msg;
+        } catch {
+          msg = `${msg}: server returned HTML — ${text.substring(0, 80)}`;
+        }
+        throw new Error(msg);
+      }
+      return JSON.parse(text);
+    },
+    onSuccess: (_data, { participationId }) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "participation-docs", participationId] });
+      toast({ title: "Document uploaded" });
+    },
+    onError: (err: Error) => toast({ title: "Upload failed", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteDoc = useMutation({
+    mutationFn: async ({ participationId, docId }: { participationId: string; docId: string }) => {
+      const res = await fetch(`/api/admin/participations/${participationId}/documents/${docId}`, {
+        method: "DELETE",
+        headers: { "x-username": "admin" },
+      });
+      if (!res.ok) throw new Error("Delete failed");
+    },
+    onSuccess: (_data, { participationId }) => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "participation-docs", participationId] });
+      toast({ title: "Document deleted" });
+    },
+    onError: () => toast({ title: "Delete failed", variant: "destructive" }),
   });
 
   // Fetch payments for selected participation
@@ -187,14 +263,6 @@ export default function AdminLendersPage() {
     // Sort by name
     return Object.entries(grouped).sort(([, a], [, b]) => (a.user?.name || "").localeCompare(b.user?.name || ""));
   }, [filteredParticipations]);
-
-  const getStatusBadge = (p: Participation) => {
-    const fs = p.fundingStatus || {};
-    if (fs.cleared) return <Badge variant="default">Funds Cleared</Badge>;
-    if (fs.deposited) return <Badge variant="secondary">Funds Deposited</Badge>;
-    if (fs.received) return <Badge variant="outline">Funds Received</Badge>;
-    return <Badge variant="destructive">Awaiting Funds</Badge>;
-  };
 
   return (
     <AdminLayout>
@@ -367,7 +435,7 @@ export default function AdminLendersPage() {
                                 <TableHead className="text-right">Monthly</TableHead>
                                 <TableHead className="text-right">Principal Paid</TableHead>
                                 <TableHead className="text-right">Interest Paid</TableHead>
-                                <TableHead>Status</TableHead>
+                                <TableHead>Documents</TableHead>
                                 <TableHead></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -398,7 +466,41 @@ export default function AdminLendersPage() {
                                     <TableCell className="text-right text-amber-600">
                                       {summary ? formatCurrency(parseFloat(summary.totalPaidInterest)) : "-"}
                                     </TableCell>
-                                    <TableCell>{getStatusBadge(p)}</TableCell>
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex gap-1">
+                                        {DOC_TYPES.map(({ type, label }) => (
+                                          <label
+                                            key={type}
+                                            className={`text-xs px-2 py-1 rounded border border-dashed cursor-pointer select-none transition-colors whitespace-nowrap ${
+                                              draggingOver?.participationId === p.id && draggingOver?.type === type
+                                                ? "bg-primary/15 border-primary text-primary"
+                                                : "border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                                            }`}
+                                            onDragOver={(e) => { e.preventDefault(); setDraggingOver({ participationId: p.id, type }); }}
+                                            onDragLeave={() => setDraggingOver(null)}
+                                            onDrop={(e) => {
+                                              e.preventDefault();
+                                              setDraggingOver(null);
+                                              const file = e.dataTransfer.files[0];
+                                              if (file) uploadDoc.mutate({ participationId: p.id, type, file });
+                                            }}
+                                          >
+                                            <input
+                                              type="file"
+                                              accept=".pdf,.jpg,.jpeg,.png"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) uploadDoc.mutate({ participationId: p.id, type, file });
+                                                e.target.value = "";
+                                              }}
+                                            />
+                                            <Upload className="h-3 w-3 inline-block mr-1" />
+                                            {label === "Amortization Schedule" ? "Amort." : "Ack."}
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </TableCell>
                                     <TableCell>
                                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     </TableCell>
@@ -468,7 +570,7 @@ export default function AdminLendersPage() {
                                 <TableHead className="text-right">Monthly</TableHead>
                                 <TableHead className="text-right">Principal Paid</TableHead>
                                 <TableHead className="text-right">Interest Paid</TableHead>
-                                <TableHead>Status</TableHead>
+                                <TableHead>Documents</TableHead>
                                 <TableHead></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -500,7 +602,41 @@ export default function AdminLendersPage() {
                                     <TableCell className="text-right text-amber-600">
                                       {summary ? formatCurrency(parseFloat(summary.totalPaidInterest)) : "-"}
                                     </TableCell>
-                                    <TableCell>{getStatusBadge(p)}</TableCell>
+                                    <TableCell onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex gap-1">
+                                        {DOC_TYPES.map(({ type, label }) => (
+                                          <label
+                                            key={type}
+                                            className={`text-xs px-2 py-1 rounded border border-dashed cursor-pointer select-none transition-colors whitespace-nowrap ${
+                                              draggingOver?.participationId === p.id && draggingOver?.type === type
+                                                ? "bg-primary/15 border-primary text-primary"
+                                                : "border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                                            }`}
+                                            onDragOver={(e) => { e.preventDefault(); setDraggingOver({ participationId: p.id, type }); }}
+                                            onDragLeave={() => setDraggingOver(null)}
+                                            onDrop={(e) => {
+                                              e.preventDefault();
+                                              setDraggingOver(null);
+                                              const file = e.dataTransfer.files[0];
+                                              if (file) uploadDoc.mutate({ participationId: p.id, type, file });
+                                            }}
+                                          >
+                                            <input
+                                              type="file"
+                                              accept=".pdf,.jpg,.jpeg,.png"
+                                              className="hidden"
+                                              onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) uploadDoc.mutate({ participationId: p.id, type, file });
+                                                e.target.value = "";
+                                              }}
+                                            />
+                                            <Upload className="h-3 w-3 inline-block mr-1" />
+                                            {label === "Amortization Schedule" ? "Amort." : "Ack."}
+                                          </label>
+                                        ))}
+                                      </div>
+                                    </TableCell>
                                     <TableCell>
                                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                     </TableCell>
@@ -624,7 +760,7 @@ export default function AdminLendersPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {Object.entries(
+                        {(Object.entries(
                           selectedPayments.reduce((acc: Record<string, {principal: number, interest: number}>, p: Payment) => {
                             const year = new Date(p.paymentDate).getFullYear();
                             if (!acc[year]) acc[year] = { principal: 0, interest: 0 };
@@ -632,7 +768,7 @@ export default function AdminLendersPage() {
                             acc[year].interest += parseFloat(p.interestAmount || '0');
                             return acc;
                           }, {})
-                        ).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([year, sums]) => (
+                        ) as [string, {principal: number, interest: number}][]).sort(([a], [b]) => parseInt(a) - parseInt(b)).map(([year, sums]) => (
                           <TableRow key={year}>
                             <TableCell>{year}</TableCell>
                             <TableCell className="text-right text-green-600">{formatCurrency(sums.principal)}</TableCell>
@@ -687,6 +823,76 @@ export default function AdminLendersPage() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Lender Documents */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Lender Documents</h3>
+                  <div className="space-y-3">
+                    {DOC_TYPES.map(({ type, label }) => {
+                      const existing = participationDocs.find((d: any) => d.type === type);
+                      return (
+                        <div key={type} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/20">
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium">{label}</p>
+                              {existing ? (
+                                <p className="text-xs text-muted-foreground">{existing.fileName}</p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">No file uploaded</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {existing ? (
+                              <>
+                                <a href={existing.fileUrl} target="_blank" rel="noopener noreferrer">
+                                  <Button size="sm" variant="outline" className="gap-1">
+                                    <Download className="h-3 w-3" /> Download
+                                  </Button>
+                                </a>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => deleteDoc.mutate({ participationId: selectedParticipation!.id, docId: existing.id })}
+                                  disabled={deleteDoc.isPending}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <input
+                                  type="file"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  className="hidden"
+                                  ref={(el) => { fileInputRefs.current[type] = el; }}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) uploadDoc.mutate({ participationId: selectedParticipation!.id, type, file });
+                                    e.target.value = "";
+                                  }}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => fileInputRefs.current[type]?.click()}
+                                  disabled={uploadDoc.isPending}
+                                >
+                                  <Upload className="h-3 w-3" /> Upload
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Separator />
 
                 {/* Payment History Table */}
                 <div>

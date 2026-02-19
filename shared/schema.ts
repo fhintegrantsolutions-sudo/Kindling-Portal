@@ -232,6 +232,21 @@ export interface AccessRequest extends InsertAccessRequest {
   createdAt: Date | Timestamp;
 }
 
+export interface InsertSetupToken {
+  token: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  expiresAt: Date | Timestamp;
+  used: boolean;
+}
+
+export interface SetupToken extends InsertSetupToken {
+  id: string;
+  createdAt: Date | Timestamp;
+}
+
 // Firestore collection names
 export const COLLECTIONS = {
   USERS: "users",
@@ -245,4 +260,5 @@ export const COLLECTIONS = {
   ACTIVITIES: "activities",
   BORROWERS: "borrowers",
   ACCESS_REQUESTS: "access_requests",
+  SETUP_TOKENS: "setup_tokens",
 } as const;

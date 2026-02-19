@@ -9,6 +9,39 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export async function sendAccountSetupEmail(
+  to: string,
+  firstName: string,
+  setupUrl: string
+) {
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to,
+    subject: "Set Up Your Kindling Account",
+    html: `
+      <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
+        <h2 style="color: #1a1a2e;">Welcome to Kindling, ${firstName}!</h2>
+        <p>Your request to join has been approved. Click the button below to set up your account and choose your password.</p>
+        <p style="margin: 32px 0;">
+          <a href="${setupUrl}" style="background-color: #e8622a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">
+            Set Up My Account
+          </a>
+        </p>
+        <p style="color: #666; font-size: 14px;">This link expires in 72 hours. If you didn't request access to Kindling, you can safely ignore this email.</p>
+        <p style="color: #666; font-size: 14px;">Or copy and paste this URL into your browser:<br/>${setupUrl}</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Account setup email sent to ${to}`);
+  } catch (error) {
+    console.error("Error sending account setup email:", error);
+    throw error;
+  }
+}
+
 export async function sendWelcomeEmail(
   to: string,
   name: string,

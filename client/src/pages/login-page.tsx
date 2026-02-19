@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { ArrowRight, Lock, ArrowLeft } from "lucide-react";
+import { ArrowRight, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useCurrentUser } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [, setLocation] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const { data: user } = useCurrentUser();
   const { toast } = useToast();
 
@@ -42,7 +43,7 @@ export default function LoginPage() {
   // Redirect to portal if already logged in
   useEffect(() => {
     if (user) {
-      setLocation("/portal");
+      setLocation(user.role === "admin" ? "/portal/admin" : "/portal");
     }
   }, [user, setLocation]);
 
@@ -71,12 +72,17 @@ export default function LoginPage() {
         return;
       }
 
+      const userData = await response.json();
+
       // Invalidate user cache so useCurrentUser picks up the session
       await queryClient.invalidateQueries({ queryKey: ["me"] });
 
-      // If they came via a referral link, send them to opportunities; otherwise dashboard
-      const hasReferral = !!localStorage.getItem("referralCode");
-      setLocation(hasReferral ? "/portal/opportunities" : "/portal");
+      // Admins go to admin portal; lenders go to dashboard (or opportunities if referred)
+      if (userData.role === "admin") {
+        setLocation("/portal/admin");
+      } else {
+        setLocation("/portal");
+      }
     } catch {
       setLoginError("Something went wrong. Please try again.");
     } finally {
@@ -166,7 +172,17 @@ export default function LoginPage() {
                           </Button>
                         </div>
                         <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} className="h-11" />
+                          <div className="relative">
+                            <Input type={showPassword ? "text" : "password"} placeholder="••••••••" {...field} className="h-11 pr-10" />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(v => !v)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                              tabIndex={-1}
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -76,7 +76,7 @@ export default function AdminAccessRequestsPage() {
           <div>
             <h1 className="text-2xl font-serif font-bold">Access Requests</h1>
             <p className="text-sm text-muted-foreground">
-              Prospective investors who have submitted a request to join the platform.
+              Prospective lenders who have submitted a request to join the network.
             </p>
           </div>
           {pending.length > 0 && (

@@ -32,7 +32,16 @@ export default function RequestAccessPage() {
     // Pick up referral code from URL or localStorage
     const params = new URLSearchParams(window.location.search);
     const ref = params.get("ref") || localStorage.getItem("referralCode");
-    if (ref) setReferralCode(ref);
+    if (ref) {
+      setReferralCode(ref);
+      localStorage.setItem("referralCode", ref);
+      // Track the referral click server-side
+      fetch("/api/referrals/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referralCode: ref }),
+      }).catch(() => {});
+    }
   }, []);
 
   const form = useForm<RequestAccessFormData>({
@@ -81,8 +90,7 @@ export default function RequestAccessPage() {
             <span className="font-serif text-3xl font-bold text-sidebar-primary">Kindling</span>
           </div>
           <h1 className="font-serif text-5xl font-bold leading-tight mb-6">
-            Join Our Investor <br />
-            <span className="text-sidebar-primary">Network.</span>
+            Join Our <span className="text-sidebar-primary">Network.</span>
           </h1>
           <p className="text-lg text-sidebar-foreground/70 max-w-md leading-relaxed">
             Submit your information and our team will review your request. We'll reach out to verify your details and set up your account.
@@ -113,7 +121,7 @@ export default function RequestAccessPage() {
                   className="h-12 w-auto"
                 />
               </div>
-              <CardTitle className="text-2xl font-serif text-center">Request Access</CardTitle>
+              <CardTitle className="text-2xl font-serif text-center">Request to Join</CardTitle>
               <CardDescription className="text-center">
                 Tell us about yourself and we'll be in touch to get you set up.
               </CardDescription>
@@ -213,7 +221,7 @@ export default function RequestAccessPage() {
                           <FormLabel>Message <span className="text-muted-foreground text-xs">(optional)</span></FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Tell us a bit about your investment goals..."
+                              placeholder="Tell us a bit about your goals..."
                               className="resize-none"
                               rows={3}
                               {...field}
@@ -231,7 +239,7 @@ export default function RequestAccessPage() {
                       className="w-full h-11 text-base bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? "Submitting..." : "Request Access"}
+                      {isSubmitting ? "Submitting..." : "Request to Join"}
                     </Button>
                   </form>
                 </Form>

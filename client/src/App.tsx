@@ -8,6 +8,7 @@ import HomePage from "@/pages/home-page";
 import AboutPage from "@/pages/about-page";
 import LoginPage from "@/pages/login-page";
 import RequestAccessPage from "@/pages/request-access-page";
+import SetupAccountPage from "@/pages/setup-account-page";
 import DashboardPage from "@/pages/dashboard-page";
 import NotesPage from "@/pages/notes-page";
 import NoteDetailPage from "@/pages/note-detail-page";
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/about" component={AboutPage} />
       <Route path="/login" component={LoginPage} />
       <Route path="/request-access" component={RequestAccessPage} />
+      <Route path="/setup-account" component={SetupAccountPage} />
 
       {/* Backward Compatibility Redirects */}
       <Route path="/auth">
@@ -44,6 +46,9 @@ function Router() {
       </Route>
       <Route path="/notes">
         {() => { setLocation("/portal/notes"); return null; }}
+      </Route>
+      <Route path="/notes/:id">
+        {(params) => { setLocation(`/portal/notes/${params.id}`); return null; }}
       </Route>
       <Route path="/opportunities">
         {() => { setLocation("/portal/opportunities"); return null; }}

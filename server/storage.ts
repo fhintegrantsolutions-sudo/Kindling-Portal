@@ -22,6 +22,8 @@ import {
   type InsertBorrower,
   type AccessRequest,
   type InsertAccessRequest,
+  type SetupToken,
+  type InsertSetupToken,
 } from "@shared/schema";
 import { db } from "./db";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -132,6 +134,11 @@ export interface IStorage {
   createAccessRequest(request: InsertAccessRequest): Promise<AccessRequest>;
   getAccessRequests(): Promise<AccessRequest[]>;
   updateAccessRequest(id: string, request: Partial<InsertAccessRequest>): Promise<AccessRequest | undefined>;
+
+  // Setup Tokens
+  createSetupToken(token: InsertSetupToken): Promise<SetupToken>;
+  getSetupToken(token: string): Promise<SetupToken | undefined>;
+  markSetupTokenUsed(token: string): Promise<void>;
 }
 
 export class FirestoreStorage implements IStorage {
@@ -544,6 +551,17 @@ export class FirestoreStorage implements IStorage {
     } as ParticipationDocument;
   }
 
+  async getParticipationDocument(docId: string): Promise<ParticipationDocument | undefined> {
+    const doc = await db.collection(COLLECTIONS.PARTICIPATION_DOCUMENTS).doc(docId).get();
+    if (!doc.exists) return undefined;
+    const data = doc.data();
+    return { id: doc.id, ...data, createdAt: timestampToDate(data?.createdAt) } as ParticipationDocument;
+  }
+
+  async deleteParticipationDocument(docId: string): Promise<void> {
+    await db.collection(COLLECTIONS.PARTICIPATION_DOCUMENTS).doc(docId).delete();
+  }
+
   // Get single participation with note
   async getParticipation(id: string): Promise<(Participation & { note: Note }) | undefined> {
     const doc = await db.collection(COLLECTIONS.PARTICIPATIONS).doc(id).get();
@@ -775,6 +793,42 @@ export class FirestoreStorage implements IStorage {
       ...doc.data(),
       createdAt: timestampToDate(doc.data()?.createdAt),
     } as AccessRequest;
+  }
+
+  async createSetupToken(token: InsertSetupToken): Promise<SetupToken> {
+    const docRef = db.collection(COLLECTIONS.SETUP_TOKENS).doc();
+    const data = {
+      ...token,
+      expiresAt: token.expiresAt instanceof Date ? Timestamp.fromDate(token.expiresAt) : token.expiresAt,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+    await docRef.set(data);
+    const doc = await docRef.get();
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: timestampToDate(doc.data()?.createdAt),
+      expiresAt: timestampToDate(doc.data()?.expiresAt),
+    } as SetupToken;
+  }
+
+  async getSetupToken(token: string): Promise<SetupToken | undefined> {
+    const snapshot = await db.collection(COLLECTIONS.SETUP_TOKENS).where("token", "==", token).limit(1).get();
+    if (snapshot.empty) return undefined;
+    const doc = snapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: timestampToDate(doc.data().createdAt),
+      expiresAt: timestampToDate(doc.data().expiresAt),
+    } as SetupToken;
+  }
+
+  async markSetupTokenUsed(token: string): Promise<void> {
+    const snapshot = await db.collection(COLLECTIONS.SETUP_TOKENS).where("token", "==", token).limit(1).get();
+    if (!snapshot.empty) {
+      await snapshot.docs[0].ref.update({ used: true });
+    }
   }
 }
 

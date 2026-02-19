@@ -2,9 +2,20 @@ import Layout from "@/components/layout";
 import { OpportunityCard } from "@/components/opportunity-card";
 import { useOpportunities } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { differenceInDays } from "date-fns";
 
 export default function OpportunitiesPage() {
   const { data: opportunities, isLoading } = useOpportunities();
+
+  const activeOpportunities = opportunities?.filter((opp) => {
+    const closingDate = opp.fundingEndDate;
+    if (!closingDate) return true;
+    const str = typeof closingDate === "string" ? closingDate : (closingDate as Date).toISOString();
+    const [year, month, day] = str.split("T")[0].split("-").map(Number);
+    const localClose = new Date(year, month - 1, day);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return differenceInDays(localClose, today) >= 0;
+  });
 
   return (
     <Layout>
@@ -22,8 +33,8 @@ export default function OpportunitiesPage() {
               <Skeleton className="h-96" />
               <Skeleton className="h-96" />
             </>
-          ) : opportunities && opportunities.length > 0 ? (
-            opportunities.map((opp) => (
+          ) : activeOpportunities && activeOpportunities.length > 0 ? (
+            activeOpportunities.map((opp) => (
               <OpportunityCard key={opp.id} opportunity={opp} />
             ))
           ) : (

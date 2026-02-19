@@ -123,10 +123,10 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
         <TabsTrigger value="basic">Basic Info</TabsTrigger>
         <TabsTrigger value="financial">Financial</TabsTrigger>
         <TabsTrigger value="dates">Dates</TabsTrigger>
-        <TabsTrigger value="additional">Additional</TabsTrigger>
+        <TabsTrigger value="admin-chat">Admin Chat</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="basic" className="space-y-4 mt-4">
+      <TabsContent value="basic" className="space-y-4 mt-4 min-h-[420px]">
         <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor="noteId">Note ID *</Label>
@@ -134,7 +134,16 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
           id="noteId"
           required
           value={formData.noteId}
-          onChange={(e) => onFormDataChange({ ...formData, noteId: e.target.value })}
+          onChange={(e) => {
+            const newNoteId = e.target.value;
+            const autoTitle = formData.noteId ? `${formData.noteId} - Kindling` : "";
+            const shouldUpdateTitle = !formData.title || formData.title === autoTitle;
+            onFormDataChange({
+              ...formData,
+              noteId: newNoteId,
+              title: shouldUpdateTitle ? (newNoteId ? `${newNoteId} - Kindling` : "") : formData.title,
+            });
+          }}
           placeholder="N-2024-001"
         />
       </div>
@@ -246,7 +255,7 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
         </div>
       </TabsContent>
 
-      <TabsContent value="financial" className="space-y-4 mt-4">
+      <TabsContent value="financial" className="space-y-4 mt-4 min-h-[420px]">
         <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor="principal">Loan Amount</Label>
@@ -351,7 +360,7 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
         </div>
       </TabsContent>
 
-      <TabsContent value="dates" className="space-y-6 mt-4">
+      <TabsContent value="dates" className="space-y-6 mt-4 min-h-[420px]">
         {/* Funding Dates */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-muted-foreground">Funding Period</h3>
@@ -495,8 +504,9 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
         </div>
       </TabsContent>
 
-      <TabsContent value="additional" className="space-y-4 mt-4">
-        <div className="grid gap-4 md:grid-cols-2">
+      <TabsContent value="admin-chat" className="space-y-4 mt-4 min-h-[420px]">
+        <div className="flex items-center justify-center h-full text-muted-foreground text-sm pt-16">
+          Admin chat coming soon.
         </div>
       </TabsContent>
     </Tabs>
@@ -897,7 +907,7 @@ export default function AdminNotesPage() {
                 Add Note
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Note</DialogTitle>
                 <DialogDescription>
@@ -1643,9 +1653,9 @@ export default function AdminNotesPage() {
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Note</DialogTitle>
+              <DialogTitle>Edit Note {selectedNote?.noteId ? `— ${selectedNote.noteId}` : ""}</DialogTitle>
               <DialogDescription>
                 Update the loan note details and borrower information.
               </DialogDescription>

@@ -83,21 +83,16 @@ export function NoteCard({ note, participation, registration, onRegistrationUpda
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <div className="flex gap-2">
-              <Badge variant="outline" className="mb-2 bg-secondary text-secondary-foreground border-none font-medium text-xs" data-testid={`badge-type-${note.id}`}>
-                {note.type}
-              </Badge>
-              <Badge variant="outline" className="mb-2 border-primary/20 text-primary/80 font-medium text-xs" data-testid={`badge-interest-type-${note.id}`}>
-                {note.interestType}
-              </Badge>
-            </div>
             <CardTitle className="font-serif text-xl group-hover:text-primary transition-colors" data-testid={`text-title-${note.id}`}>
-              {note.noteId} - {note.borrower}
+              {note.noteId} - {note.title || note.borrower}
             </CardTitle>
           </div>
-          <Badge className={note.status === "Active" ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25" : "bg-gray-100 text-gray-700"} data-testid={`badge-status-${note.id}`}>
-            {note.status}
-          </Badge>
+          <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide whitespace-nowrap">Note Status</span>
+            <Badge className={note.status === "Active" ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25" : "bg-gray-100 text-gray-700"} data-testid={`badge-status-${note.id}`}>
+              {note.status}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -127,6 +122,11 @@ export function NoteCard({ note, participation, registration, onRegistrationUpda
             </span>
           </div>
         </div>
+        {note.interestType && (
+          <Badge variant="outline" className="self-start border-primary/20 text-primary/80 font-medium text-xs" data-testid={`badge-interest-type-${note.id}`}>
+            {note.interestType}
+          </Badge>
+        )}
 
         {monthlyPayment > 0 && (
           <div className="pt-3 border-t border-border/50">
@@ -165,7 +165,7 @@ export function NoteCard({ note, participation, registration, onRegistrationUpda
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href={`/notes/${participation.id}`} className="w-full">
+                <Link href={`/portal/notes/${participation.id}`} className="w-full">
                   <Button variant="ghost" className="w-full justify-between hover:bg-transparent hover:text-primary p-0 h-auto font-medium text-sm group-hover:translate-x-1 transition-transform" data-testid={`button-view-details-${note.id}`}>
                     View Details <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>

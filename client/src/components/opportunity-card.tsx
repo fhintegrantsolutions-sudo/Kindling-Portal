@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Clock, Percent, Calendar, CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, Percent, Calendar, CheckCircle2, Info } from "lucide-react";
+import { Link } from "wouter";
 import { format, differenceInDays } from "date-fns";
 import type { Note } from "@shared/schema";
 import { formatCurrency, formatRate, formatTerm } from "@/lib/api";
@@ -12,6 +13,14 @@ interface OpportunityCardProps {
   opportunity: Note;
 }
 
+// Parse a date value to a local midnight Date, avoiding UTC-to-local timezone drift
+function parseLocalDate(d: Date | string | null | undefined): Date | null {
+  if (!d) return null;
+  const str = typeof d === "string" ? d : (d as Date).toISOString();
+  const [year, month, day] = str.split("T")[0].split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function OpportunityCard({ opportunity }: OpportunityCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [hasRegistered, setHasRegistered] = useState(false);
@@ -19,8 +28,12 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
 
   const minInvestment = opportunity.minInvestment ? parseFloat(opportunity.minInvestment) : 0;
   const rate = parseFloat(opportunity.rate || "0");
-  const closingDate = opportunity.fundingEndDate || opportunity.maturityDate;
-  const daysUntilClose = closingDate ? differenceInDays(new Date(closingDate), new Date()) : null;
+  const closingDate = opportunity.fundingEndDate;
+  const closingDateLocal = parseLocalDate(closingDate as any);
+  const openingDateLocal = parseLocalDate(opportunity.fundingStartDate as any);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysUntilClose = closingDateLocal ? differenceInDays(closingDateLocal, today) : null;
+  const daysUntilOpen = openingDateLocal ? differenceInDays(openingDateLocal, today) : null;
 
   // Check if user has already registered for this opportunity
   useEffect(() => {
@@ -50,25 +63,14 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
               <Badge variant="secondary" className="font-medium bg-primary/10 text-primary hover:bg-primary/20" data-testid={`badge-status-${opportunity.id}`}>
                 {opportunity.status === "Funding" ? "Now Funding" : "Pre Register Now"}
               </Badge>
-              {hasRegistered && (
-                <Badge variant="secondary" className="font-medium bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 flex items-center gap-1" data-testid={`badge-registered-${opportunity.id}`}>
-                  <CheckCircle2 className="w-3 h-3" /> Registered
-                </Badge>
-              )}
-              {opportunity.interestType && (
-                <Badge variant="outline" className="font-medium bg-background border-border" data-testid={`badge-interest-type-${opportunity.id}`}>
-                  {opportunity.interestType}
-                </Badge>
-              )}
             </div>
-            {closingDate && daysUntilClose !== null && (
-              <div className="text-xs font-medium text-muted-foreground flex flex-col items-end gap-0.5" data-testid={`text-closing-${opportunity.id}`}>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> Closes {format(new Date(closingDate), "MMMM d")}
-                </span>
-                <span className="text-[10px] text-primary font-semibold">
-                  {daysUntilClose > 0 ? `${daysUntilClose} days open for funding` : daysUntilClose === 0 ? 'Closes today' : 'Closed'}
-                </span>
+            {daysUntilOpen !== null && daysUntilOpen > 0 ? (
+              <div className="text-[10px] text-muted-foreground font-semibold" data-testid={`text-closing-${opportunity.id}`}>
+                Opens in {daysUntilOpen} days
+              </div>
+            ) : closingDate && daysUntilClose !== null && (
+              <div className="text-[10px] text-primary font-semibold" data-testid={`text-closing-${opportunity.id}`}>
+                {daysUntilClose > 0 ? `Closes in ${daysUntilClose} days` : daysUntilClose === 0 ? 'Closes today' : 'Closed'}
               </div>
             )}
           </div>
@@ -81,7 +83,12 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
         </CardHeader>
         
         <CardContent className="flex-1 space-y-6">
-          <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-lg border border-secondary">
+          <div className="relative grid grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-lg border border-secondary">
+            {opportunity.interestType && (
+              <Badge variant="outline" className="absolute top-2 right-2 font-medium bg-background border-border text-xs" data-testid={`badge-interest-type-${opportunity.id}`}>
+                {opportunity.interestType}
+              </Badge>
+            )}
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium flex items-center gap-1">
                 <Percent className="w-3 h-3" /> Est. Annual Rate
@@ -111,28 +118,50 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
                 </span>
               </div>
             )}
-            {opportunity.fundingStartDate && (
+            {openingDateLocal && (
               <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="text-muted-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary/70" /> Funding Started
+                  <Calendar className="w-4 h-4 text-primary/70" /> Funding Open
                 </span>
                 <span className="font-medium">
-                  {format(new Date(opportunity.fundingStartDate), "MMM d, yyyy")}
+                  {format(openingDateLocal, "MMM d, yyyy")}
+                </span>
+              </div>
+            )}
+            {closingDateLocal && (
+              <div className="flex justify-between items-center py-2 border-b border-border/50">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary/70" /> Funding Closes
+                </span>
+                <span className="font-medium">
+                  {format(closingDateLocal, "MMM d, yyyy")}
                 </span>
               </div>
             )}
           </div>
         </CardContent>
 
-        <CardFooter className="pt-2">
+        <CardFooter className="pt-2 flex-col gap-2 items-stretch">
           {hasRegistered ? (
-            <Button
-              disabled
-              className="w-full bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 font-medium h-11 text-base border border-emerald-500/30 flex items-center justify-center gap-2"
-              data-testid={`button-register-${opportunity.id}`}
-            >
-              <CheckCircle2 className="w-4 h-4" /> Already Registered
-            </Button>
+            <>
+              <Button
+                disabled
+                className="w-full bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 font-medium h-11 text-base border border-emerald-500/30 flex items-center justify-center gap-2"
+                data-testid={`button-register-${opportunity.id}`}
+              >
+                <CheckCircle2 className="w-4 h-4" /> Already Registered
+              </Button>
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground px-1">
+                <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>
+                  To review your submission or make adjustments, visit{" "}
+                  <Link href="/portal/notes" className="text-primary font-medium hover:underline">
+                    My Notes
+                  </Link>{" "}
+                  → <span className="font-medium">Upcoming</span> tab.
+                </span>
+              </p>
+            </>
           ) : (
             <Button
               onClick={() => setDialogOpen(true)}

@@ -43,7 +43,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 export default function NoteDetailPage() {
-  const [, params] = useRoute("/notes/:id");
+  const [, params] = useRoute("/portal/notes/:id");
   const participationId = params?.id || "";
 
   const { data: participation, isLoading: loadingParticipation } = useParticipation(participationId);
@@ -122,9 +122,9 @@ export default function NoteDetailPage() {
 
   const participationShare = notePrincipal > 0 ? investedAmount / notePrincipal : 0;
   // Use participation-level paymentAmount if available, otherwise calculate proportionally from note
-  const participationPaymentAmount = participation.paymentAmount 
-    ? parseFloat(participation.paymentAmount) 
-    : (participation.fundingStatus?.paymentAmount ? parseFloat(participation.fundingStatus.paymentAmount) : 0);
+  const participationPaymentAmount = participation.paymentAmount
+    ? parseFloat(participation.paymentAmount)
+    : 0;
   const monthlyPayment = participationPaymentAmount > 0 
     ? participationPaymentAmount 
     : noteMonthlyPayment * participationShare;
@@ -228,7 +228,7 @@ export default function NoteDetailPage() {
                 <DollarSign className="w-4 h-4" />
                 Your Investment
               </div>
-              <p className="text-2xl font-bold">{formatCurrency(investedAmount)}</p>
+              <p className="text-2xl font-bold">{formatCurrencyPrecise(investedAmount)}</p>
             </CardContent>
           </Card>
           <Card data-testid="card-interest-rate">
@@ -265,7 +265,7 @@ export default function NoteDetailPage() {
                   </UITooltip>
                 </TooltipProvider>
               </div>
-              <p className="text-2xl font-bold">{formatCurrency(remainingBalance)}</p>
+              <p className="text-2xl font-bold">{formatCurrencyPrecise(remainingBalance)}</p>
             </CardContent>
           </Card>
         </div>
@@ -435,8 +435,12 @@ export default function NoteDetailPage() {
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-primary" />
                           <div>
-                            <p className="font-medium text-sm">{doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground">{doc.type}</p>
+                            <p className="font-medium text-sm">
+                              {doc.type === "amortization_schedule" ? "Amortization Schedule"
+                                : doc.type === "acknowledgement_letter" ? "Acknowledgement Letter"
+                                : doc.type}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{doc.fileName}</p>
                           </div>
                         </div>
                         <Button variant="ghost" size="icon" className="h-8 w-8" asChild>

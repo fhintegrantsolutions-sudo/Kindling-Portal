@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import express from "express";
 import { storage } from "./storage";
 import {
   insertNoteSchema,
@@ -11,11 +12,18 @@ import {
   insertBorrowerSchema
 } from "@shared/schema";
 import { z } from "zod";
-import { sendWelcomeEmail, sendAccountingNotification, sendPaymentConfirmation } from "./notifications";
+import { sendWelcomeEmail, sendAccountingNotification, sendPaymentConfirmation, sendAccountSetupEmail } from "./notifications";
+import { randomUUID } from "crypto";
 import { auditMiddleware, setUserContext } from "./audit-middleware";
 import { complianceStorage } from "./compliance-storage";
 import { referralStorage } from "./referral-storage";
 import bcrypt from "bcryptjs";
+import path from "path";
+import fs from "fs";
+
+// Ensure uploads directory exists
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 // Middleware to require admin role (checks session, then falls back to header for dev tools)
 async function requireAdmin(req: any, res: any, next: any) {
@@ -52,7 +60,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
+  // Serve uploaded files
+  app.use("/uploads", express.static(uploadDir));
+
   // Apply audit middleware to all routes
   app.use(setUserContext);
   app.use(auditMiddleware);
@@ -380,6 +391,54 @@ export async function registerRoutes(
     }
   });
 
+  // Upload a document for a participation (admin only)
+  // Accepts raw binary body (application/octet-stream) with type & filename as headers
+  app.post(
+    "/api/admin/participations/:id/documents",
+    requireAdmin,
+    express.raw({ type: "application/octet-stream", limit: "20mb" }),
+    async (req: any, res: any) => {
+      try {
+        const type = req.query.type as string;
+        const originalName = (req.headers["x-filename"] as string) || "upload";
+        if (!type) return res.status(400).json({ error: "Document type is required" });
+        if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+          return res.status(400).json({ error: "No file data received" });
+        }
+        const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        const savedFilename = `${unique}-${originalName}`;
+        const filePath = path.join(uploadDir, savedFilename);
+        fs.writeFileSync(filePath, req.body);
+        const doc = await storage.createParticipationDocument({
+          participationId: req.params.id,
+          type,
+          fileName: originalName,
+          fileUrl: `/uploads/${savedFilename}`,
+        });
+        res.status(201).json(doc);
+      } catch (error) {
+        res.status(500).json({ error: "Failed to upload document" });
+      }
+    }
+  );
+
+  // Delete a participation document (admin only)
+  app.delete("/api/admin/participations/:participationId/documents/:docId", requireAdmin, async (req, res) => {
+    try {
+      const doc = await storage.getParticipationDocument(req.params.docId);
+      if (!doc) return res.status(404).json({ error: "Document not found" });
+      await storage.deleteParticipationDocument(req.params.docId);
+      // Remove file from disk if it's a local upload
+      if (doc.fileUrl?.startsWith("/uploads/")) {
+        const filePath = path.join(process.cwd(), doc.fileUrl);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
   // Beneficiaries
   app.get("/api/beneficiaries/user/:userId", async (req, res) => {
     try {
@@ -462,13 +521,35 @@ export async function registerRoutes(
     }
   });
 
+  // Get current user's referral code (session-based)
+  app.get("/api/my-referral-code", async (req, res) => {
+    try {
+      let user;
+      if (req.session?.userId) {
+        user = await storage.getUser(req.session.userId);
+      }
+      if (!user) {
+        const headerUserId = req.headers["x-user-id"] as string;
+        if (headerUserId) user = await storage.getUser(headerUserId);
+      }
+      if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+      const referralCode = await referralStorage.getReferralCodeByUserId(user.id);
+      if (!referralCode) return res.json(null);
+
+      res.json(referralCode);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch referral code" });
+    }
+  });
+
   // ============================================================================
   // ACCESS REQUESTS (public — no auth required)
   // ============================================================================
 
   app.post("/api/access-requests", async (req, res) => {
     try {
-      const { firstName, lastName, email, phone, message, referralCode } = req.body;
+      const { firstName, lastName, email, phone, isTccMember, message, referralCode } = req.body;
       if (!firstName || !lastName || !email || !phone) {
         return res.status(400).json({ error: "First name, last name, email, and phone are required" });
       }
@@ -478,10 +559,29 @@ export async function registerRoutes(
         lastName,
         email,
         phone,
+        isTccMember: !!isTccMember,
         message: message || undefined,
         referralCode: referralCode || undefined,
         status: "pending",
       });
+
+      // If they came via a referral link, backfill the referral record with their name/email
+      if (referralCode) {
+        try {
+          const allReferrals = await referralStorage.getReferrals();
+          const match = allReferrals.find(
+            r => r.referralCode === referralCode && !r.referredEmail
+          );
+          if (match) {
+            await referralStorage.updateReferral(match.id, {
+              referredName: `${firstName} ${lastName}`,
+              referredEmail: email,
+            });
+          }
+        } catch {
+          // Non-fatal — don't fail the request over this
+        }
+      }
 
       return res.status(201).json(request);
     } catch (error) {
@@ -508,9 +608,95 @@ export async function registerRoutes(
       }
       const updated = await storage.updateAccessRequest(id, { status });
       if (!updated) return res.status(404).json({ error: "Access request not found" });
+
+      // When approved, generate a setup token and email the applicant
+      if (status === "approved") {
+        const token = randomUUID();
+        const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
+        await storage.createSetupToken({
+          token,
+          email: updated.email,
+          firstName: updated.firstName,
+          lastName: updated.lastName,
+          phone: updated.phone,
+          expiresAt,
+          used: false,
+        });
+
+        const baseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 5001}`;
+        const setupUrl = `${baseUrl}/setup-account?token=${token}`;
+        try {
+          await sendAccountSetupEmail(updated.email, updated.firstName, setupUrl);
+        } catch (emailError) {
+          console.error("Failed to send setup email:", emailError);
+          // Don't fail the request if email fails
+        }
+      }
+
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update access request" });
+    }
+  });
+
+  // Validate a setup token (GET /api/setup-account/validate?token=xxx)
+  app.get("/api/setup-account/validate", async (req, res) => {
+    try {
+      const { token } = req.query as { token: string };
+      if (!token) return res.status(400).json({ error: "Token is required" });
+
+      const record = await storage.getSetupToken(token);
+      if (!record) return res.status(404).json({ error: "Invalid or expired link" });
+      if (record.used) return res.status(410).json({ error: "This setup link has already been used" });
+      if (new Date() > new Date(record.expiresAt as Date)) {
+        return res.status(410).json({ error: "This setup link has expired" });
+      }
+
+      res.json({ email: record.email, firstName: record.firstName, lastName: record.lastName });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to validate token" });
+    }
+  });
+
+  // Complete account setup (POST /api/setup-account)
+  app.post("/api/setup-account", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) return res.status(400).json({ error: "Token and password are required" });
+      if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters" });
+
+      const record = await storage.getSetupToken(token);
+      if (!record) return res.status(404).json({ error: "Invalid or expired link" });
+      if (record.used) return res.status(410).json({ error: "This setup link has already been used" });
+      if (new Date() > new Date(record.expiresAt as Date)) {
+        return res.status(410).json({ error: "This setup link has expired" });
+      }
+
+      // Check if user already exists with this email
+      const existing = await storage.getUserByEmail(record.email);
+      if (existing) return res.status(409).json({ error: "An account with this email already exists" });
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const username = record.email.split("@")[0];
+
+      const newUser = await storage.createUser({
+        username,
+        password: hashedPassword,
+        name: `${record.firstName} ${record.lastName}`,
+        email: record.email,
+        phone: record.phone,
+        role: "lender",
+      });
+
+      await storage.markSetupTokenUsed(token);
+
+      // Log them in automatically
+      (req.session as any).userId = newUser.id;
+
+      res.status(201).json({ id: newUser.id, email: newUser.email, name: newUser.name, role: newUser.role });
+    } catch (error) {
+      console.error("Account setup error:", error);
+      res.status(500).json({ error: "Failed to create account" });
     }
   });
 
