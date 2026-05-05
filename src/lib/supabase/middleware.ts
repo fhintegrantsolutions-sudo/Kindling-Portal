@@ -1,6 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Paths reachable without a session.
+const PUBLIC_PATHS = ["/", "/login", "/forgot-password"];
+
+// Paths reachable with or without a session — the recovery / invite flows
+// authenticate via exchangeCodeForSession, so the user IS signed in by the
+// time they reach these pages. We just don't want to bounce them away.
+const TRANSIENT_PATHS = ["/reset-password", "/account-setup", "/auth/callback"];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -25,8 +33,29 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Touch the session so it gets refreshed if expired.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const path = request.nextUrl.pathname;
+  const isPublic = PUBLIC_PATHS.includes(path);
+  const isTransient = TRANSIENT_PATHS.some(
+    (p) => path === p || path.startsWith(`${p}/`),
+  );
+
+  if (!user && !isPublic && !isTransient) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (user && (path === "/login" || path === "/forgot-password")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }
