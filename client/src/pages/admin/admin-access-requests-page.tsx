@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Link2 } from "lucide-react";
 
@@ -86,147 +87,166 @@ export default function AdminAccessRequestsPage() {
 
         {isLoading ? (
           <p className="text-muted-foreground">Loading...</p>
-        ) : requests.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              No access requests yet.
-            </CardContent>
-          </Card>
         ) : (
-          <>
-            {/* Pending */}
-            {pending.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Pending Review</CardTitle>
-                  <CardDescription>These requests need your action before you create their accounts.</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>TCC Member</TableHead>
-                        <TableHead>Referred By</TableHead>
-                        <TableHead>Message</TableHead>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pending.map((req) => (
-                        <TableRow key={req.id}>
-                          <TableCell className="font-medium">{req.firstName} {req.lastName}</TableCell>
-                          <TableCell>{req.email}</TableCell>
-                          <TableCell>{req.phone}</TableCell>
-                          <TableCell>
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${req.isTccMember ? "bg-green-100 text-green-800" : "bg-muted text-muted-foreground"}`}>
-                              {req.isTccMember ? "Yes" : "No"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {req.referralCode ? (
-                              <div className="flex items-center gap-1 text-primary">
-                                <Link2 className="h-3 w-3" />
-                                <span className="text-xs font-mono">{req.referralCode}</span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="max-w-[200px]">
-                            <span className="text-sm text-muted-foreground truncate block">
-                              {req.message || "—"}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {new Date(req.createdAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => updateStatus.mutate({ id: req.id, status: "approved" })}
-                                disabled={updateStatus.isPending}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateStatus.mutate({ id: req.id, status: "rejected" })}
-                                disabled={updateStatus.isPending}
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
+          <Tabs defaultValue="pending">
+            <TabsList>
+              <TabsTrigger value="pending" className="flex items-center gap-2">
+                Pending Review
+                {pending.length > 0 && (
+                  <Badge className="bg-primary text-primary-foreground text-xs px-1.5 py-0">{pending.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="reviewed">
+                Reviewed
+                {reviewed.length > 0 && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">({reviewed.length})</span>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-            {/* Reviewed */}
-            {reviewed.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Reviewed</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>TCC Member</TableHead>
-                        <TableHead>Referred By</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Submitted</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {reviewed.map((req) => (
-                        <TableRow key={req.id}>
-                          <TableCell className="font-medium">{req.firstName} {req.lastName}</TableCell>
-                          <TableCell>{req.email}</TableCell>
-                          <TableCell>{req.phone}</TableCell>
-                          <TableCell>
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${req.isTccMember ? "bg-green-100 text-green-800" : "bg-muted text-muted-foreground"}`}>
-                              {req.isTccMember ? "Yes" : "No"}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {req.referralCode ? (
-                              <div className="flex items-center gap-1 text-primary">
-                                <Link2 className="h-3 w-3" />
-                                <span className="text-xs font-mono">{req.referralCode}</span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize ${STATUS_COLORS[req.status]}`}>
-                              {req.status}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                            {new Date(req.createdAt).toLocaleDateString()}
-                          </TableCell>
+            <TabsContent value="pending" className="mt-4">
+              {pending.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    No pending requests.
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardDescription>These requests need your action before you create their accounts.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>TCC Member</TableHead>
+                          <TableHead>Referred By</TableHead>
+                          <TableHead>Message</TableHead>
+                          <TableHead>Submitted</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
-          </>
+                      </TableHeader>
+                      <TableBody>
+                        {pending.map((req) => (
+                          <TableRow key={req.id}>
+                            <TableCell className="font-medium">{req.firstName} {req.lastName}</TableCell>
+                            <TableCell>{req.email}</TableCell>
+                            <TableCell>{req.phone}</TableCell>
+                            <TableCell>
+                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${req.isTccMember ? "bg-green-100 text-green-800" : "bg-muted text-muted-foreground"}`}>
+                                {req.isTccMember ? "Yes" : "No"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {req.referralCode ? (
+                                <div className="flex items-center gap-1 text-primary">
+                                  <Link2 className="h-3 w-3" />
+                                  <span className="text-xs font-mono">{req.referralCode}</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-[200px]">
+                              <span className="text-sm text-muted-foreground truncate block">
+                                {req.message || "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                              {new Date(req.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateStatus.mutate({ id: req.id, status: "approved" })}
+                                  disabled={updateStatus.isPending}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateStatus.mutate({ id: req.id, status: "rejected" })}
+                                  disabled={updateStatus.isPending}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="reviewed" className="mt-4">
+              {reviewed.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    No reviewed requests yet.
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>TCC Member</TableHead>
+                          <TableHead>Referred By</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Submitted</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {reviewed.map((req) => (
+                          <TableRow key={req.id}>
+                            <TableCell className="font-medium">{req.firstName} {req.lastName}</TableCell>
+                            <TableCell>{req.email}</TableCell>
+                            <TableCell>{req.phone}</TableCell>
+                            <TableCell>
+                              <span className={`text-xs font-medium px-2 py-1 rounded-full ${req.isTccMember ? "bg-green-100 text-green-800" : "bg-muted text-muted-foreground"}`}>
+                                {req.isTccMember ? "Yes" : "No"}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {req.referralCode ? (
+                                <div className="flex items-center gap-1 text-primary">
+                                  <Link2 className="h-3 w-3" />
+                                  <span className="text-xs font-mono">{req.referralCode}</span>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize ${STATUS_COLORS[req.status]}`}>
+                                {req.status}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                              {new Date(req.createdAt).toLocaleDateString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </AdminLayout>

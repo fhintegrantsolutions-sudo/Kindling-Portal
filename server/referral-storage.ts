@@ -259,13 +259,14 @@ export class ReferralStorage {
   }
 
   // Generate unique referral code
+  // Excludes 0 (zero) and O (letter) to avoid confusion
   async generateUniqueCode(baseCode: string): Promise<string> {
-    let code = baseCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    let code = baseCode.toUpperCase().replace(/[^A-NP-Z1-9]/g, '');
     let counter = 0;
 
     while (await this.getReferralCodeByCode(code)) {
       counter++;
-      code = `${baseCode}${counter}`.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      code = `${baseCode}${counter}`.toUpperCase().replace(/[^A-NP-Z1-9]/g, '');
     }
 
     return code;

@@ -56,6 +56,8 @@ export function useCurrentUser() {
     city?: string | null;
     state?: string | null;
     zipCode?: string | null;
+    entityType?: string | null;
+    loanAgreementTitle?: string | null;
   } | null>({
     queryKey: ["me"],
     queryFn: async () => {

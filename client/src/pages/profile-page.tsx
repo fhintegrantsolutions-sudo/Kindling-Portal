@@ -133,6 +133,50 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
 
+            <Card className="border-none shadow-sm">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-full">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Loan Agreement Information</CardTitle>
+                    <CardDescription>How your name appears on loan documents</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {userLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">Entity Type</Label>
+                      <Input
+                        value={user?.entityType || "Personal"}
+                        disabled
+                        data-testid="input-entity-type"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">Loan Agreement Title</Label>
+                      <Input
+                        value={user?.loanAgreementTitle || user?.name || ""}
+                        disabled
+                        data-testid="input-loan-agreement-title"
+                      />
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  This information is read-only. Contact support to update.
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Only show Entity Information card if entityType is NOT individual */}
             {(!entityLoading && myEntityData?.entity && myEntityData.entity.entityType !== "individual") && (
               <Card className="border-none shadow-sm">

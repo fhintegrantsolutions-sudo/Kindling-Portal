@@ -13,6 +13,8 @@ export const insertUserSchema = z.object({
   state: z.string().optional(),
   zipCode: z.string().optional(),
   role: z.enum(["admin", "lender"]).default("lender"),
+  entityType: z.string().optional(),
+  loanAgreementTitle: z.string().optional(),
 });
 
 export const insertNoteSchema = z.object({
@@ -38,8 +40,14 @@ export const insertNoteSchema = z.object({
   type: z.string(),
   interestType: z.string().default("Amortized"),
   description: z.string().optional(),
+  adminNotes: z.string().optional(),
   targetRaise: z.string().optional(),
   minInvestment: z.string().optional(),
+  lockedSections: z.object({
+    basicInfo: z.boolean().default(false),
+    financial: z.boolean().default(false),
+    dates: z.boolean().default(false),
+  }).optional(),
 });
 
 export const insertParticipationSchema = z.object({
@@ -61,6 +69,7 @@ export const insertParticipationSchema = z.object({
     depositedDate: z.union([z.date(), z.string()]).optional(),
     clearedDate: z.union([z.date(), z.string()]).optional(),
     notes: z.string().optional(),
+    otherFundingTypeDescription: z.string().optional(),
   }).optional(),
 });
 
@@ -107,10 +116,10 @@ export const insertNoteRegistrationSchema = z.object({
   email: z.string().email(),
   entityType: z.string().min(1),
   nameForAgreement: z.string().min(1),
-  mailingAddress: z.string().min(1),
-  city: z.string().min(1),
-  state: z.string().min(1),
-  zipCode: z.string().min(1),
+  mailingAddress: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
   investmentAmount: z.string(),
   bankName: z.string().min(1),
   bankAccountType: z.string().min(1),
@@ -173,6 +182,11 @@ export interface Note extends Omit<InsertNote, 'contractDate' | 'paymentStartDat
   fundingEndDate?: Date | Timestamp;
   fundingWindowEnd?: Date | Timestamp;
   firstPaymentDate?: Date | Timestamp;
+  lockedSections?: {
+    basicInfo: boolean;
+    financial: boolean;
+    dates: boolean;
+  };
   createdAt: Date | Timestamp;
 }
 

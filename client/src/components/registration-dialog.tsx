@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -27,16 +26,8 @@ import type { Note } from "@shared/schema";
 import { formatCurrency } from "@/lib/api";
 
 const registrationSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phone: z.string().min(1, "Phone number is required"),
-  email: z.string().email("Valid email is required"),
   entityType: z.string().min(1, "Entity type is required"),
   nameForAgreement: z.string().min(1, "Name for loan agreement is required"),
-  mailingAddress: z.string().min(1, "Mailing address is required"),
-  city: z.string().min(1, "City is required"),
-  state: z.string().min(1, "State is required"),
-  zipCode: z.string().min(1, "Zip code is required"),
   investmentAmount: z.coerce.number().min(2500, "Minimum investment is $2,500"),
   bankName: z.string().min(1, "Bank name is required"),
   bankAccountType: z.string().min(1, "Bank account type is required"),
@@ -68,23 +59,10 @@ const ENTITY_TYPES = [
   "IRA/Retirement Account",
 ];
 
-const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
-];
-
 export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistrationSuccess }: RegistrationDialogProps) {
   const { toast } = useToast();
   const { data: user } = useCurrentUser();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [useProfileData, setUseProfileData] = useState(true);
-
-  const nameParts = user?.name?.split(" ") || [];
-  const defaultFirstName = nameParts[0] || "";
-  const defaultLastName = nameParts.slice(1).join(" ") || "";
 
   const {
     register,
@@ -96,16 +74,8 @@ export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistra
   } = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
-      firstName: defaultFirstName,
-      lastName: defaultLastName,
-      phone: user?.phone || "",
-      email: user?.email || "",
       entityType: "",
       nameForAgreement: user?.name || "",
-      mailingAddress: user?.address || "",
-      city: user?.city || "",
-      state: user?.state || "",
-      zipCode: user?.zipCode || "",
       investmentAmount: parseFloat(opportunity.minInvestment || "2500"),
       bankName: "",
       bankAccountType: "",
@@ -117,29 +87,10 @@ export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistra
   });
 
   useEffect(() => {
-    if (useProfileData && user) {
-      const nameParts = user.name?.split(" ") || [];
-      setValue("firstName", nameParts[0] || "");
-      setValue("lastName", nameParts.slice(1).join(" ") || "");
-      setValue("email", user.email || "");
-      setValue("phone", user.phone || "");
+    if (user) {
       setValue("nameForAgreement", user.name || "");
-      setValue("mailingAddress", user.address || "");
-      setValue("city", user.city || "");
-      setValue("state", user.state || "");
-      setValue("zipCode", user.zipCode || "");
-    } else if (!useProfileData) {
-      setValue("firstName", "");
-      setValue("lastName", "");
-      setValue("email", "");
-      setValue("phone", "");
-      setValue("nameForAgreement", "");
-      setValue("mailingAddress", "");
-      setValue("city", "");
-      setValue("state", "");
-      setValue("zipCode", "");
     }
-  }, [useProfileData, user, setValue]);
+  }, [user, setValue]);
 
   const acknowledgeLender = watch("acknowledgeLender");
   const minInvestment = parseFloat(opportunity.minInvestment || "2500");
@@ -195,73 +146,6 @@ export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistra
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border">
-            <div className="space-y-0.5">
-              <Label htmlFor="use-profile" className="font-medium">Use my profile data</Label>
-              <p className="text-xs text-muted-foreground">Auto-fill with your email, phone, and address</p>
-            </div>
-            <Switch
-              id="use-profile"
-              checked={useProfileData}
-              onCheckedChange={setUseProfileData}
-              data-testid="switch-use-profile"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="font-semibold text-lg border-b pb-2">Personal Information</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
-                <Input
-                  id="firstName"
-                  {...register("firstName")}
-                  data-testid="input-first-name"
-                />
-                {errors.firstName && (
-                  <p className="text-sm text-destructive">{errors.firstName.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
-                <Input
-                  id="lastName"
-                  {...register("lastName")}
-                  data-testid="input-last-name"
-                />
-                {errors.lastName && (
-                  <p className="text-sm text-destructive">{errors.lastName.message}</p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  {...register("phone")}
-                  data-testid="input-phone"
-                />
-                {errors.phone && (
-                  <p className="text-sm text-destructive">{errors.phone.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  {...register("email")}
-                  data-testid="input-email"
-                />
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
-                )}
-              </div>
-            </div>
-          </div>
-
           <div className="space-y-4">
             <h3 className="font-semibold text-lg border-b pb-2">Information for Loan Agreement</h3>
             <div className="grid grid-cols-2 gap-4">
@@ -309,59 +193,6 @@ export function RegistrationDialog({ opportunity, open, onOpenChange, onRegistra
               {errors.nameForAgreement && (
                 <p className="text-sm text-destructive">{errors.nameForAgreement.message}</p>
               )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="mailingAddress">Mailing Address *</Label>
-              <Input
-                id="mailingAddress"
-                {...register("mailingAddress")}
-                data-testid="input-mailing-address"
-              />
-              {errors.mailingAddress && (
-                <p className="text-sm text-destructive">{errors.mailingAddress.message}</p>
-              )}
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City *</Label>
-                <Input
-                  id="city"
-                  {...register("city")}
-                  data-testid="input-city"
-                />
-                {errors.city && (
-                  <p className="text-sm text-destructive">{errors.city.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="state">State *</Label>
-                <Select onValueChange={(value) => setValue("state", value)} defaultValue={user?.state || ""}>
-                  <SelectTrigger data-testid="select-state">
-                    <SelectValue placeholder="State" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {US_STATES.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.state && (
-                  <p className="text-sm text-destructive">{errors.state.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="zipCode">Zip Code *</Label>
-                <Input
-                  id="zipCode"
-                  {...register("zipCode")}
-                  data-testid="input-zip-code"
-                />
-                {errors.zipCode && (
-                  <p className="text-sm text-destructive">{errors.zipCode.message}</p>
-                )}
-              </div>
             </div>
           </div>
 

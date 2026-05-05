@@ -68,6 +68,7 @@ export default function AdminInvestorWorkflowPage() {
     depositedDate: "",
     clearedDate: "",
     notes: "",
+    otherFundingTypeDescription: "",
   });
 
   // Fetch all data
@@ -195,6 +196,7 @@ export default function AdminInvestorWorkflowPage() {
       depositedDate,
       clearedDate,
       notes,
+      otherFundingTypeDescription,
     }: {
       participationId: string;
       received?: boolean;
@@ -209,6 +211,7 @@ export default function AdminInvestorWorkflowPage() {
       depositedDate?: string;
       clearedDate?: string;
       notes?: string;
+      otherFundingTypeDescription?: string;
     }) => {
       const response = await fetch(`/api/admin/participations/${participationId}/funding-status`, {
         method: "PATCH",
@@ -216,9 +219,9 @@ export default function AdminInvestorWorkflowPage() {
           "Content-Type": "application/json",
           "x-username": "admin",
         },
-        body: JSON.stringify({ 
-          received, 
-          deposited, 
+        body: JSON.stringify({
+          received,
+          deposited,
           cleared,
           fundingType,
           investmentAmount,
@@ -229,6 +232,7 @@ export default function AdminInvestorWorkflowPage() {
           depositedDate,
           clearedDate,
           notes,
+          otherFundingTypeDescription,
         }),
       });
       if (!response.ok) throw new Error("Failed to update funding status");
@@ -469,6 +473,7 @@ export default function AdminInvestorWorkflowPage() {
                     depositedDate: item.participation.fundingStatus?.depositedDate || "",
                     clearedDate: item.participation.fundingStatus?.clearedDate || "",
                     notes: item.participation.fundingStatus?.notes || "",
+                    otherFundingTypeDescription: (item.participation.fundingStatus as any)?.otherFundingTypeDescription || "",
                   });
                   setIsFundingDialogOpen(true);
                 }}
@@ -492,7 +497,7 @@ export default function AdminInvestorWorkflowPage() {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="container mx-auto p-6 space-y-6">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold">Investor Workflow</h1>
@@ -796,6 +801,20 @@ export default function AdminInvestorWorkflowPage() {
                         setFundingDetails({ ...fundingDetails, wireReferenceNumber: e.target.value })
                       }
                       placeholder="Enter wire reference number"
+                    />
+                  </div>
+                )}
+
+                {fundingDetails.fundingType === "other" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="otherFundingTypeDescription">Specify Funding Type</Label>
+                    <Input
+                      id="otherFundingTypeDescription"
+                      value={fundingDetails.otherFundingTypeDescription}
+                      onChange={(e) =>
+                        setFundingDetails({ ...fundingDetails, otherFundingTypeDescription: e.target.value })
+                      }
+                      placeholder="Describe the funding type..."
                     />
                   </div>
                 )}

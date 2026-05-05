@@ -22,7 +22,7 @@ type SetupFormData = z.infer<typeof setupSchema>;
 type TokenState =
   | { status: "loading" }
   | { status: "valid"; firstName: string; email: string }
-  | { status: "invalid"; message: string }
+  | { status: "invalid"; message: string; email?: string }
   | { status: "done" };
 
 export default function SetupAccountPage() {
@@ -30,6 +30,8 @@ export default function SetupAccountPage() {
   const [tokenState, setTokenState] = useState<TokenState>({ status: "loading" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isRequestingNewLink, setIsRequestingNewLink] = useState(false);
+  const [newLinkRequested, setNewLinkRequested] = useState(false);
 
   const token = new URLSearchParams(window.location.search).get("token");
 
@@ -42,7 +44,11 @@ export default function SetupAccountPage() {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) {
-          setTokenState({ status: "invalid", message: data.error || "This link is invalid or has expired." });
+          setTokenState({
+            status: "invalid",
+            message: data.error || "This link is invalid or has expired.",
+            email: data.email // Try to get email from error response
+          });
         } else {
           setTokenState({ status: "valid", firstName: data.firstName, email: data.email });
         }
@@ -76,6 +82,27 @@ export default function SetupAccountPage() {
       setSubmitError("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRequestNewLink = async (email: string) => {
+    setIsRequestingNewLink(true);
+    try {
+      const response = await fetch("/api/setup-account/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        alert(data.error || "Failed to send new link. Please try again.");
+        return;
+      }
+      setNewLinkRequested(true);
+    } catch {
+      alert("Failed to send new link. Please try again.");
+    } finally {
+      setIsRequestingNewLink(false);
     }
   };
 
@@ -135,15 +162,53 @@ export default function SetupAccountPage() {
               )}
 
               {tokenState.status === "invalid" && (
-                <div className="flex flex-col items-center text-center py-6 space-y-3">
-                  <p className="text-destructive font-medium">{tokenState.message}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Please contact us at{" "}
-                    <a href="mailto:info@kindling.network" className="text-primary hover:underline">
-                      info@kindling.network
-                    </a>{" "}
-                    if you need a new setup link.
-                  </p>
+                <div className="flex flex-col items-center text-center py-6 space-y-4">
+                  {!newLinkRequested ? (
+                    <>
+                      <p className="text-destructive font-medium">{tokenState.message}</p>
+                      {tokenState.email && (
+                        <>
+                          <p className="text-sm text-muted-foreground">
+                            We can send a fresh setup link to your email address.
+                          </p>
+                          <Button
+                            onClick={() => handleRequestNewLink(tokenState.email!)}
+                            disabled={isRequestingNewLink}
+                            className="w-full"
+                          >
+                            {isRequestingNewLink ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                Sending...
+                              </>
+                            ) : (
+                              "Request New Setup Link"
+                            )}
+                          </Button>
+                        </>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Or contact us at{" "}
+                        <a href="mailto:info@kindling.network" className="text-primary hover:underline">
+                          info@kindling.network
+                        </a>
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-12 w-12 text-primary" />
+                      <h3 className="text-lg font-semibold">New Link Sent!</h3>
+                      <p className="text-muted-foreground">
+                        Check your email for a fresh setup link. It will arrive within a few minutes.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Don't see it? Check your spam folder or{" "}
+                        <a href="mailto:info@kindling.network" className="text-primary hover:underline">
+                          contact support
+                        </a>
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 

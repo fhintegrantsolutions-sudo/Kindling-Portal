@@ -647,14 +647,81 @@ export async function registerRoutes(
 
       const record = await storage.getSetupToken(token);
       if (!record) return res.status(404).json({ error: "Invalid or expired link" });
-      if (record.used) return res.status(410).json({ error: "This setup link has already been used" });
+      if (record.used) {
+        return res.status(410).json({
+          error: "This setup link has already been used",
+          email: record.email
+        });
+      }
       if (new Date() > new Date(record.expiresAt as Date)) {
-        return res.status(410).json({ error: "This setup link has expired" });
+        return res.status(410).json({
+          error: "This setup link has expired",
+          email: record.email
+        });
       }
 
       res.json({ email: record.email, firstName: record.firstName, lastName: record.lastName });
     } catch (error) {
       res.status(500).json({ error: "Failed to validate token" });
+    }
+  });
+
+  // Request a new setup link (POST /api/setup-account/resend)
+  app.post("/api/setup-account/resend", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: "Email is required" });
+
+      // Find the approved access request for this email
+      const accessRequests = await storage.getAccessRequests();
+      const accessRequest = accessRequests.find(
+        (ar) => ar.email.toLowerCase() === email.toLowerCase() && ar.status === "approved"
+      );
+
+      if (!accessRequest) {
+        return res.status(404).json({
+          error: "No approved access request found for this email address"
+        });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({
+          error: "An account already exists for this email. Please try logging in."
+        });
+      }
+
+      // Generate new setup token
+      const token = randomUUID();
+      const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
+      await storage.createSetupToken({
+        token,
+        email: accessRequest.email,
+        firstName: accessRequest.firstName,
+        lastName: accessRequest.lastName,
+        phone: accessRequest.phone,
+        expiresAt,
+        used: false,
+      });
+
+      // Send setup email
+      const baseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 5001}`;
+      const setupUrl = `${baseUrl}/setup-account?token=${token}`;
+      try {
+        await sendAccountSetupEmail(accessRequest.email, accessRequest.firstName, setupUrl);
+      } catch (emailError) {
+        console.error("Failed to send setup email:", emailError);
+        return res.status(500).json({ error: "Failed to send email. Please try again later." });
+      }
+
+      res.json({
+        success: true,
+        message: "A new setup link has been sent to your email address"
+      });
+    } catch (error) {
+      console.error("Resend setup link error:", error);
+      res.status(500).json({ error: "Failed to send new setup link" });
     }
   });
 
@@ -712,10 +779,25 @@ export async function registerRoutes(
       if (!user) {
         user = await storage.getUserByUsername("hdavidsh");
       }
+
+      // Extract user's first and last name from their full name
+      const nameParts = user?.name?.split(" ") || [];
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+
       const { referralCode, ...bodyWithoutReferral } = req.body;
       const registrationData = {
         ...bodyWithoutReferral,
         userId: user?.id,
+        // Get personal info and address from user's profile instead of form
+        firstName,
+        lastName,
+        phone: user?.phone || "",
+        email: user?.email || "",
+        mailingAddress: user?.address || "",
+        city: user?.city || "",
+        state: user?.state || "",
+        zipCode: user?.zipCode || "",
         investmentAmount: String(req.body.investmentAmount),
       };
       const validatedRegistration = insertNoteRegistrationSchema.parse(registrationData);

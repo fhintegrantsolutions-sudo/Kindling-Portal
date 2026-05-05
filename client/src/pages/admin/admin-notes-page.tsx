@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, FileText, Building2, Calendar, DollarSign, FileDown, Upload, Users } from "lucide-react";
+import { Plus, Edit, Trash2, FileText, Building2, Calendar, DollarSign, FileDown, Upload, Users, Lock, LockOpen } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -53,6 +53,7 @@ const NOTE_STATUSES = [
 const CLIENT_STATUSES = [
   "Coming Soon",
   "Funding in Progress",
+  "Processing",
   "Fully Funded",
   "Active",
   "Paid Off",
@@ -82,6 +83,12 @@ interface Note {
   type: string;
   interestType: string;
   description?: string;
+  adminNotes?: string;
+  lockedSections?: {
+    basicInfo: boolean;
+    financial: boolean;
+    dates: boolean;
+  };
   createdAt: string;
 }
 
@@ -108,6 +115,12 @@ interface NoteFormProps {
     type: string;
     interestType: string;
     description: string;
+    adminNotes: string;
+    lockedSections: {
+      basicInfo: boolean;
+      financial: boolean;
+      dates: boolean;
+    };
   };
   borrowers: any[];
   onFormDataChange: (data: any) => void;
@@ -120,10 +133,19 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
   <form onSubmit={onSubmit} className="space-y-4">
     <Tabs defaultValue="basic" className="w-full">
       <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="basic">Basic Info</TabsTrigger>
-        <TabsTrigger value="financial">Financial</TabsTrigger>
-        <TabsTrigger value="dates">Dates</TabsTrigger>
-        <TabsTrigger value="admin-chat">Admin Chat</TabsTrigger>
+        <TabsTrigger value="basic" className="flex items-center gap-1">
+          Basic Info
+          {formData.lockedSections?.basicInfo && <Lock className="h-3 w-3" />}
+        </TabsTrigger>
+        <TabsTrigger value="financial" className="flex items-center gap-1">
+          Financial
+          {formData.lockedSections?.financial && <Lock className="h-3 w-3" />}
+        </TabsTrigger>
+        <TabsTrigger value="dates" className="flex items-center gap-1">
+          Dates
+          {formData.lockedSections?.dates && <Lock className="h-3 w-3" />}
+        </TabsTrigger>
+        <TabsTrigger value="admin">Admin</TabsTrigger>
       </TabsList>
 
       <TabsContent value="basic" className="space-y-4 mt-4 min-h-[420px]">
@@ -252,6 +274,16 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
           </SelectContent>
         </Select>
       </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            value={formData.description}
+            onChange={(e) => onFormDataChange({ ...formData, description: e.target.value })}
+            placeholder="Additional note details..."
+            rows={3}
+          />
         </div>
       </TabsContent>
 
@@ -504,25 +536,72 @@ const NoteForm = ({ formData, borrowers, onFormDataChange, onSubmit, onCancel, s
         </div>
       </TabsContent>
 
-      <TabsContent value="admin-chat" className="space-y-4 mt-4 min-h-[420px]">
-        <div className="flex items-center justify-center h-full text-muted-foreground text-sm pt-16">
-          Admin chat coming soon.
+      <TabsContent value="admin" className="space-y-4 mt-4 min-h-[420px]">
+        <div className="space-y-2">
+          <Label htmlFor="adminNotes">Admin Comments</Label>
+          <Textarea
+            id="adminNotes"
+            value={formData.adminNotes}
+            onChange={(e) => onFormDataChange({ ...formData, adminNotes: e.target.value })}
+            placeholder="Internal admin notes..."
+            rows={4}
+          />
+        </div>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">Lock sections to prevent non-admin users from editing them.</p>
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div>
+              <p className="text-sm font-medium">Basic Info</p>
+              <p className="text-xs text-muted-foreground">Note ID, borrower, project type, statuses</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onFormDataChange({ ...formData, lockedSections: { ...formData.lockedSections, basicInfo: !formData.lockedSections.basicInfo } })}
+            >
+              {formData.lockedSections.basicInfo
+                ? <Lock className="h-4 w-4 text-destructive" />
+                : <LockOpen className="h-4 w-4 text-muted-foreground" />}
+            </Button>
+          </div>
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div>
+              <p className="text-sm font-medium">Financial Info</p>
+              <p className="text-xs text-muted-foreground">Loan amount, interest rate, term, interest type</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onFormDataChange({ ...formData, lockedSections: { ...formData.lockedSections, financial: !formData.lockedSections.financial } })}
+            >
+              {formData.lockedSections.financial
+                ? <Lock className="h-4 w-4 text-destructive" />
+                : <LockOpen className="h-4 w-4 text-muted-foreground" />}
+            </Button>
+          </div>
+          <div className="flex items-center justify-between p-3 border rounded-lg">
+            <div>
+              <p className="text-sm font-medium">Dates</p>
+              <p className="text-xs text-muted-foreground">Funding, contract, payment, and maturity dates</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onFormDataChange({ ...formData, lockedSections: { ...formData.lockedSections, dates: !formData.lockedSections.dates } })}
+            >
+              {formData.lockedSections.dates
+                ? <Lock className="h-4 w-4 text-destructive" />
+                : <LockOpen className="h-4 w-4 text-muted-foreground" />}
+            </Button>
+          </div>
         </div>
       </TabsContent>
     </Tabs>
 
-    <div className="space-y-2">
-      <Label htmlFor="description">Description</Label>
-      <Textarea
-        id="description"
-        value={formData.description}
-        onChange={(e) => onFormDataChange({ ...formData, description: e.target.value })}
-        placeholder="Additional note details..."
-        rows={3}
-      />
-    </div>
-
-    <div className="flex justify-end space-x-2">
+    <div className="flex justify-end space-x-2 mt-36">
       <Button
         type="button"
         variant="outline"
@@ -569,6 +648,12 @@ export default function AdminNotesPage() {
     type: "",
     interestType: "Amortized",
     description: "",
+    adminNotes: "",
+    lockedSections: {
+      basicInfo: false,
+      financial: false,
+      dates: false,
+    },
   });
 
   // Fetch notes
@@ -832,6 +917,12 @@ export default function AdminNotesPage() {
       type: "",
       interestType: "Amortized",
       description: "",
+      adminNotes: "",
+      lockedSections: {
+        basicInfo: false,
+        financial: false,
+        dates: false,
+      },
     });
   };
 
@@ -864,6 +955,12 @@ export default function AdminNotesPage() {
       type: note.type,
       interestType: note.interestType,
       description: note.description || "",
+      adminNotes: (note as any).adminNotes || "",
+      lockedSections: note.lockedSections || {
+        basicInfo: false,
+        financial: false,
+        dates: false,
+      },
     });
     setIsEditDialogOpen(true);
   };
@@ -1106,6 +1203,7 @@ export default function AdminNotesPage() {
                             <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                               note.clientStatus === 'Available' ? 'bg-green-100 text-green-800' :
                               note.clientStatus === 'Funding in Progress' ? 'bg-blue-100 text-blue-800' :
+                              note.clientStatus === 'Processing' ? 'bg-orange-100 text-orange-800' :
                               note.clientStatus === 'Coming Soon' ? 'bg-purple-100 text-purple-800' :
                               note.clientStatus === 'Fully Funded' ? 'bg-cyan-100 text-cyan-800' :
                               note.clientStatus === 'Active' ? 'bg-green-100 text-green-800' :
@@ -1653,8 +1751,8 @@ export default function AdminNotesPage() {
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl h-[80vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-4xl h-[80vh] overflow-y-auto gap-2 content-start">
+            <DialogHeader className="pb-5">
               <DialogTitle>Edit Note {selectedNote?.noteId ? `— ${selectedNote.noteId}` : ""}</DialogTitle>
               <DialogDescription>
                 Update the loan note details and borrower information.
