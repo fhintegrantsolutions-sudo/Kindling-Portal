@@ -1,115 +1,36 @@
-# 🔥 Firebase Migration Complete!
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Your **Kindling Portal** has been successfully migrated from **PostgreSQL + Drizzle ORM** to **Firebase Firestore**!
+## Getting Started
 
----
-
-## ⚡ Quick Start
-
-### 1. Set Up Firebase (5 minutes)
-
-1. **Create Firebase Project**: Go to [Firebase Console](https://console.firebase.google.com/)
-   - Click "Add project"
-   - Name it (e.g., "kindling-portal")
-   - Create project
-
-2. **Enable Firestore**:
-   - Go to "Build" → "Firestore Database"
-   - Click "Create database"
-   - Choose **"Start in test mode"** for development
-   - Select your region
-   - Enable
-
-3. **Get Service Account Key**:
-   - Click ⚙️ (Settings) → "Project settings" → "Service accounts"
-   - Click "Generate new private key"
-   - Save the downloaded JSON file (e.g., `serviceAccountKey.json`)
-
-### 2. Configure Environment
-
-Edit `.env` file and add your Firebase credentials:
-
-```env
-GOOGLE_APPLICATION_CREDENTIALS=C:\path\to\serviceAccountKey.json
-FIREBASE_PROJECT_ID=your-project-id
-PORT=5000
-NODE_ENV=development
-```
-
-### 3. Seed Database
-
-```bash
-npm run seed
-```
-
-### 4. Start App
+First, run the development server:
 
 ```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Visit `http://localhost:5000` and login:
-- **Username**: `kdavidsh`
-- **Password**: `demo123`
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
----
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## 📁 What Changed
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-| Before | After |
-|--------|-------|
-| PostgreSQL | **Firebase Firestore** |
-| Drizzle ORM | **Firebase Admin SDK** |
-| SQL queries | **Firestore queries** |
-| `drizzle-kit push` | **No migrations needed!** |
+## Learn More
 
----
+To learn more about Next.js, take a look at the following resources:
 
-## 📖 Full Documentation
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for:
-- Detailed setup instructions
-- Firestore collections structure
-- Security rules for production
-- Troubleshooting guide
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
----
+## Deploy on Vercel
 
-## 🎯 Collections Created
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-After running `npm run seed`, you'll have:
-
-- ✅ **users** - Demo user (Karen Davidshofer)
-- ✅ **notes** - 6 investment notes (K24001-K25004)
-- ✅ **participations** - 4 user investments
-- ✅ **activities** - Activity feed data
-- ✅ **beneficiaries** - 3 sample beneficiaries
-
----
-
-## 🆘 Need Help?
-
-**Common Issues:**
-
-1. **"Cannot find module 'firebase-admin'"**
-   ```bash
-   npm install
-   ```
-
-2. **"No Firebase credentials found"**
-   - Check `.env` file has correct path to service account JSON
-   - Use absolute path, not relative
-
-3. **"PERMISSION_DENIED"**
-   - Make sure Firestore is enabled in Firebase Console
-   - Use "test mode" for development
-
----
-
-**Ready to go? Run:**
-
-```bash
-npm run seed && npm run dev
-```
-
-🚀 Happy coding!
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
