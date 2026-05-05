@@ -85,6 +85,7 @@ export interface IStorage {
   getParticipationsByNote(noteId: string): Promise<Participation[]>;
   createParticipation(participation: InsertParticipation): Promise<Participation>;
   updateParticipation(id: string, participation: Partial<InsertParticipation>): Promise<Participation | undefined>;
+  deleteParticipation(id: string): Promise<void>;
   
   // Payments
   getPaymentsByParticipation(participationId: string): Promise<Payment[]>;
@@ -381,6 +382,11 @@ export class FirestoreStorage implements IStorage {
 
     console.log(`Returning updated participation ${id} with investedAmount:`, result.investedAmount);
     return result;
+  }
+
+  async deleteParticipation(id: string): Promise<void> {
+    await db.collection(COLLECTIONS.PARTICIPATIONS).doc(id).delete();
+    console.log(`Deleted participation ${id}`);
   }
 
   // Payments

@@ -24,13 +24,21 @@ export default function NotesPage() {
   const [sortOrder, setSortOrder] = useState("oldest");
   const [noteFilter, setNoteFilter] = useState("all");
   const [yearFilter, setYearFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("active");
+
+  // Check URL parameters for initial tab
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    tabParam === "upcoming" || tabParam === "past" ? tabParam : "active"
+  );
 
   const handleRegistrationUpdate = () => {
+    console.log('Invalidating my-registrations query');
     queryClient.invalidateQueries({ queryKey: ["my-registrations"] });
   };
 
   const handleParticipationUpdate = () => {
+    console.log('Invalidating my-participations query');
     queryClient.invalidateQueries({ queryKey: ["my-participations"] });
   };
 
@@ -79,14 +87,20 @@ export default function NotesPage() {
     }
   });
 
-  // Categorize participations
+  // Categorize participations (exclude declined ones from active/upcoming)
   const activeParticipations = sortedParticipations.filter(p =>
-    p.note.status === "Active" || p.note.clientStatus === "Active"
+    p.status !== "Declined" &&
+    (p.note.status === "Active" || p.note.clientStatus === "Active" || p.note.clientStatus === "Processing")
   );
 
   const upcomingParticipations = sortedParticipations.filter(p =>
-    p.note.status === "Funding" || p.note.status === "Pre Register" ||
-    p.note.clientStatus === "Funding in Progress" || p.note.clientStatus === "Coming Soon"
+    p.status !== "Declined" &&
+    (p.note.status === "Funding" || p.note.status === "Pre Register" ||
+    p.note.clientStatus === "Funding in Progress" || p.note.clientStatus === "Coming Soon")
+  );
+
+  const declinedParticipations = sortedParticipations.filter(p =>
+    p.status === "Declined"
   );
 
   // Get registrations that don't have a corresponding participation
@@ -116,35 +130,6 @@ export default function NotesPage() {
         <div className="col-span-full text-center py-12">
           <p className="text-muted-foreground" data-testid="text-no-notes">
             {emptyMessage}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-
-  const renderRegisteredOnlyList = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {isLoading ? (
-        <>
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
-        </>
-      ) : registeredOnlyNotes.length > 0 ? (
-        registeredOnlyNotes.map((registration) => (
-          registration.note && (
-            <NoteCard
-              key={registration.id}
-              note={registration.note}
-              registration={registration}
-              onRegistrationUpdate={handleRegistrationUpdate}
-            />
-          )
-        ))
-      ) : (
-        <div className="col-span-full text-center py-12">
-          <p className="text-muted-foreground">
-            No registered-only notes found.
           </p>
         </div>
       )}
@@ -214,8 +199,8 @@ export default function NotesPage() {
             <TabsTrigger value="upcoming">
               Upcoming ({upcomingParticipations.length})
             </TabsTrigger>
-            <TabsTrigger value="registered">
-              Registered Only ({registeredOnlyNotes.length})
+            <TabsTrigger value="past">
+              Past Registrations ({declinedParticipations.length + registeredOnlyNotes.length})
             </TabsTrigger>
           </TabsList>
 
@@ -227,8 +212,50 @@ export default function NotesPage() {
             {renderNotesList(upcomingParticipations, searchQuery ? "No upcoming notes match your search." : "You have no upcoming investments.")}
           </TabsContent>
 
-          <TabsContent value="registered" className="mt-6">
-            {renderRegisteredOnlyList()}
+          <TabsContent value="past" className="mt-6">
+            <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-border/50">
+              <p className="text-sm text-muted-foreground">
+                This tab shows notes you previously registered for but are not currently investing in.
+                <span className="font-medium text-foreground"> Declined participations</span> can be reactivated if you change your mind before funding closes.
+                <span className="font-medium text-foreground"> Registration-only</span> notes are opportunities you expressed interest in but did not proceed with.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {isLoading ? (
+                <>
+                  <Skeleton className="h-64" />
+                  <Skeleton className="h-64" />
+                  <Skeleton className="h-64" />
+                </>
+              ) : (declinedParticipations.length > 0 || registeredOnlyNotes.length > 0) ? (
+                <>
+                  {declinedParticipations.map((participation) => (
+                    <NoteCard
+                      key={participation.id}
+                      note={participation.note}
+                      participation={participation}
+                      onRegistrationUpdate={handleParticipationUpdate}
+                    />
+                  ))}
+                  {registeredOnlyNotes.map((registration) => (
+                    registration.note && (
+                      <NoteCard
+                        key={registration.id}
+                        note={registration.note}
+                        registration={registration}
+                        onRegistrationUpdate={handleRegistrationUpdate}
+                      />
+                    )
+                  ))}
+                </>
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-muted-foreground">
+                    {searchQuery ? "No past registrations match your search." : "You have no past registrations."}
+                  </p>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>

@@ -895,6 +895,61 @@ export async function registerRoutes(
     }
   });
 
+  // Decline a participation (set status to Declined)
+  app.patch("/api/participations/:id/decline", async (req, res) => {
+    try {
+      const participationId = req.params.id;
+      console.log("PATCH /api/participations/:id/decline - Declining:", participationId);
+
+      const participation = await storage.getParticipation(participationId);
+      if (!participation) {
+        return res.status(404).json({ error: "Participation not found" });
+      }
+
+      const updatedParticipation = await storage.updateParticipation(participationId, {
+        status: "Declined"
+      });
+
+      if (!updatedParticipation) {
+        console.error("PATCH /api/participations/:id/decline - Update returned undefined");
+        return res.status(500).json({ error: "Failed to update participation status" });
+      }
+
+      console.log("PATCH /api/participations/:id/decline - Declined successfully", {
+        id: updatedParticipation.id,
+        status: updatedParticipation.status
+      });
+
+      res.json(updatedParticipation);
+    } catch (error) {
+      console.error("Decline participation error:", error);
+      res.status(500).json({ error: "Failed to decline participation" });
+    }
+  });
+
+  // Reactivate a declined participation (set status back to Active)
+  app.patch("/api/participations/:id/reactivate", async (req, res) => {
+    try {
+      const participationId = req.params.id;
+      console.log("PATCH /api/participations/:id/reactivate - Reactivating:", participationId);
+
+      const participation = await storage.getParticipation(participationId);
+      if (!participation) {
+        return res.status(404).json({ error: "Participation not found" });
+      }
+
+      const updatedParticipation = await storage.updateParticipation(participationId, {
+        status: "Active"
+      });
+      console.log("PATCH /api/participations/:id/reactivate - Reactivated successfully");
+
+      res.json(updatedParticipation);
+    } catch (error) {
+      console.error("Reactivate participation error:", error);
+      res.status(500).json({ error: "Failed to reactivate participation" });
+    }
+  });
+
   // Get current user's note registrations
   app.get("/api/my-registrations", async (req, res) => {
     try {

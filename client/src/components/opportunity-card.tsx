@@ -75,7 +75,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
             )}
           </div>
           <CardTitle className="font-serif text-2xl leading-tight mb-2" data-testid={`text-title-${opportunity.id}`}>
-            {opportunity.noteId} - {opportunity.borrower}
+            {opportunity.noteId}
           </CardTitle>
           <CardDescription className="line-clamp-2 text-sm leading-relaxed" data-testid={`text-description-${opportunity.id}`}>
             {opportunity.description || `${opportunity.type} opportunity with ${opportunity.borrower}`}
@@ -155,7 +155,7 @@ export function OpportunityCard({ opportunity }: OpportunityCardProps) {
                 <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                 <span>
                   To review your submission or make adjustments, visit{" "}
-                  <Link href="/portal/notes" className="text-primary font-medium hover:underline">
+                  <Link href="/portal/notes?tab=upcoming" className="text-primary font-medium hover:underline">
                     My Notes
                   </Link>{" "}
                   → <span className="font-medium">Upcoming</span> tab.
