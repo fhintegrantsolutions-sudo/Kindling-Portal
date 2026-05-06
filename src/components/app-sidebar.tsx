@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   PieChart,
+  Shield,
   TrendingUp,
   User,
 } from "lucide-react";
@@ -22,12 +24,19 @@ const NAV = [
   { label: "Profile", href: "/profile", icon: User },
 ] as const;
 
+const ADMIN_NAV = [
+  { label: "Overview", href: "/admin", icon: Shield },
+  { label: "Registrations", href: "/admin/registrations", icon: ClipboardList },
+] as const;
+
 export function AppSidebar({
   email,
   name,
+  role,
 }: {
   email: string | null;
   name: string | null;
+  role: string | null;
 }) {
   const pathname = usePathname();
   const initials = (name ?? email ?? "?")
@@ -46,26 +55,32 @@ export function AppSidebar({
       </div>
       <Separator />
       <nav className="flex flex-1 flex-col gap-1 p-4">
-        {NAV.map((item) => {
-          const active =
-            pathname === item.href || pathname?.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                active
-                  ? "bg-muted font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-              )}
-            >
-              <Icon className="size-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+        {NAV.map((item) => (
+          <NavLink
+            key={item.href}
+            href={item.href}
+            label={item.label}
+            Icon={item.icon}
+            pathname={pathname}
+          />
+        ))}
+        {role === "admin" ? (
+          <>
+            <p className="mt-4 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Admin
+            </p>
+            {ADMIN_NAV.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                Icon={item.icon}
+                pathname={pathname}
+                exact={item.href === "/admin"}
+              />
+            ))}
+          </>
+        ) : null}
       </nav>
       <Separator />
       <div className="flex flex-col gap-3 p-4">
@@ -91,5 +106,37 @@ export function AppSidebar({
         </form>
       </div>
     </aside>
+  );
+}
+
+function NavLink({
+  href,
+  label,
+  Icon,
+  pathname,
+  exact,
+}: {
+  href: string;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  pathname: string | null;
+  exact?: boolean;
+}) {
+  const active = exact
+    ? pathname === href
+    : pathname === href || pathname?.startsWith(`${href}/`);
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+        active
+          ? "bg-muted font-medium text-foreground"
+          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+      )}
+    >
+      <Icon className="size-4" />
+      {label}
+    </Link>
   );
 }

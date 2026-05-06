@@ -28,3 +28,11 @@ export const getCurrentProfile = cache(async () => {
 
   return data;
 });
+
+export const requireAdmin = cache(async () => {
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") {
+    redirect("/dashboard");
+  }
+  return profile;
+});
