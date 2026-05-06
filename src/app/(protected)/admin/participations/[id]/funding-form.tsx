@@ -145,7 +145,7 @@ function Stage({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex w-44 items-center gap-2 text-sm">
         <input
           type="checkbox"
           name={name}

@@ -10,6 +10,9 @@ const PUBLIC_PATHS = [
   "/forgot-password",
 ];
 
+// Path *prefixes* reachable without a session (any sub-path).
+const PUBLIC_PREFIXES = ["/setup-participation/"];
+
 // Paths reachable with or without a session — the recovery / invite flows
 // authenticate via exchangeCodeForSession, so the user IS signed in by the
 // time they reach these pages. We just don't want to bounce them away.
@@ -44,7 +47,9 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = PUBLIC_PATHS.includes(path);
+  const isPublic =
+    PUBLIC_PATHS.includes(path) ||
+    PUBLIC_PREFIXES.some((p) => path.startsWith(p));
   const isTransient = TRANSIENT_PATHS.some(
     (p) => path === p || path.startsWith(`${p}/`),
   );

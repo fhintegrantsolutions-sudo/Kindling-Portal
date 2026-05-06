@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ApproveForm } from "./approve-form";
+import { CopyLink } from "./copy-link";
 
 export default async function AdminAccessRequestDetailPage({
   params,
@@ -27,8 +28,16 @@ export default async function AdminAccessRequestDetailPage({
   if (!r) notFound();
 
   const isPending = r.status === "pending";
+  const isApproved = r.status === "approved";
   const isConverted = r.status === "converted";
   const isRejected = r.status === "rejected";
+
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001";
+  const setupUrl =
+    isApproved && r.setup_token
+      ? `${appUrl}/setup-participation/${r.setup_token}`
+      : null;
 
   // For converted access requests, find the participation it spawned
   let participationId: string | null = null;
@@ -110,6 +119,28 @@ export default async function AdminAccessRequestDetailPage({
           </CardHeader>
           <CardContent>
             <ApproveForm id={r.id} notes={notes} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isApproved && setupUrl ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Awaiting lead submission</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 text-sm">
+            <p className="text-muted-foreground">
+              Approved. Email the link below to {r.first_name}; they fill out
+              their legal info, then a participation appears in awaiting-funding
+              state.
+            </p>
+            <CopyLink url={setupUrl} />
+            {r.setup_token_expires_at ? (
+              <p className="text-xs text-muted-foreground">
+                Link expires{" "}
+                {new Date(r.setup_token_expires_at).toLocaleDateString()}.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type FilterValue = "pending" | "converted" | "rejected";
+type FilterValue = "pending" | "approved" | "converted" | "rejected";
 
 export default async function AdminAccessRequestsPage({
   searchParams,
@@ -29,14 +29,18 @@ export default async function AdminAccessRequestsPage({
           Access requests
         </h1>
         <p className="text-sm text-muted-foreground">
-          Prospective lenders. Approve to create a participation in
-          awaiting-funding state — funding tracking + invite happen on the
-          participation.
+          Prospective lenders. Approve → email setup link → lead submits →
+          participation appears for funding tracking.
         </p>
       </header>
 
-      <nav className="flex gap-1 border-b">
+      <nav className="flex flex-wrap gap-1 border-b">
         <FilterTab label="Pending" value="pending" current={filter} />
+        <FilterTab
+          label="Awaiting lead submission"
+          value="approved"
+          current={filter}
+        />
         <FilterTab label="Converted" value="converted" current={filter} />
         <FilterTab label="Rejected" value="rejected" current={filter} />
       </nav>

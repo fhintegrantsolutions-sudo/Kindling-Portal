@@ -8,8 +8,8 @@ import {
 } from "@/lib/admin/access-request-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CopyLink } from "./copy-link";
 
 type Note = { id: string; note_id: string; title: string };
 
@@ -39,12 +39,16 @@ export function ApproveForm({
     });
   };
 
+  if (state?.setupUrl) {
+    return <CopyLink url={state.setupUrl} />;
+  }
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        Pick a note and amount, then approve. This creates a participation
-        in awaiting-funding state. The lender gets an invite email when funds
-        clear.
+        Pick the note this lead is interested in, then approve. We&apos;ll
+        generate a setup link for you to email the lead — they enter their
+        own investment amount + legal info on that form.
       </p>
 
       <div className="flex flex-col gap-2">
@@ -67,21 +71,6 @@ export function ApproveForm({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="investment_amount">Investment amount (USD)</Label>
-        <Input
-          id="investment_amount"
-          name="investment_amount"
-          type="number"
-          step="0.01"
-          min="0"
-          aria-invalid={Boolean(fe.investment_amount) || undefined}
-        />
-        {fe.investment_amount ? (
-          <p className="text-xs text-destructive">{fe.investment_amount}</p>
-        ) : null}
-      </div>
-
       {state?.error ? (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
@@ -90,7 +79,7 @@ export function ApproveForm({
 
       <div className="flex gap-3">
         <Button type="submit" disabled={pending || rejectPending}>
-          {pending ? "Approving…" : "Approve & create participation"}
+          {pending ? "Approving…" : "Approve & generate setup link"}
         </Button>
         <Button
           type="button"

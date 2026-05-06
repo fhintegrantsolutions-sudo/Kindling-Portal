@@ -1,0 +1,178 @@
+"use client";
+
+import { useActionState } from "react";
+import {
+  submitLeadParticipationForm,
+  type LeadFormState,
+} from "@/lib/lead/actions";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export type LeadDefaults = {
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  min_investment: string | null;
+};
+
+export function SetupForm({
+  token,
+  defaults,
+}: {
+  token: string;
+  defaults: LeadDefaults;
+}) {
+  const action = submitLeadParticipationForm.bind(null, token);
+  const [state, formAction, pending] = useActionState<
+    LeadFormState | undefined,
+    FormData
+  >(action, undefined);
+  const fe = state?.fieldErrors ?? {};
+
+  return (
+    <form action={formAction} className="flex flex-col gap-6">
+      <fieldset className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-5 text-sm">
+        <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          From your initial inquiry
+        </legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Readonly label="Name" value={`${defaults.first_name ?? ""} ${defaults.last_name ?? ""}`.trim()} />
+          <Readonly label="Email" value={defaults.email} />
+          <Readonly label="Phone" value={defaults.phone} />
+        </div>
+      </fieldset>
+
+      <h2 className="text-sm font-semibold">Investment</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          name="investment_amount"
+          label={
+            defaults.min_investment
+              ? `Amount (USD) — min $${Number(defaults.min_investment).toLocaleString()}`
+              : "Amount (USD)"
+          }
+          type="number"
+          step="0.01"
+          min="0"
+          error={fe.investment_amount}
+        />
+      </div>
+
+      <h2 className="text-sm font-semibold">Legal information</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          name="entity_type"
+          label="Entity type"
+          placeholder="Individual, LLC, Trust, etc."
+          error={fe.entity_type}
+        />
+        <Field
+          name="name_for_agreement"
+          label="Exact name for the loan agreement"
+          error={fe.name_for_agreement}
+        />
+      </div>
+
+      <h2 className="text-sm font-semibold">Mailing address</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          name="mailing_address"
+          label="Street"
+          error={fe.mailing_address}
+          className="sm:col-span-2"
+        />
+        <Field name="city" label="City" error={fe.city} />
+        <Field name="state" label="State" error={fe.state} />
+        <Field name="zip_code" label="ZIP" error={fe.zip_code} />
+      </div>
+
+      <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+        After you submit, we&apos;ll follow up with wire / check / ACH
+        instructions. We do <em>not</em> store any banking information in this
+        portal.
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="acknowledge_lender" className="mt-1" />
+          <span>
+            I acknowledge that the information I&apos;m providing is accurate
+            and that submission does not guarantee participation until funds
+            clear.
+          </span>
+        </label>
+        {fe.acknowledge_lender ? (
+          <p className="text-xs text-destructive">{fe.acknowledge_lender}</p>
+        ) : null}
+      </div>
+
+      {state?.error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Submitting…" : "Submit"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function Readonly({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium">{value || "—"}</p>
+    </div>
+  );
+}
+
+function Field({
+  name,
+  label,
+  placeholder,
+  error,
+  className,
+  type,
+  step,
+  min,
+}: {
+  name: string;
+  label: string;
+  placeholder?: string;
+  error?: string;
+  className?: string;
+  type?: string;
+  step?: string;
+  min?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-2 ${className ?? ""}`}>
+      <Label htmlFor={name}>
+        {label} <span className="text-destructive">*</span>
+      </Label>
+      <Input
+        id={name}
+        name={name}
+        type={type}
+        step={step}
+        min={min}
+        placeholder={placeholder}
+        aria-invalid={Boolean(error) || undefined}
+      />
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}

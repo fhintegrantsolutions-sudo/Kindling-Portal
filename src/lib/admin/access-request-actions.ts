@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
@@ -7,18 +8,19 @@ import { requireAdmin } from "@/lib/dal";
 export type ApproveFormState = {
   error?: string;
   fieldErrors?: Record<string, string>;
+  setupUrl?: string;
 };
 
+const SETUP_TOKEN_TTL_DAYS = 14;
+
 /**
- * Approve an access request. With the unified-funding model this is the
- * single action that:
- *   1. Creates a participation in awaiting-funding state, with user_id=null
- *      and access_request_id pointing back at the access request
- *   2. Marks the access request status='converted'
+ * Approve an access request. Persists the note + amount the admin chose
+ * and generates a one-time setup_token. Returns the public URL the admin
+ * sends to the lead so the lead can fill in their own legal-doc info.
  *
- * Funding tracking thereafter happens on the participation. The new lender
- * gets an invite via the participation's "Invite lender" action once funds
- * clear.
+ * NO participation is created here. The participation is created when the
+ * lead submits the setup form (see submitLeadParticipationForm in
+ * src/lib/lead/actions.ts).
  */
 export async function approveAccessRequest(
   id: string,
@@ -29,21 +31,11 @@ export async function approveAccessRequest(
   const supabase = await createClient();
 
   const noteId = String(formData.get("note_id") ?? "").trim() || null;
-  const amountRaw = String(formData.get("investment_amount") ?? "").trim();
-  const investmentAmount = amountRaw ? Number(amountRaw) : null;
 
   const fieldErrors: Record<string, string> = {};
   if (!noteId) fieldErrors.note_id = "Pick a note";
-  if (
-    investmentAmount === null ||
-    !Number.isFinite(investmentAmount) ||
-    investmentAmount <= 0
-  ) {
-    fieldErrors.investment_amount = "Enter an amount greater than zero";
-  }
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
-  // Verify the access request exists and is approvable
   const { data: ar } = await supabase
     .from("access_requests")
     .select("id, status")
@@ -51,46 +43,37 @@ export async function approveAccessRequest(
     .maybeSingle();
   if (!ar) return { error: "Access request not found" };
   if (ar.status === "converted") {
-    return { error: "Already converted into a participation." };
+    return { error: "Already converted." };
   }
   if (ar.status === "rejected") {
     return { error: "This access request was rejected." };
   }
 
-  // Insert the participation (awaiting-funding, no user yet)
-  const { error: insertErr } = await supabase
-    .from("participations")
-    .insert({
-      user_id: null,
-      note_id: noteId,
-      access_request_id: id,
-      invested_amount: investmentAmount!.toString(),
-      status: "Active",
-    });
-  if (insertErr) {
-    return { error: `Failed to create participation: ${insertErr.message}` };
-  }
+  const token = randomBytes(24).toString("hex"); // 48 hex chars
+  const expires = new Date(
+    Date.now() + SETUP_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
-  // Persist note + amount on the access_request and flip status
   const { error: updateErr } = await supabase
     .from("access_requests")
     .update({
-      status: "converted",
+      status: "approved",
       note_id: noteId,
-      investment_amount: investmentAmount!.toString(),
+      setup_token: token,
+      setup_token_expires_at: expires,
     })
     .eq("id", id);
   if (updateErr) {
-    return {
-      error: `Participation created but failed to mark access request converted: ${updateErr.message}`,
-    };
+    return { error: `Failed to approve: ${updateErr.message}` };
   }
+
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001";
 
   revalidatePath("/admin/access-requests");
   revalidatePath(`/admin/access-requests/${id}`);
-  revalidatePath("/admin/participations");
   revalidatePath("/admin");
-  return {};
+  return { setupUrl: `${appUrl}/setup-participation/${token}` };
 }
 
 export async function rejectAccessRequest(id: string): Promise<void> {

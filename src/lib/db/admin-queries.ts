@@ -554,6 +554,9 @@ export type AccessRequestDetail = {
   referral_code: string | null;
   note_id: string | null;
   investment_amount: string | null;
+  setup_token: string | null;
+  setup_token_expires_at: string | null;
+  setup_completed_at: string | null;
   created_at: string;
   note: { id: string; note_id: string; title: string } | null;
 };
