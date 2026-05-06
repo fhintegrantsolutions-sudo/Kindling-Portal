@@ -1,10 +1,18 @@
-import { verifySession } from "@/lib/dal";
+import { AppSidebar } from "@/components/app-sidebar";
+import { getCurrentProfile, verifySession } from "@/lib/dal";
 
 export default async function ProtectedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await verifySession();
-  return <>{children}</>;
+  const session = await verifySession();
+  const profile = await getCurrentProfile();
+
+  return (
+    <div className="flex min-h-svh">
+      <AppSidebar email={session.email} name={profile?.name ?? null} />
+      <main className="flex-1 overflow-y-auto">{children}</main>
+    </div>
+  );
 }

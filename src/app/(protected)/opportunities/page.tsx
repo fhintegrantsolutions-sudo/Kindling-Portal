@@ -1,0 +1,85 @@
+import { getOpportunities } from "@/lib/db/queries";
+import { formatCurrency, formatPercent } from "@/lib/format";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default async function OpportunitiesPage() {
+  const notes = await getOpportunities();
+
+  return (
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight">Opportunities</h1>
+        <p className="text-sm text-muted-foreground">
+          Available notes open for participation.
+        </p>
+      </header>
+
+      {notes.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              No opportunities are open right now. Check back soon.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {notes.map((n) => {
+            const borrower = n.borrower;
+            return (
+              <Card key={n.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                        {n.note_id} · {n.project_type}
+                      </p>
+                      <CardTitle>{n.title}</CardTitle>
+                      {borrower?.business_name ? (
+                        <p className="text-sm text-muted-foreground">
+                          {borrower.business_name}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <Field
+                      label="Principal"
+                      value={formatCurrency(n.principal)}
+                    />
+                    <Field label="Rate" value={formatPercent(n.rate)} />
+                    <Field label="Term" value={`${n.term_months} mo`} />
+                    <Field
+                      label="Min investment"
+                      value={
+                        n.min_investment
+                          ? formatCurrency(n.min_investment)
+                          : "—"
+                      }
+                    />
+                  </div>
+                  {n.description ? (
+                    <p className="text-sm text-muted-foreground">
+                      {n.description}
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium">{value}</p>
+    </div>
+  );
+}
