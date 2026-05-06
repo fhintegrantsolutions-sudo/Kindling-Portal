@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getMyParticipations } from "@/lib/db/queries";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,9 +33,15 @@ export default async function MyNotesPage() {
         <div className="grid gap-4">
           {participations.map((p) => {
             const note = p.note;
+            const href = note ? `/notes/${note.note_id}` : "#";
             return (
-              <Card key={p.id}>
-                <CardHeader>
+              <Link
+                key={p.id}
+                href={href}
+                className="block rounded-lg transition-colors hover:bg-muted/40"
+              >
+                <Card>
+                  <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -73,7 +80,8 @@ export default async function MyNotesPage() {
                     }
                   />
                 </CardContent>
-              </Card>
+                </Card>
+              </Link>
             );
           })}
         </div>

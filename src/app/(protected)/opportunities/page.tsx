@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getOpportunities } from "@/lib/db/queries";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,8 +28,13 @@ export default async function OpportunitiesPage() {
           {notes.map((n) => {
             const borrower = n.borrower;
             return (
-              <Card key={n.id}>
-                <CardHeader>
+              <Link
+                key={n.id}
+                href={`/opportunities/${n.note_id}`}
+                className="block rounded-lg transition-colors hover:bg-muted/40"
+              >
+                <Card>
+                  <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -66,7 +72,8 @@ export default async function OpportunitiesPage() {
                     </p>
                   ) : null}
                 </CardContent>
-              </Card>
+                </Card>
+              </Link>
             );
           })}
         </div>
