@@ -109,6 +109,119 @@ export type RegistrationDetail = {
   } | null;
 };
 
+export type AdminParticipationListItem = {
+  id: string;
+  user_id: string;
+  invested_amount: string;
+  status: string;
+  funding_received: boolean;
+  funding_deposited: boolean;
+  funding_cleared: boolean;
+  funding_type: string | null;
+  created_at: string;
+  note: { note_id: string; title: string } | null;
+};
+
+export async function getParticipations(filter?: {
+  fundingState?: "pending" | "received" | "deposited" | "cleared";
+}) {
+  const supabase = await createClient();
+  let q = supabase
+    .from("participations")
+    .select(
+      `
+      id, user_id, invested_amount, status,
+      funding_received, funding_deposited, funding_cleared,
+      funding_type, created_at,
+      note:notes ( note_id, title )
+      `,
+    )
+    .order("created_at", { ascending: false });
+
+  switch (filter?.fundingState) {
+    case "pending":
+      q = q.eq("funding_received", false);
+      break;
+    case "received":
+      q = q.eq("funding_received", true).eq("funding_deposited", false);
+      break;
+    case "deposited":
+      q = q.eq("funding_deposited", true).eq("funding_cleared", false);
+      break;
+    case "cleared":
+      q = q.eq("funding_cleared", true);
+      break;
+  }
+
+  const { data } = await q;
+  return (data ?? []) as unknown as AdminParticipationListItem[];
+}
+
+export type AdminParticipationDetail = {
+  id: string;
+  user_id: string;
+  invested_amount: string;
+  status: string;
+  user_notes: string | null;
+  funding_received: boolean;
+  funding_deposited: boolean;
+  funding_cleared: boolean;
+  funding_type: "wire" | "check" | "ach" | "other" | null;
+  funding_investment_amount: string | null;
+  funding_check_number: string | null;
+  funding_wire_reference_number: string | null;
+  funding_check_image_url: string | null;
+  funding_received_date: string | null;
+  funding_deposited_date: string | null;
+  funding_cleared_date: string | null;
+  funding_notes: string | null;
+  funding_other_type_description: string | null;
+  created_at: string;
+  note: {
+    id: string;
+    note_id: string;
+    title: string;
+    principal: string;
+    rate: string;
+    term_months: number;
+  } | null;
+  // hydrated separately from profiles (auth.users isn't joinable via PostgREST)
+  lender: { name: string | null; email: string | null } | null;
+};
+
+export async function getParticipationById(id: string) {
+  const supabase = await createClient();
+  const { data: p } = await supabase
+    .from("participations")
+    .select(
+      `
+      id, user_id, invested_amount, status, user_notes,
+      funding_received, funding_deposited, funding_cleared,
+      funding_type, funding_investment_amount,
+      funding_check_number, funding_wire_reference_number,
+      funding_check_image_url,
+      funding_received_date, funding_deposited_date, funding_cleared_date,
+      funding_notes, funding_other_type_description,
+      created_at,
+      note:notes ( id, note_id, title, principal, rate, term_months )
+      `,
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (!p) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name, email")
+    .eq("id", (p as { user_id: string }).user_id)
+    .maybeSingle();
+
+  return {
+    ...(p as object),
+    lender: profile ?? null,
+  } as unknown as AdminParticipationDetail;
+}
+
 export async function getRegistrationById(id: string) {
   const supabase = await createClient();
   const { data } = await supabase

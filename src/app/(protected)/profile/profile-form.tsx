@@ -117,7 +117,7 @@ function FieldInput({
         id={name}
         name={name}
         type={type}
-        defaultValue={defaultValue ?? ""}
+        defaultValue={defaultValue ?? undefined}
         placeholder={placeholder}
       />
     </div>

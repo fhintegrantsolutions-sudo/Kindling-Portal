@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Banknote,
   ClipboardList,
   LayoutDashboard,
   LogOut,
@@ -28,6 +29,7 @@ const NAV = [
 const ADMIN_NAV = [
   { label: "Overview", href: "/admin", icon: Shield },
   { label: "Registrations", href: "/admin/registrations", icon: ClipboardList },
+  { label: "Participations", href: "/admin/participations", icon: Banknote },
 ] as const;
 
 export function AppSidebar({
