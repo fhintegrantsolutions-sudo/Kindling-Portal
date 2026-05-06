@@ -1,0 +1,224 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import {
+  getUserById,
+  countAdmins,
+  getReferralCodeByUserId,
+} from "@/lib/db/admin-queries";
+import { verifySession } from "@/lib/dal";
+import { formatCurrency } from "@/lib/format";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ReferralsPanel } from "./referrals-panel";
+import { RoleChange } from "./role-change";
+
+export default async function AdminUserDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const detail = await getUserById(id);
+  if (!detail) notFound();
+
+  const session = await verifySession();
+  const [adminCount, referralCode] = await Promise.all([
+    countAdmins(),
+    getReferralCodeByUserId(id),
+  ]);
+  const isSelf = session.userId === detail.profile.id;
+  const isLastAdmin =
+    detail.profile.role === "admin" && adminCount <= 1;
+
+  const p = detail.profile;
+  const fullAddress = [
+    p.address_street,
+    p.address_city,
+    p.address_state,
+    p.address_zip,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
+      <Link
+        href="/admin/users"
+        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+      >
+        ← Back to users
+      </Link>
+
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {p.name ?? "—"}
+          </h1>
+          <p className="text-sm text-muted-foreground">{p.email}</p>
+          {isSelf ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              (this is you)
+            </p>
+          ) : null}
+        </div>
+        <span className="rounded-full border px-3 py-1 text-xs">
+          {p.role}
+        </span>
+      </header>
+
+      <RoleChange
+        userId={p.id}
+        currentRole={p.role}
+        isSelf={isSelf}
+        isLastAdmin={isLastAdmin}
+      />
+
+      <ReferralsPanel userId={p.id} referralCode={referralCode} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <Field label="Phone" value={p.phone ?? "—"} />
+          <Field label="Entity type" value={p.entity_type ?? "—"} />
+          <Field
+            label="Loan agreement title"
+            value={p.loan_agreement_title ?? "—"}
+          />
+          <Field
+            label="Address"
+            value={fullAddress || "—"}
+            className="sm:col-span-3"
+          />
+          <Field
+            label="Joined"
+            value={new Date(p.created_at).toLocaleDateString()}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Participations ({detail.participations.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {detail.participations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No participations.</p>
+          ) : (
+            detail.participations.map((row) => {
+              const label = row.funding_cleared
+                ? "Cleared"
+                : row.funding_deposited
+                  ? "Deposited"
+                  : row.funding_received
+                    ? "Received"
+                    : "Awaiting funding";
+              return (
+                <Link
+                  key={row.id}
+                  href={`/admin/participations/${row.id}`}
+                  className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {row.note?.note_id} · {row.note?.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(row.invested_amount)} · {label} ·{" "}
+                      {row.status}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Pending registrations ({detail.pendingRegistrations.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {detail.pendingRegistrations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending registrations.</p>
+          ) : (
+            detail.pendingRegistrations.map((r) => (
+              <Link
+                key={r.id}
+                href={`/admin/registrations/${r.id}`}
+                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+              >
+                <div>
+                  <p className="font-medium">
+                    {r.note?.note_id} · {r.note?.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatCurrency(r.investment_amount)} · submitted{" "}
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </Link>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Beneficiaries ({detail.beneficiaries.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {detail.beneficiaries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No beneficiaries.</p>
+          ) : (
+            detail.beneficiaries.map((b) => (
+              <div
+                key={b.id}
+                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
+              >
+                <div>
+                  <p className="font-medium">{b.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {b.relation} · {b.type}
+                  </p>
+                </div>
+                <span className="rounded-full border px-2 py-0.5 text-xs">
+                  {b.percentage}%
+                </span>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  className,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium">{value}</p>
+    </div>
+  );
+}

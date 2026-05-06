@@ -6,12 +6,14 @@ import { usePathname } from "next/navigation";
 import {
   Banknote,
   ClipboardList,
+  Handshake,
   LayoutDashboard,
   LogOut,
   PieChart,
   Shield,
   TrendingUp,
   User,
+  Users,
 } from "lucide-react";
 import { logout } from "@/lib/auth/actions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -30,6 +32,8 @@ const ADMIN_NAV = [
   { label: "Overview", href: "/admin", icon: Shield },
   { label: "Registrations", href: "/admin/registrations", icon: ClipboardList },
   { label: "Participations", href: "/admin/participations", icon: Banknote },
+  { label: "Users", href: "/admin/users", icon: Users },
+  { label: "Referrals", href: "/admin/referrals", icon: Handshake },
 ] as const;
 
 export function AppSidebar({

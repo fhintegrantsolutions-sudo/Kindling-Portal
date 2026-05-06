@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const TABS = [
-  { label: "Profile info", href: "/profile", exact: true },
-  { label: "Beneficiaries", href: "/profile/beneficiaries", exact: false },
-] as const;
+export type ProfileTab = {
+  label: string;
+  href: string;
+  exact: boolean;
+};
 
-export function ProfileTabs() {
+export function ProfileTabs({ tabs }: { tabs: ProfileTab[] }) {
   const pathname = usePathname();
   return (
     <nav className="flex gap-1 border-b">
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = tab.exact
           ? pathname === tab.href
           : pathname === tab.href || pathname?.startsWith(`${tab.href}/`);

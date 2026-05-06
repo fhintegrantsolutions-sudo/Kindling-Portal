@@ -211,6 +211,56 @@ export async function getMyBeneficiaries() {
   return (data ?? []) as Beneficiary[];
 }
 
+export type MyReferralCode = {
+  id: string;
+  code: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export async function getMyReferralCode(): Promise<MyReferralCode | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("referral_codes")
+    .select("id, code, is_active, created_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  return data as MyReferralCode | null;
+}
+
+export type MyReferralRow = {
+  id: string;
+  referred_email: string | null;
+  referred_name: string | null;
+  status: "pending" | "signed_up" | "invested" | "qualified";
+  signup_date: string | null;
+  first_investment_date: string | null;
+  first_investment_amount: string | null;
+  created_at: string;
+};
+
+export async function getMyReferrals(): Promise<MyReferralRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("referrals")
+    .select(
+      "id, referred_email, referred_name, status, signup_date, first_investment_date, first_investment_amount, created_at",
+    )
+    .eq("referrer_id", user.id)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as MyReferralRow[];
+}
+
 export async function getBeneficiaryById(id: string) {
   const supabase = await createClient();
   const { data } = await supabase
