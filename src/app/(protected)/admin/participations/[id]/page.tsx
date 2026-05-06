@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FundingForm } from "./funding-form";
+import { InviteButton } from "./invite-button";
 
 export default async function AdminParticipationDetailPage({
   params,
@@ -19,6 +20,14 @@ export default async function AdminParticipationDetailPage({
   const p = await getParticipationById(id);
   if (!p) notFound();
 
+  const isNewLead = p.user_id === null;
+  const inviteDisabled = !p.funding_cleared || !isNewLead;
+  const inviteReason = !isNewLead
+    ? "This lender already has a portal account."
+    : !p.funding_cleared
+      ? "Funding must be cleared before inviting."
+      : undefined;
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
       <Link
@@ -28,18 +37,60 @@ export default async function AdminParticipationDetailPage({
         ← Back to participations
       </Link>
 
-      <header>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          {p.note?.note_id} · created{" "}
-          {new Date(p.created_at).toLocaleDateString()}
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {p.note?.title}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Lender: {p.lender?.name ?? "—"} ({p.lender?.email ?? "—"})
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            {p.note?.note_id} · created{" "}
+            {new Date(p.created_at).toLocaleDateString()}
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {p.note?.title}
+          </h1>
+        </div>
+        <span
+          className={`rounded-full border px-3 py-1 text-xs ${
+            isNewLead
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "text-muted-foreground"
+          }`}
+        >
+          {isNewLead ? "New lead" : "Returning lender"}
+        </span>
       </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Lender</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2 text-sm">
+          {p.lender ? (
+            <>
+              <p className="font-medium">{p.lender.name ?? "—"}</p>
+              <p className="text-muted-foreground">
+                {p.lender.email ?? "—"}
+                {p.lender.phone ? ` · ${p.lender.phone}` : ""}
+              </p>
+              {p.lender.isProspect ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Prospect — no portal account yet. Will be invited when
+                  funding clears.
+                </p>
+              ) : p.user_id ? (
+                <Link
+                  href={`/admin/users/${p.user_id}`}
+                  className="mt-1 text-xs underline underline-offset-4"
+                >
+                  View user →
+                </Link>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-muted-foreground">
+              No lender info found. (Orphaned participation?)
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {p.note ? (
         <Card>
@@ -77,6 +128,14 @@ export default async function AdminParticipationDetailPage({
           funding_notes: p.funding_notes,
         }}
       />
+
+      {isNewLead ? (
+        <InviteButton
+          participationId={p.id}
+          disabled={inviteDisabled}
+          disabledReason={inviteReason}
+        />
+      ) : null}
     </div>
   );
 }

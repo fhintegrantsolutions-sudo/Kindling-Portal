@@ -44,6 +44,10 @@ next-env.d.ts
 *-firebase-adminsdk-*.json
 firebase-service-account*.json
 
+# Supabase CLI working files
+supabase/.temp/
+supabase/.branches/
+
 # Legacy app artifacts we don't archive
 legacy/uploads/
 legacy/node_modules/

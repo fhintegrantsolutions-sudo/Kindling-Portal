@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { ClipboardList, DollarSign, PieChart, TrendingUp } from "lucide-react";
+import {
+  ClipboardList,
+  DollarSign,
+  Inbox,
+  PieChart,
+  TrendingUp,
+} from "lucide-react";
 import { getAdminStats } from "@/lib/db/admin-queries";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -21,7 +27,17 @@ export default async function AdminDashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Stat
+          label="Pending access requests"
+          value={String(stats.pendingAccessRequests)}
+          icon={<Inbox className="size-4" />}
+          href={
+            stats.pendingAccessRequests > 0
+              ? "/admin/access-requests"
+              : undefined
+          }
+        />
         <Stat
           label="Pending registrations"
           value={String(stats.pendingRegistrations)}
@@ -51,7 +67,13 @@ export default async function AdminDashboardPage() {
 
       <section className="rounded-lg border bg-card p-6">
         <h2 className="mb-3 text-sm font-medium">Quick actions</h2>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-4">
+          <Link
+            href="/admin/access-requests"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            Review access requests →
+          </Link>
           <Link
             href="/admin/registrations"
             className="text-sm font-medium underline underline-offset-4"

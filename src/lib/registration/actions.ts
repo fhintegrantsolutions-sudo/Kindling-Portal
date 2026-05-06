@@ -33,11 +33,6 @@ export async function submitRegistration(
     state: opt(formData, "state"),
     zip_code: opt(formData, "zip_code"),
     investment_amount: req(formData, "investment_amount"),
-    bank_name: req(formData, "bank_name"),
-    bank_account_type: req(formData, "bank_account_type"),
-    bank_account_number: req(formData, "bank_account_number"),
-    bank_routing_number: req(formData, "bank_routing_number"),
-    bank_account_address: opt(formData, "bank_account_address"),
     acknowledge_lender: formData.get("acknowledge_lender") === "on",
   };
 
@@ -52,10 +47,6 @@ export async function submitRegistration(
     fieldErrors.investment_amount = "Required";
   else if (Number(fields.investment_amount) <= 0)
     fieldErrors.investment_amount = "Must be greater than zero";
-  if (!fields.bank_name) fieldErrors.bank_name = "Required";
-  if (!fields.bank_account_type) fieldErrors.bank_account_type = "Required";
-  if (!fields.bank_account_number) fieldErrors.bank_account_number = "Required";
-  if (!fields.bank_routing_number) fieldErrors.bank_routing_number = "Required";
   if (!fields.acknowledge_lender)
     fieldErrors.acknowledge_lender =
       "You must acknowledge to submit your registration";
@@ -64,33 +55,48 @@ export async function submitRegistration(
     return { fieldErrors };
   }
 
-  const { error } = await supabase.from("note_registrations").insert({
-    note_id: noteUuid,
-    user_id: user.id,
-    first_name: fields.first_name,
-    last_name: fields.last_name,
-    phone: fields.phone,
-    email: fields.email,
-    entity_type: fields.entity_type,
-    name_for_agreement: fields.name_for_agreement,
-    mailing_address: fields.mailing_address,
-    city: fields.city,
-    state: fields.state,
-    zip_code: fields.zip_code,
-    investment_amount: fields.investment_amount,
-    bank_name: fields.bank_name,
-    bank_account_type: fields.bank_account_type,
-    bank_account_number: fields.bank_account_number,
-    bank_routing_number: fields.bank_routing_number,
-    bank_account_address: fields.bank_account_address,
-    acknowledge_lender: fields.acknowledge_lender,
-  });
+  // Existing lenders self-serve — no admin gate. We insert the
+  // note_registrations row (thin audit log of intent + acknowledgment) AND
+  // the participations row in awaiting-funding state. Admin gets bank info
+  // from the lender off-platform. Once funds clear, the lender already has
+  // an account, so no invite step is needed.
+  const { error: regErr } = await supabase
+    .from("note_registrations")
+    .insert({
+      note_id: noteUuid,
+      user_id: user.id,
+      first_name: fields.first_name,
+      last_name: fields.last_name,
+      phone: fields.phone,
+      email: fields.email,
+      entity_type: fields.entity_type,
+      name_for_agreement: fields.name_for_agreement,
+      mailing_address: fields.mailing_address,
+      city: fields.city,
+      state: fields.state,
+      zip_code: fields.zip_code,
+      investment_amount: fields.investment_amount,
+      acknowledge_lender: fields.acknowledge_lender,
+      status: "approved",
+    });
+  if (regErr) {
+    return { error: regErr.message };
+  }
 
-  if (error) {
-    return { error: error.message };
+  const { error: partErr } = await supabase.from("participations").insert({
+    user_id: user.id,
+    note_id: noteUuid,
+    invested_amount: fields.investment_amount,
+    status: "Active",
+  });
+  if (partErr) {
+    return {
+      error: `Registration saved but failed to create participation: ${partErr.message}`,
+    };
   }
 
   revalidatePath(`/opportunities/${noteHumanId}`);
+  revalidatePath("/notes");
   redirect(`/opportunities/${noteHumanId}?registered=1`);
 }
 

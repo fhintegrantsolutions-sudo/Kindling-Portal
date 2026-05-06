@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import {
   getNoteByNoteId,
   getMyParticipationByNoteId,
-  getMyRegistrationByNoteId,
+  type MyParticipation,
 } from "@/lib/db/queries";
 import { formatCurrency } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -23,10 +23,7 @@ export default async function OpportunityDetailPage({
   const note = await getNoteByNoteId(id);
   if (!note) notFound();
 
-  const [existingParticipation, existingRegistration] = await Promise.all([
-    getMyParticipationByNoteId(note.id),
-    getMyRegistrationByNoteId(note.id),
-  ]);
+  const existingParticipation = await getMyParticipationByNoteId(note.id);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
@@ -40,8 +37,10 @@ export default async function OpportunityDetailPage({
       {registered === "1" ? (
         <Alert>
           <AlertDescription>
-            Registration submitted. An administrator will review and follow up
-            shortly.
+            Registration submitted. Send your funds per the wire / check / ACH
+            instructions provided. Your participation appears in your
+            portfolio in awaiting-funding state and will flip to active once
+            funds clear.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -51,7 +50,6 @@ export default async function OpportunityDetailPage({
       <ActionPanel
         noteHumanId={note.note_id}
         existingParticipation={existingParticipation}
-        existingRegistration={existingRegistration}
         minInvestment={note.min_investment}
       />
     </div>
@@ -61,42 +59,24 @@ export default async function OpportunityDetailPage({
 function ActionPanel({
   noteHumanId,
   existingParticipation,
-  existingRegistration,
   minInvestment,
 }: {
   noteHumanId: string;
-  existingParticipation: { id: string } | null;
-  existingRegistration: { id: string; status: string } | null;
+  existingParticipation: MyParticipation | null;
   minInvestment: string | null;
 }) {
   if (existingParticipation) {
+    const isAwaitingFunding = !existingParticipation.funding_received;
     return (
       <div className="flex flex-col gap-3 rounded-lg border bg-card p-6">
         <p className="text-sm text-muted-foreground">
-          You&apos;re already a participant in this note.
+          {isAwaitingFunding
+            ? "You've registered for this note — awaiting funds."
+            : "You're already a participant in this note."}
         </p>
         <Link href={`/notes/${noteHumanId}`}>
           <Button variant="outline">View your participation →</Button>
         </Link>
-      </div>
-    );
-  }
-
-  if (existingRegistration) {
-    const label =
-      existingRegistration.status === "pending"
-        ? "Pending admin review"
-        : existingRegistration.status === "approved"
-          ? "Approved — awaiting funding"
-          : "Rejected";
-    return (
-      <div className="flex flex-col gap-2 rounded-lg border bg-card p-6">
-        <p className="text-sm text-muted-foreground">
-          You&apos;ve registered for this note.
-        </p>
-        <p className="text-sm">
-          Status: <span className="font-medium">{label}</span>
-        </p>
       </div>
     );
   }

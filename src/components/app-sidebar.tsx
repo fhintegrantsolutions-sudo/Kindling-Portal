@@ -7,6 +7,7 @@ import {
   Banknote,
   ClipboardList,
   Handshake,
+  Inbox,
   LayoutDashboard,
   LogOut,
   PieChart,
@@ -30,7 +31,7 @@ const NAV = [
 
 const ADMIN_NAV = [
   { label: "Overview", href: "/admin", icon: Shield },
-  { label: "Registrations", href: "/admin/registrations", icon: ClipboardList },
+  { label: "Access requests", href: "/admin/access-requests", icon: Inbox },
   { label: "Participations", href: "/admin/participations", icon: Banknote },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Referrals", href: "/admin/referrals", icon: Handshake },

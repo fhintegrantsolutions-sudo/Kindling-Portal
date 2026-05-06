@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminStats = {
+  pendingAccessRequests: number;
   pendingRegistrations: number;
   activeParticipations: number;
   totalInvested: number;
@@ -12,24 +13,29 @@ export type AdminStats = {
 export async function getAdminStats(): Promise<AdminStats> {
   const supabase = await createClient();
 
-  const [pendingReg, activeParts, allActive, activeNotes] = await Promise.all([
-    supabase
-      .from("note_registrations")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
-    supabase
-      .from("participations")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "Active"),
-    supabase
-      .from("participations")
-      .select("invested_amount")
-      .eq("status", "Active"),
-    supabase
-      .from("notes")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "Active"),
-  ]);
+  const [pendingAR, pendingReg, activeParts, allActive, activeNotes] =
+    await Promise.all([
+      supabase
+        .from("access_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending"),
+      supabase
+        .from("note_registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending"),
+      supabase
+        .from("participations")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Active"),
+      supabase
+        .from("participations")
+        .select("invested_amount")
+        .eq("status", "Active"),
+      supabase
+        .from("notes")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "Active"),
+    ]);
 
   const totalInvested = (allActive.data ?? []).reduce(
     (sum, row) => sum + Number(row.invested_amount ?? 0),
@@ -37,6 +43,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   );
 
   return {
+    pendingAccessRequests: pendingAR.count ?? 0,
     pendingRegistrations: pendingReg.count ?? 0,
     activeParticipations: activeParts.count ?? 0,
     totalInvested,
@@ -46,7 +53,7 @@ export async function getAdminStats(): Promise<AdminStats> {
 
 export type RegistrationListItem = {
   id: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "converted";
   first_name: string;
   last_name: string;
   email: string;
@@ -55,11 +62,9 @@ export type RegistrationListItem = {
   note: { note_id: string; title: string } | null;
 };
 
-export async function getRegistrations(filter?: {
-  status?: "pending" | "approved" | "rejected";
-}) {
+export async function getRegistrations() {
   const supabase = await createClient();
-  let q = supabase
+  const { data } = await supabase
     .from("note_registrations")
     .select(
       `
@@ -69,17 +74,12 @@ export async function getRegistrations(filter?: {
       `,
     )
     .order("created_at", { ascending: false });
-
-  if (filter?.status) {
-    q = q.eq("status", filter.status);
-  }
-  const { data } = await q;
   return (data ?? []) as unknown as RegistrationListItem[];
 }
 
 export type RegistrationDetail = {
   id: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "converted";
   user_id: string | null;
   first_name: string;
   last_name: string;
@@ -92,11 +92,6 @@ export type RegistrationDetail = {
   state: string | null;
   zip_code: string | null;
   investment_amount: string;
-  bank_name: string;
-  bank_account_type: string;
-  bank_account_number: string;
-  bank_routing_number: string;
-  bank_account_address: string | null;
   acknowledge_lender: boolean;
   created_at: string;
   note: {
@@ -111,7 +106,8 @@ export type RegistrationDetail = {
 
 export type AdminParticipationListItem = {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  access_request_id: string | null;
   invested_amount: string;
   status: string;
   funding_received: boolean;
@@ -123,14 +119,14 @@ export type AdminParticipationListItem = {
 };
 
 export async function getParticipations(filter?: {
-  fundingState?: "pending" | "received" | "deposited" | "cleared";
+  fundingState?: "awaiting_funding" | "received" | "deposited" | "cleared" | "awaiting_invite";
 }) {
   const supabase = await createClient();
   let q = supabase
     .from("participations")
     .select(
       `
-      id, user_id, invested_amount, status,
+      id, user_id, access_request_id, invested_amount, status,
       funding_received, funding_deposited, funding_cleared,
       funding_type, created_at,
       note:notes ( note_id, title )
@@ -139,7 +135,7 @@ export async function getParticipations(filter?: {
     .order("created_at", { ascending: false });
 
   switch (filter?.fundingState) {
-    case "pending":
+    case "awaiting_funding":
       q = q.eq("funding_received", false);
       break;
     case "received":
@@ -151,6 +147,9 @@ export async function getParticipations(filter?: {
     case "cleared":
       q = q.eq("funding_cleared", true);
       break;
+    case "awaiting_invite":
+      q = q.eq("funding_cleared", true).is("user_id", null);
+      break;
   }
 
   const { data } = await q;
@@ -159,7 +158,8 @@ export async function getParticipations(filter?: {
 
 export type AdminParticipationDetail = {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  access_request_id: string | null;
   invested_amount: string;
   status: string;
   user_notes: string | null;
@@ -185,62 +185,96 @@ export type AdminParticipationDetail = {
     rate: string;
     term_months: number;
   } | null;
-  // hydrated separately from profiles (auth.users isn't joinable via PostgREST)
-  lender: { name: string | null; email: string | null } | null;
+  // For returning lenders (user_id set): name + email from profiles
+  // For new leads (user_id null, access_request_id set): name + email + phone
+  // from the linked access_request
+  lender: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    isProspect: boolean;
+  } | null;
 };
 
 export async function getParticipationById(id: string) {
   const supabase = await createClient();
   const { data: p } = await supabase
     .from("participations")
-    .select(
-      `
-      id, user_id, invested_amount, status, user_notes,
-      funding_received, funding_deposited, funding_cleared,
-      funding_type, funding_investment_amount,
-      funding_check_number, funding_wire_reference_number,
-      funding_check_image_url,
-      funding_received_date, funding_deposited_date, funding_cleared_date,
-      funding_notes, funding_other_type_description,
-      created_at,
-      note:notes ( id, note_id, title, principal, rate, term_months )
-      `,
-    )
+    .select("*, note:notes ( id, note_id, title, principal, rate, term_months )")
     .eq("id", id)
     .maybeSingle();
   if (!p) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, email")
-    .eq("id", (p as { user_id: string }).user_id)
-    .maybeSingle();
+  const row = p as {
+    user_id: string | null;
+    access_request_id: string | null;
+  };
+
+  let lender: AdminParticipationDetail["lender"] = null;
+  if (row.user_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("name, email, phone")
+      .eq("id", row.user_id)
+      .maybeSingle();
+    if (profile) {
+      lender = {
+        name: (profile.name as string | null) ?? null,
+        email: (profile.email as string | null) ?? null,
+        phone: (profile.phone as string | null) ?? null,
+        isProspect: false,
+      };
+    }
+  } else if (row.access_request_id) {
+    const { data: ar } = await supabase
+      .from("access_requests")
+      .select("first_name, last_name, email, phone")
+      .eq("id", row.access_request_id)
+      .maybeSingle();
+    if (ar) {
+      const fn = (ar.first_name as string | null) ?? "";
+      const ln = (ar.last_name as string | null) ?? "";
+      const fullName = `${fn} ${ln}`.trim();
+      lender = {
+        name: fullName || null,
+        email: (ar.email as string | null) ?? null,
+        phone: (ar.phone as string | null) ?? null,
+        isProspect: true,
+      };
+    }
+  }
 
   return {
     ...(p as object),
-    lender: profile ?? null,
+    lender,
   } as unknown as AdminParticipationDetail;
 }
 
-export async function getRegistrationById(id: string) {
+export async function getRegistrationById(
+  id: string,
+): Promise<RegistrationDetail | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("note_registrations")
-    .select(
-      `
-      id, status, user_id,
-      first_name, last_name, phone, email, entity_type, name_for_agreement,
-      mailing_address, city, state, zip_code,
-      investment_amount,
-      bank_name, bank_account_type, bank_account_number,
-      bank_routing_number, bank_account_address,
-      acknowledge_lender, created_at,
-      note:notes ( id, note_id, title, principal, rate, term_months )
-      `,
-    )
+    .select("*")
     .eq("id", id)
     .maybeSingle();
-  return data as unknown as RegistrationDetail | null;
+  if (!data) return null;
+
+  let note: RegistrationDetail["note"] = null;
+  const row = data as { note_id: string };
+  if (row.note_id) {
+    const { data: noteRow } = await supabase
+      .from("notes")
+      .select("id, note_id, title, principal, rate, term_months")
+      .eq("id", row.note_id)
+      .maybeSingle();
+    if (noteRow) {
+      note = noteRow as RegistrationDetail["note"];
+    }
+  }
+
+  return { ...(data as object), note } as unknown as RegistrationDetail;
 }
 
 export type UserListItem = {
@@ -444,6 +478,130 @@ export async function getReferralCodeByUserId(
     signed_up_referrals: (stats?.signed_up_referrals as number) ?? 0,
     invested_referrals: (stats?.invested_referrals as number) ?? 0,
   };
+}
+
+export type AccessRequestListItem = {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "converted";
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  investment_amount: string | null;
+  created_at: string;
+  note: { note_id: string; title: string } | null;
+};
+
+export async function getAccessRequests(filter?: {
+  status?: "pending" | "approved" | "rejected" | "converted";
+}): Promise<AccessRequestListItem[]> {
+  const supabase = await createClient();
+  let q = supabase
+    .from("access_requests")
+    .select(
+      `
+      id, status, first_name, last_name, email, phone, note_id,
+      investment_amount, created_at
+      `,
+    )
+    .order("created_at", { ascending: false });
+  if (filter?.status) q = q.eq("status", filter.status);
+  const { data } = await q;
+  const rows = (data ?? []) as Array<{
+    id: string;
+    status: AccessRequestListItem["status"];
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    note_id: string | null;
+    investment_amount: string | null;
+    created_at: string;
+  }>;
+
+  const noteIds = Array.from(
+    new Set(rows.map((r) => r.note_id).filter(Boolean) as string[]),
+  );
+  const noteMap = new Map<string, { note_id: string; title: string }>();
+  if (noteIds.length > 0) {
+    const { data: notes } = await supabase
+      .from("notes")
+      .select("id, note_id, title")
+      .in("id", noteIds);
+    for (const n of notes ?? []) {
+      noteMap.set(n.id as string, {
+        note_id: n.note_id as string,
+        title: n.title as string,
+      });
+    }
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    note: r.note_id ? (noteMap.get(r.note_id) ?? null) : null,
+  }));
+}
+
+export type AccessRequestDetail = {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "converted";
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  is_tcc_member: boolean;
+  message: string | null;
+  referral_code: string | null;
+  note_id: string | null;
+  investment_amount: string | null;
+  created_at: string;
+  note: { id: string; note_id: string; title: string } | null;
+};
+
+export async function getAccessRequestById(
+  id: string,
+): Promise<AccessRequestDetail | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("access_requests")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+
+  let note: AccessRequestDetail["note"] = null;
+  const row = data as { note_id: string | null };
+  if (row.note_id) {
+    const { data: noteRow } = await supabase
+      .from("notes")
+      .select("id, note_id, title")
+      .eq("id", row.note_id)
+      .maybeSingle();
+    if (noteRow) {
+      note = {
+        id: noteRow.id as string,
+        note_id: noteRow.note_id as string,
+        title: noteRow.title as string,
+      };
+    }
+  }
+
+  return { ...(data as object), note } as unknown as AccessRequestDetail;
+}
+
+export type NotePickerOption = {
+  id: string;
+  note_id: string;
+  title: string;
+};
+
+export async function getNotesForPicker(): Promise<NotePickerOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("notes")
+    .select("id, note_id, title")
+    .order("note_id", { ascending: false });
+  return (data ?? []) as NotePickerOption[];
 }
 
 export async function countAdmins(): Promise<number> {

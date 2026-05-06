@@ -8,7 +8,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type FilterValue = "all" | "pending" | "received" | "deposited" | "cleared";
+type FilterValue =
+  | "all"
+  | "awaiting_funding"
+  | "received"
+  | "deposited"
+  | "cleared"
+  | "awaiting_invite";
 
 export default async function AdminParticipationsPage({
   searchParams,
@@ -32,12 +38,21 @@ export default async function AdminParticipationsPage({
         </h1>
       </header>
 
-      <nav className="flex gap-1 border-b">
+      <nav className="flex flex-wrap gap-1 border-b">
         <FilterTab label="All" value="all" current={filter} />
-        <FilterTab label="Awaiting funding" value="pending" current={filter} />
+        <FilterTab
+          label="Awaiting funding"
+          value="awaiting_funding"
+          current={filter}
+        />
         <FilterTab label="Received" value="received" current={filter} />
         <FilterTab label="Deposited" value="deposited" current={filter} />
         <FilterTab label="Cleared" value="cleared" current={filter} />
+        <FilterTab
+          label="Awaiting invite"
+          value="awaiting_invite"
+          current={filter}
+        />
       </nav>
 
       {participations.length === 0 ? (
@@ -66,7 +81,10 @@ export default async function AdminParticipationsPage({
                       </p>
                       <CardTitle>{p.note?.title}</CardTitle>
                     </div>
-                    <FundingBadge p={p} />
+                    <div className="flex flex-col items-end gap-1 text-xs">
+                      <LeadSourceBadge isNewLead={p.user_id === null} />
+                      <FundingBadge p={p} />
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -89,6 +107,18 @@ export default async function AdminParticipationsPage({
   );
 }
 
+function LeadSourceBadge({ isNewLead }: { isNewLead: boolean }) {
+  return isNewLead ? (
+    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+      New lead
+    </span>
+  ) : (
+    <span className="rounded-full border px-2 py-0.5 text-muted-foreground">
+      Returning lender
+    </span>
+  );
+}
+
 function FundingBadge({
   p,
 }: {
@@ -96,8 +126,14 @@ function FundingBadge({
     funding_received: boolean;
     funding_deposited: boolean;
     funding_cleared: boolean;
+    user_id: string | null;
   };
 }) {
+  if (p.funding_cleared && p.user_id === null) {
+    return (
+      <span className="rounded-full border px-2 py-0.5">Awaiting invite</span>
+    );
+  }
   const label = p.funding_cleared
     ? "Cleared"
     : p.funding_deposited
@@ -105,7 +141,7 @@ function FundingBadge({
       : p.funding_received
         ? "Received"
         : "Awaiting funding";
-  return <span className="rounded-full border px-2 py-0.5 text-xs">{label}</span>;
+  return <span className="rounded-full border px-2 py-0.5">{label}</span>;
 }
 
 function FilterTab({

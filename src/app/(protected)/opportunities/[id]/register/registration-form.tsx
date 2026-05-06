@@ -116,32 +116,11 @@ export function RegistrationForm({
         />
       </Section>
 
-      <Section title="Bank information">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field name="bank_name" label="Bank name" error={fe.bank_name} />
-          <Field
-            name="bank_account_type"
-            label="Account type"
-            placeholder="Checking, Savings"
-            error={fe.bank_account_type}
-          />
-          <Field
-            name="bank_routing_number"
-            label="Routing number"
-            error={fe.bank_routing_number}
-          />
-          <Field
-            name="bank_account_number"
-            label="Account number"
-            error={fe.bank_account_number}
-          />
-          <Field
-            name="bank_account_address"
-            label="Bank address (optional)"
-            className="sm:col-span-2"
-          />
-        </div>
-      </Section>
+      <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+        After you submit, an admin will follow up with wire / check / ACH
+        instructions for your funds. We do not store any banking details in
+        the portal.
+      </div>
 
       <div className="flex flex-col gap-3">
         <label className="flex items-start gap-3 text-sm">
@@ -153,7 +132,7 @@ export function RegistrationForm({
           <span>
             I acknowledge that I am a lender, that the information provided is
             accurate, and that submission does not guarantee participation
-            until approved by an administrator.
+            until funds clear.
           </span>
         </label>
         {fe.acknowledge_lender ? (
