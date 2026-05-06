@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -47,13 +48,23 @@ export function AppSidebar({
     .toUpperCase();
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:bg-card md:py-6">
-      <div className="px-6 pb-6">
-        <span className="font-serif text-2xl font-semibold tracking-tight">
+    <aside className="hidden md:flex md:w-64 md:flex-col md:bg-sidebar md:text-sidebar-foreground">
+      <div className="flex items-center gap-3 px-6 py-6">
+        <Image
+          src="/logo.png"
+          alt="Kindling logo"
+          width={36}
+          height={36}
+          priority
+        />
+        <span
+          className="font-serif text-2xl font-bold tracking-tight"
+          style={{ color: "hsl(var(--sidebar-primary))" }}
+        >
           Kindling
         </span>
       </div>
-      <Separator />
+      <Separator className="bg-sidebar-border" />
       <nav className="flex flex-1 flex-col gap-1 p-4">
         {NAV.map((item) => (
           <NavLink
@@ -66,7 +77,7 @@ export function AppSidebar({
         ))}
         {role === "admin" ? (
           <>
-            <p className="mt-4 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="mt-4 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
               Admin
             </p>
             {ADMIN_NAV.map((item) => (
@@ -82,15 +93,19 @@ export function AppSidebar({
           </>
         ) : null}
       </nav>
-      <Separator />
+      <Separator className="bg-sidebar-border" />
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-center gap-3">
-          <Avatar className="size-9">
-            <AvatarFallback>{initials}</AvatarFallback>
+          <Avatar className="size-9 border border-sidebar-border">
+            <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground">
+              {initials}
+            </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{name ?? "Lender"}</p>
-            <p className="truncate text-xs text-muted-foreground">{email}</p>
+            <p className="truncate text-xs text-sidebar-foreground/60">
+              {email}
+            </p>
           </div>
         </div>
         <form action={logout}>
@@ -98,7 +113,7 @@ export function AppSidebar({
             type="submit"
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2"
+            className="w-full justify-start gap-2 border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <LogOut className="size-4" />
             Sign out
@@ -131,8 +146,8 @@ function NavLink({
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
         active
-          ? "bg-muted font-medium text-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+          ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
       )}
     >
       <Icon className="size-4" />
