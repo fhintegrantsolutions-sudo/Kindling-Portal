@@ -5,14 +5,10 @@ export default async function ProfilePage() {
   const profile = await getCurrentProfile();
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p className="text-sm text-muted-foreground">
-          Signed in as <span className="font-medium">{profile?.email}</span>
-        </p>
-      </header>
-
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        Signed in as <span className="font-medium">{profile?.email}</span>
+      </p>
       <ProfileForm
         defaults={{
           name: profile?.name ?? null,

@@ -187,6 +187,40 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
   return data as MyParticipation | null;
 }
 
+export type Beneficiary = {
+  id: string;
+  user_id: string;
+  name: string;
+  relation: string;
+  percentage: number;
+  type: string;
+  dob: string | null;
+  phone: string | null;
+  address: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getMyBeneficiaries() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("beneficiaries")
+    .select("*")
+    .order("type", { ascending: true })
+    .order("created_at", { ascending: true });
+  return (data ?? []) as Beneficiary[];
+}
+
+export async function getBeneficiaryById(id: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("beneficiaries")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data as Beneficiary | null;
+}
+
 export async function getMyRegistrationByNoteId(noteUuid: string) {
   const supabase = await createClient();
   const {
