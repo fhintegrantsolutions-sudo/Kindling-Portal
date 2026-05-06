@@ -2,7 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Paths reachable without a session.
-const PUBLIC_PATHS = ["/", "/login", "/forgot-password"];
+const PUBLIC_PATHS = [
+  "/",
+  "/about",
+  "/request-access",
+  "/login",
+  "/forgot-password",
+];
 
 // Paths reachable with or without a session — the recovery / invite flows
 // authenticate via exchangeCodeForSession, so the user IS signed in by the
