@@ -607,6 +607,225 @@ export async function getNotesForPicker(): Promise<NotePickerOption[]> {
   return (data ?? []) as NotePickerOption[];
 }
 
+export type BorrowerPickerOption = {
+  id: string;
+  business_name: string;
+};
+
+export async function getBorrowersForPicker(): Promise<BorrowerPickerOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("borrowers")
+    .select("id, business_name")
+    .order("business_name", { ascending: true });
+  return (data ?? []) as BorrowerPickerOption[];
+}
+
+export type AdminBorrowerListItem = {
+  id: string;
+  business_name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  business_type: string | null;
+  city: string | null;
+  state: string | null;
+  created_at: string;
+};
+
+export async function getAdminBorrowers(): Promise<AdminBorrowerListItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("borrowers")
+    .select(
+      "id, business_name, contact_name, email, phone, business_type, city, state, created_at",
+    )
+    .order("business_name", { ascending: true });
+  return (data ?? []) as AdminBorrowerListItem[];
+}
+
+export type AdminBorrowerDetail = {
+  id: string;
+  business_name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+  tax_id: string | null;
+  business_type: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getAdminBorrowerById(
+  id: string,
+): Promise<AdminBorrowerDetail | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("borrowers")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data as AdminBorrowerDetail | null;
+}
+
+export type BorrowerNoteRow = {
+  id: string;
+  note_id: string;
+  title: string;
+  status: string;
+  client_status: string;
+};
+
+export async function getNotesForBorrower(
+  borrowerId: string,
+): Promise<BorrowerNoteRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("notes")
+    .select("id, note_id, title, status, client_status")
+    .eq("borrower_id", borrowerId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as BorrowerNoteRow[];
+}
+
+export type LenderPickerOption = {
+  id: string;
+  email: string;
+  name: string | null;
+};
+
+export async function getLendersForPicker(): Promise<LenderPickerOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, email, name")
+    .order("name", { ascending: true });
+  return (data ?? []) as LenderPickerOption[];
+}
+
+export async function getNoteVisibility(
+  noteUuid: string,
+): Promise<string[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("note_visibility")
+    .select("user_id")
+    .eq("note_id", noteUuid);
+  return (data ?? []).map((r) => r.user_id as string);
+}
+
+export type AdminNoteListItem = {
+  id: string;
+  note_id: string;
+  title: string;
+  principal: string | null;
+  rate: string;
+  term_months: number;
+  status: string;
+  client_status: string;
+  project_type: string;
+  created_at: string;
+  borrower: { business_name: string } | null;
+};
+
+export async function getAdminNotes(): Promise<AdminNoteListItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("notes")
+    .select(
+      `id, note_id, title, principal, rate, term_months, status, client_status,
+       project_type, created_at, borrower_id`,
+    )
+    .order("created_at", { ascending: false });
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    note_id: string;
+    title: string;
+    principal: string;
+    rate: string;
+    term_months: number;
+    status: string;
+    client_status: string;
+    project_type: string;
+    created_at: string;
+    borrower_id: string | null;
+  }>;
+
+  const borrowerIds = Array.from(
+    new Set(rows.map((r) => r.borrower_id).filter(Boolean) as string[]),
+  );
+  const borrowerMap = new Map<string, string>();
+  if (borrowerIds.length > 0) {
+    const { data: borrowers } = await supabase
+      .from("borrowers")
+      .select("id, business_name")
+      .in("id", borrowerIds);
+    for (const b of borrowers ?? []) {
+      borrowerMap.set(b.id as string, b.business_name as string);
+    }
+  }
+
+  return rows.map((r) => {
+    const { borrower_id, ...rest } = r;
+    return {
+      ...rest,
+      borrower: borrower_id
+        ? { business_name: borrowerMap.get(borrower_id) ?? "—" }
+        : null,
+    };
+  });
+}
+
+export type AdminNoteDetail = {
+  id: string;
+  note_id: string;
+  borrower_id: string | null;
+  title: string;
+  principal: string | null;
+  rate: string;
+  term_months: number;
+  term_years: number | null;
+  project_type: string;
+  loan_payment_status: string;
+  contract_date: string | null;
+  payment_start_date: string | null;
+  maturity_date: string | null;
+  funding_start_date: string | null;
+  funding_end_date: string | null;
+  funding_window_end: string | null;
+  first_payment_date: string | null;
+  monthly_payment: string | null;
+  status: string;
+  client_status: string;
+  type: string;
+  interest_type: string;
+  is_private: boolean;
+  description: string | null;
+  admin_notes: string | null;
+  target_raise: string | null;
+  min_investment: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getAdminNoteById(
+  id: string,
+): Promise<AdminNoteDetail | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("notes")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data as unknown as AdminNoteDetail | null;
+}
+
 export async function countAdmins(): Promise<number> {
   const supabase = await createClient();
   const { count } = await supabase

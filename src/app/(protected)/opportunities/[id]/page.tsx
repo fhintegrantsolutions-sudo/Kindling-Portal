@@ -45,7 +45,7 @@ export default async function OpportunityDetailPage({
         </Alert>
       ) : null}
 
-      <NoteDetailCard note={note} />
+      <NoteDetailCard note={note} showPrincipal={false} />
 
       <ActionPanel
         noteHumanId={note.note_id}

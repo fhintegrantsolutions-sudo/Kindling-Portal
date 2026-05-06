@@ -50,11 +50,7 @@ export default async function OpportunitiesPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                    <Field
-                      label="Principal"
-                      value={formatCurrency(n.principal)}
-                    />
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                     <Field label="Rate" value={formatPercent(n.rate)} />
                     <Field label="Term" value={`${n.term_months} mo`} />
                     <Field

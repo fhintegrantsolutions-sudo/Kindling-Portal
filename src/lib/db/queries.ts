@@ -41,6 +41,11 @@ export type Opportunity = {
 
 export async function getMyParticipations() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data } = await supabase
     .from("participations")
     .select(
@@ -66,6 +71,7 @@ export async function getMyParticipations() {
       )
       `,
     )
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   return (data ?? []) as unknown as ParticipationWithNote[];
@@ -203,9 +209,14 @@ export type Beneficiary = {
 
 export async function getMyBeneficiaries() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
   const { data } = await supabase
     .from("beneficiaries")
     .select("*")
+    .eq("user_id", user.id)
     .order("type", { ascending: true })
     .order("created_at", { ascending: true });
   return (data ?? []) as Beneficiary[];
@@ -263,10 +274,15 @@ export async function getMyReferrals(): Promise<MyReferralRow[]> {
 
 export async function getBeneficiaryById(id: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
   const { data } = await supabase
     .from("beneficiaries")
     .select("*")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
   return data as Beneficiary | null;
 }

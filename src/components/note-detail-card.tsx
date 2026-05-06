@@ -7,7 +7,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export function NoteDetailCard({ note }: { note: NoteDetail }) {
+export function NoteDetailCard({
+  note,
+  showPrincipal = true,
+}: {
+  note: NoteDetail;
+  showPrincipal?: boolean;
+}) {
   return (
     <Card>
       <CardHeader>
@@ -23,7 +29,9 @@ export function NoteDetailCard({ note }: { note: NoteDetail }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Principal" value={formatCurrency(note.principal)} />
+          {showPrincipal && note.principal ? (
+            <Field label="Principal" value={formatCurrency(note.principal)} />
+          ) : null}
           <Field label="Rate" value={formatPercent(note.rate)} />
           <Field label="Term" value={`${note.term_months} mo`} />
           <Field

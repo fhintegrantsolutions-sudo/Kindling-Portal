@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Banknote,
+  Building2,
   ClipboardList,
+  FileText,
   Handshake,
   Inbox,
   LayoutDashboard,
@@ -32,6 +34,8 @@ const NAV = [
 const ADMIN_NAV = [
   { label: "Overview", href: "/admin", icon: Shield },
   { label: "Access requests", href: "/admin/access-requests", icon: Inbox },
+  { label: "Notes", href: "/admin/notes", icon: FileText },
+  { label: "Borrowers", href: "/admin/borrowers", icon: Building2 },
   { label: "Participations", href: "/admin/participations", icon: Banknote },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Referrals", href: "/admin/referrals", icon: Handshake },
