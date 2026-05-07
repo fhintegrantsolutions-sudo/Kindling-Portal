@@ -16,7 +16,7 @@ const libreBaskerville = Libre_Baskerville({
 export const metadata: Metadata = {
   title: "Kindling Portal",
   description: "Kindling lender portal",
-  icons: { icon: "/favicon.png" },
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({
