@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import {
   getNoteByNoteId,
   getMyParticipationByNoteId,
+  getMyBonusPayoutsForParticipation,
 } from "@/lib/db/queries";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -26,6 +27,9 @@ export default async function MyNoteDetailPage({
   if (!participation) {
     redirect(`/opportunities/${note.note_id}`);
   }
+
+  const bonuses = await getMyBonusPayoutsForParticipation(participation.id);
+  const totalBonuses = bonuses.reduce((s, b) => s + Number(b.amount), 0);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
@@ -62,6 +66,46 @@ export default async function MyNoteDetailPage({
             label="Funding type"
             value={participation.funding_type ?? "—"}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Profit bonuses</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {bonuses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No bonuses paid on this note yet.
+            </p>
+          ) : (
+            <>
+              <p className="mb-3 text-sm">
+                <span className="text-muted-foreground">Total received: </span>
+                <span className="font-medium">{formatCurrency(totalBonuses)}</span>
+              </p>
+              <ul className="flex flex-col gap-2">
+                {bonuses.map((b) => (
+                  <li
+                    key={b.id}
+                    className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{b.paid_date}</p>
+                      {b.notes ? (
+                        <p className="text-xs text-muted-foreground">
+                          {b.notes}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className="font-medium">
+                      {formatCurrency(b.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </CardContent>
       </Card>
 

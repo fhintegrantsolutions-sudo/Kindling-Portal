@@ -193,6 +193,46 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
   return data as MyParticipation | null;
 }
 
+export type MyBonusPayout = {
+  id: string;
+  amount: string;
+  paid_date: string;
+  notes: string | null;
+};
+
+export async function getMyBonusPayoutsForParticipation(
+  participationId: string,
+): Promise<MyBonusPayout[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("participation_bonus_payouts")
+    .select(
+      `id, amount,
+       bonus:note_bonuses ( paid_date, notes )`,
+    )
+    .eq("participation_id", participationId);
+
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    amount: string;
+    bonus: { paid_date: string; notes: string | null } | null;
+  }>;
+  return rows
+    .filter((r) => r.bonus !== null)
+    .map((r) => ({
+      id: r.id,
+      amount: r.amount,
+      paid_date: r.bonus!.paid_date,
+      notes: r.bonus!.notes,
+    }))
+    .sort((a, b) => (a.paid_date < b.paid_date ? 1 : -1));
+}
+
 export type Beneficiary = {
   id: string;
   user_id: string;

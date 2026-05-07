@@ -834,3 +834,156 @@ export async function countAdmins(): Promise<number> {
     .eq("role", "admin");
   return count ?? 0;
 }
+
+export type FundedParticipantRow = {
+  participation_id: string;
+  user_id: string | null;
+  lender_name: string | null;
+  lender_email: string | null;
+  invested_amount: string;
+  share_pct: number;
+};
+
+export async function getFundedParticipantsForNote(
+  noteUuid: string,
+): Promise<FundedParticipantRow[]> {
+  const supabase = await createClient();
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("id, user_id, invested_amount")
+    .eq("note_id", noteUuid)
+    .eq("funding_cleared", true);
+
+  const rows = (parts ?? []) as Array<{
+    id: string;
+    user_id: string | null;
+    invested_amount: string;
+  }>;
+  if (rows.length === 0) return [];
+
+  const userIds = Array.from(
+    new Set(rows.map((r) => r.user_id).filter(Boolean) as string[]),
+  );
+  const profileMap = new Map<string, { name: string | null; email: string | null }>();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .in("id", userIds);
+    for (const p of (profiles ?? []) as Array<{
+      id: string;
+      name: string | null;
+      email: string | null;
+    }>) {
+      profileMap.set(p.id, { name: p.name, email: p.email });
+    }
+  }
+
+  const total = rows.reduce((s, r) => s + Number(r.invested_amount ?? 0), 0);
+
+  return rows
+    .map((r) => {
+      const profile = r.user_id ? profileMap.get(r.user_id) : null;
+      const invested = Number(r.invested_amount ?? 0);
+      return {
+        participation_id: r.id,
+        user_id: r.user_id,
+        lender_name: profile?.name ?? null,
+        lender_email: profile?.email ?? null,
+        invested_amount: r.invested_amount,
+        share_pct: total > 0 ? (invested / total) * 100 : 0,
+      };
+    })
+    .sort((a, b) => Number(b.invested_amount) - Number(a.invested_amount));
+}
+
+export type AdminBonusRow = {
+  id: string;
+  paid_date: string;
+  amount: string;
+  notes: string | null;
+  created_at: string;
+  payouts: Array<{
+    id: string;
+    amount: string;
+    share_basis: string;
+    participation_id: string;
+    lender_name: string | null;
+    lender_email: string | null;
+  }>;
+};
+
+export async function getNoteBonuses(
+  noteUuid: string,
+): Promise<AdminBonusRow[]> {
+  const supabase = await createClient();
+  const { data: bonuses } = await supabase
+    .from("note_bonuses")
+    .select("id, paid_date, amount, notes, created_at")
+    .eq("note_id", noteUuid)
+    .order("paid_date", { ascending: false });
+  if (!bonuses || bonuses.length === 0) return [];
+
+  const bonusIds = bonuses.map((b) => b.id as string);
+  const { data: payouts } = await supabase
+    .from("participation_bonus_payouts")
+    .select(
+      `id, bonus_id, amount, share_basis, participation_id,
+       participation:participations ( user_id )`,
+    )
+    .in("bonus_id", bonusIds);
+
+  const rows = (payouts ?? []) as unknown as Array<{
+    id: string;
+    bonus_id: string;
+    amount: string;
+    share_basis: string;
+    participation_id: string;
+    participation: { user_id: string | null } | null;
+  }>;
+  const userIds = Array.from(
+    new Set(
+      rows.map((r) => r.participation?.user_id).filter(Boolean) as string[],
+    ),
+  );
+  const profileMap = new Map<string, { name: string | null; email: string | null }>();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .in("id", userIds);
+    for (const p of (profiles ?? []) as Array<{
+      id: string;
+      name: string | null;
+      email: string | null;
+    }>) {
+      profileMap.set(p.id, { name: p.name, email: p.email });
+    }
+  }
+
+  const byBonus = new Map<string, AdminBonusRow["payouts"]>();
+  for (const p of rows) {
+    const list = byBonus.get(p.bonus_id) ?? [];
+    const profile = p.participation?.user_id
+      ? profileMap.get(p.participation.user_id)
+      : null;
+    list.push({
+      id: p.id,
+      amount: p.amount,
+      share_basis: p.share_basis,
+      participation_id: p.participation_id,
+      lender_name: profile?.name ?? null,
+      lender_email: profile?.email ?? null,
+    });
+    byBonus.set(p.bonus_id, list);
+  }
+
+  return bonuses.map((b) => ({
+    id: b.id as string,
+    paid_date: b.paid_date as string,
+    amount: b.amount as string,
+    notes: (b.notes as string | null) ?? null,
+    created_at: b.created_at as string,
+    payouts: byBonus.get(b.id as string) ?? [],
+  }));
+}
