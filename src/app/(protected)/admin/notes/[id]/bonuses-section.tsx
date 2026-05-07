@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   createBonus,
   deleteBonus,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BonusDetailsButton } from "@/components/admin/bonus-details-sheet";
 import type { AdminBonusRow } from "@/lib/db/admin-queries";
 
 export function BonusesSection({
@@ -32,56 +33,95 @@ export function BonusesSection({
     FormData
   >(action, undefined);
   const fe = state?.fieldErrors ?? {};
+  const [grossStr, setGrossStr] = useState("");
+  const [retainedStr, setRetainedStr] = useState("");
+
+  const gross = grossStr === "" ? null : Number(grossStr);
+  const retained = retainedStr === "" ? 0 : Number(retainedStr);
+  const distributable =
+    gross !== null && Number.isFinite(gross) && Number.isFinite(retained)
+      ? Math.max(0, Math.round((gross - retained) * 100) / 100)
+      : null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Profit bonuses</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Recorded when paid. Distributed pro-rata to funded participants at
-          the time of entry.
+          Record the gross amount received from the borrower. Optionally
+          retain a portion for operational expenses; the remainder is
+          distributed pro-rata to funded participants.
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <form
           action={formAction}
           key={state?.message ?? "form"}
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_2fr_auto] sm:items-end"
+          className="flex flex-col gap-3"
         >
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="paid_date">Paid date *</Label>
-            <Input
-              id="paid_date"
-              name="paid_date"
-              type="date"
-              aria-invalid={Boolean(fe.paid_date) || undefined}
-            />
-            {fe.paid_date ? (
-              <p className="text-xs text-destructive">{fe.paid_date}</p>
-            ) : null}
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_2fr_auto] sm:items-end">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="paid_date">Paid date *</Label>
+              <Input
+                id="paid_date"
+                name="paid_date"
+                type="date"
+                aria-invalid={Boolean(fe.paid_date) || undefined}
+              />
+              {fe.paid_date ? (
+                <p className="text-xs text-destructive">{fe.paid_date}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="gross_amount">Gross *</Label>
+              <Input
+                id="gross_amount"
+                name="gross_amount"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={grossStr}
+                onChange={(e) => setGrossStr(e.target.value)}
+                aria-invalid={Boolean(fe.gross_amount) || undefined}
+              />
+              {fe.gross_amount ? (
+                <p className="text-xs text-destructive">{fe.gross_amount}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="retained_amount">Retained for ops</Label>
+              <Input
+                id="retained_amount"
+                name="retained_amount"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={retainedStr}
+                onChange={(e) => setRetainedStr(e.target.value)}
+                aria-invalid={Boolean(fe.retained_amount) || undefined}
+              />
+              {fe.retained_amount ? (
+                <p className="text-xs text-destructive">{fe.retained_amount}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Input id="notes" name="notes" placeholder="Optional" />
+            </div>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Recording…" : "Record bonus"}
+            </Button>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="amount">Amount *</Label>
-            <Input
-              id="amount"
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              aria-invalid={Boolean(fe.amount) || undefined}
-            />
-            {fe.amount ? (
-              <p className="text-xs text-destructive">{fe.amount}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Input id="notes" name="notes" placeholder="Optional" />
-          </div>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Recording…" : "Record bonus"}
-          </Button>
+          {distributable !== null ? (
+            <p className="text-xs text-muted-foreground">
+              Distributable to lenders:{" "}
+              <span className="font-medium text-foreground">
+                {formatCurrency(distributable)}
+              </span>
+            </p>
+          ) : null}
         </form>
 
         {state?.error ? (
@@ -118,28 +158,55 @@ function BonusRow({
   bonus: AdminBonusRow;
   noteUuid: string;
 }) {
+  const gross = Number(bonus.gross_amount);
+  const retained = Number(bonus.retained_amount);
+  const distributable = Math.round((gross - retained) * 100) / 100;
   return (
     <div className="rounded-md border p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium">
-            {formatCurrency(bonus.amount)} ·{" "}
+            {formatCurrency(gross)} ·{" "}
             <span className="text-muted-foreground">{bonus.paid_date}</span>
           </p>
+          <p className="text-xs text-muted-foreground">
+            Retained {formatCurrency(retained)} · Distributed{" "}
+            {formatCurrency(distributable)}
+          </p>
+          {bonus.payment_method ? (
+            <p className="text-xs text-muted-foreground">
+              {bonus.payment_method}
+              {bonus.check_number ? ` · #${bonus.check_number}` : ""}
+              {bonus.wire_reference ? ` · ${bonus.wire_reference}` : ""}
+            </p>
+          ) : null}
           {bonus.notes ? (
-            <p className="text-sm text-muted-foreground">{bonus.notes}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{bonus.notes}</p>
           ) : null}
         </div>
-        <form action={deleteBonus.bind(null, bonus.id, noteUuid)}>
-          <Button
-            type="submit"
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-          >
-            Delete
-          </Button>
-        </form>
+        <div className="flex items-center gap-2">
+          <BonusDetailsButton
+            bonus={{
+              bonus_id: bonus.id,
+              note_uuid: noteUuid,
+              note_label: `Bonus on ${bonus.paid_date}`,
+              payment_method: bonus.payment_method,
+              check_number: bonus.check_number,
+              wire_reference: bonus.wire_reference,
+              notes: bonus.notes,
+            }}
+          />
+          <form action={deleteBonus.bind(null, bonus.id, noteUuid)}>
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              className="text-destructive"
+            >
+              Delete
+            </Button>
+          </form>
+        </div>
       </div>
       <ul className="mt-3 grid gap-1 text-xs sm:grid-cols-2">
         {bonus.payouts.map((p) => (

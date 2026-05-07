@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import {
   createNote,
   updateNote,
   type NoteFormState,
 } from "@/lib/admin/note-actions";
+import { computeMonthlyPayment } from "@/lib/notes/schedule";
+import { formatCurrency } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,7 @@ export type NoteDefaults = {
   target_raise: string | null;
   monthly_payment: string | null;
   contract_date: string | null;
+  first_payment_date: string | null;
   maturity_date: string | null;
   funding_end_date: string | null;
   description: string | null;
@@ -58,6 +61,21 @@ export function NoteForm({
   const fe = state?.fieldErrors ?? {};
   const [isPrivate, setIsPrivate] = useState(defaults.is_private);
   const [search, setSearch] = useState("");
+  const [interestType, setInterestType] = useState(defaults.interest_type);
+  const [principalStr, setPrincipalStr] = useState(defaults.principal ?? "");
+  const [rateStr, setRateStr] = useState(defaults.rate ?? "");
+  const [termStr, setTermStr] = useState(defaults.term_months ?? "");
+
+  const monthlyPayment = useMemo(
+    () =>
+      computeMonthlyPayment({
+        principal: principalStr === "" ? null : Number(principalStr),
+        annualRatePct: rateStr === "" ? null : Number(rateStr),
+        termMonths: termStr === "" ? null : parseInt(termStr, 10),
+        interestType,
+      }),
+    [principalStr, rateStr, termStr, interestType],
+  );
 
   // Sort lenders by name (with email fallback) so the list is scannable.
   const sortedLenders = [...lenders].sort((a, b) => {
@@ -151,50 +169,76 @@ export function NoteForm({
             <select
               id="interest_type"
               name="interest_type"
-              defaultValue={defaults.interest_type}
+              value={interestType}
+              onChange={(e) => setInterestType(e.target.value)}
               className="h-9 rounded-md border bg-background px-3 text-sm"
             >
               <option value="Amortized">Amortized</option>
               <option value="Interest only">Interest only</option>
             </select>
           </div>
-          <Field
-            name="principal"
-            label="Principal (USD)"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={defaults.principal}
-            error={fe.principal}
-          />
-          <Field
-            name="rate"
-            label="Rate (%)"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={defaults.rate}
-            error={fe.rate}
-            required
-          />
-          <Field
-            name="term_months"
-            label="Term (months)"
-            type="number"
-            step="1"
-            min="1"
-            defaultValue={defaults.term_months}
-            error={fe.term_months}
-            required
-          />
-          <Field
-            name="monthly_payment"
-            label="Monthly payment (USD)"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={defaults.monthly_payment}
-          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="principal">Principal (USD)</Label>
+            <Input
+              id="principal"
+              name="principal"
+              type="number"
+              step="0.01"
+              min="0"
+              value={principalStr}
+              onChange={(e) => setPrincipalStr(e.target.value)}
+              aria-invalid={Boolean(fe.principal) || undefined}
+            />
+            {fe.principal ? (
+              <p className="text-xs text-destructive">{fe.principal}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="rate">Rate (%) *</Label>
+            <Input
+              id="rate"
+              name="rate"
+              type="number"
+              step="0.01"
+              min="0"
+              value={rateStr}
+              onChange={(e) => setRateStr(e.target.value)}
+              aria-invalid={Boolean(fe.rate) || undefined}
+            />
+            {fe.rate ? (
+              <p className="text-xs text-destructive">{fe.rate}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="term_months">Term (months) *</Label>
+            <Input
+              id="term_months"
+              name="term_months"
+              type="number"
+              step="1"
+              min="1"
+              value={termStr}
+              onChange={(e) => setTermStr(e.target.value)}
+              aria-invalid={Boolean(fe.term_months) || undefined}
+            />
+            {fe.term_months ? (
+              <p className="text-xs text-destructive">{fe.term_months}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Monthly payment</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+              {monthlyPayment !== null ? (
+                <span className="font-medium">
+                  {formatCurrency(monthlyPayment)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Set principal, rate, and term to compute
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </Section>
 
@@ -220,12 +264,18 @@ export function NoteForm({
       </Section>
 
       <Section title="Dates">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field
             name="contract_date"
             label="Contract date"
             type="date"
             defaultValue={defaults.contract_date}
+          />
+          <Field
+            name="first_payment_date"
+            label="First payment date"
+            type="date"
+            defaultValue={defaults.first_payment_date}
           />
           <Field
             name="maturity_date"

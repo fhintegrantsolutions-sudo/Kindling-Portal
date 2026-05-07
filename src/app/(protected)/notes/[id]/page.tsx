@@ -4,6 +4,7 @@ import {
   getNoteByNoteId,
   getMyParticipationByNoteId,
   getMyBonusPayoutsForParticipation,
+  getMyScheduleForNote,
 } from "@/lib/db/queries";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -13,6 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { NoteDetailCard } from "@/components/note-detail-card";
+import { getCurrentProfile } from "@/lib/dal";
+import { DownloadScheduleButton } from "./download-schedule-button";
 
 export default async function MyNoteDetailPage({
   params,
@@ -28,8 +31,30 @@ export default async function MyNoteDetailPage({
     redirect(`/opportunities/${note.note_id}`);
   }
 
-  const bonuses = await getMyBonusPayoutsForParticipation(participation.id);
+  const [bonuses, schedule, profile] = await Promise.all([
+    getMyBonusPayoutsForParticipation(participation.id),
+    getMyScheduleForNote(note.id, participation.id),
+    getCurrentProfile(),
+  ]);
+  const lenderName =
+    [
+      (profile?.first_name as string | null) ?? "",
+      (profile?.last_name as string | null) ?? "",
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    profile?.email ||
+    "Lender";
   const totalBonuses = bonuses.reduce((s, b) => s + Number(b.amount), 0);
+
+  const scheduleRows = schedule.ok ? schedule.rows : [];
+  const receivedRows = scheduleRows.filter((r) => r.received_date !== null);
+  const totalPrincipal = receivedRows.reduce(
+    (s, r) => s + r.my_principal,
+    0,
+  );
+  const totalInterest = receivedRows.reduce((s, r) => s + r.my_interest, 0);
+  const totalReceived = totalPrincipal + totalInterest;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
@@ -66,6 +91,102 @@ export default async function MyNoteDetailPage({
             label="Funding type"
             value={participation.funding_type ?? "—"}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle>Payment schedule</CardTitle>
+            {schedule.ok && scheduleRows.length > 0 ? (
+              <DownloadScheduleButton
+                rows={scheduleRows}
+                noteId={note.note_id}
+                noteTitle={note.title}
+                lenderName={lenderName}
+                invested={participation.invested_amount}
+              />
+            ) : null}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!schedule.ok ? (
+            <p className="text-sm text-muted-foreground">{schedule.reason}</p>
+          ) : (
+            <>
+              <div className="mb-3 grid grid-cols-3 gap-3 text-sm">
+                <Field
+                  label="Received to date"
+                  value={formatCurrency(totalReceived)}
+                />
+                <Field
+                  label="Principal"
+                  value={formatCurrency(totalPrincipal)}
+                />
+                <Field
+                  label="Interest"
+                  value={formatCurrency(totalInterest)}
+                />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="py-2 pr-2 font-medium">#</th>
+                      <th className="py-2 pr-2 font-medium">Date</th>
+                      <th className="py-2 pr-2 font-medium text-right">
+                        Principal
+                      </th>
+                      <th className="py-2 pr-2 font-medium text-right">
+                        Interest
+                      </th>
+                      <th className="py-2 pr-2 font-medium text-right">
+                        Balance
+                      </th>
+                      <th className="py-2 pr-2 font-medium text-right">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleRows.map((r) => (
+                      <tr
+                        key={r.payment_number}
+                        className={`border-b last:border-b-0 ${
+                          r.received_date ? "bg-muted/40" : ""
+                        }`}
+                      >
+                        <td className="py-2 pr-2 text-muted-foreground">
+                          {r.payment_number}
+                        </td>
+                        <td className="py-2 pr-2">
+                          {r.received_date ?? r.due_date}
+                        </td>
+                        <td className="py-2 pr-2 text-right">
+                          {formatCurrency(r.my_principal)}
+                        </td>
+                        <td className="py-2 pr-2 text-right">
+                          {formatCurrency(r.my_interest)}
+                        </td>
+                        <td className="py-2 pr-2 text-right text-muted-foreground">
+                          {formatCurrency(r.my_balance)}
+                        </td>
+                        <td className="py-2 pr-2 text-right text-xs">
+                          {r.received_date ? (
+                            <span className="text-green-700">Received</span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              Scheduled
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

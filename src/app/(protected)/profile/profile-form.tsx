@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type ProfileDefaults = {
-  name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   phone: string | null;
   address_street: string | null;
   address_city: string | null;
@@ -30,7 +31,16 @@ export function ProfileForm({ defaults }: { defaults: ProfileDefaults }) {
   return (
     <form action={action} className="flex flex-col gap-6">
       <section className="grid gap-4 sm:grid-cols-2">
-        <FieldInput name="name" label="Full name" defaultValue={defaults.name} />
+        <FieldInput
+          name="first_name"
+          label="First name"
+          defaultValue={defaults.first_name}
+        />
+        <FieldInput
+          name="last_name"
+          label="Last name"
+          defaultValue={defaults.last_name}
+        />
         <FieldInput name="phone" label="Phone" defaultValue={defaults.phone} type="tel" />
       </section>
 

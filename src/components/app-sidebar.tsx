@@ -43,20 +43,26 @@ const ADMIN_NAV = [
 
 export function AppSidebar({
   email,
-  name,
+  firstName,
+  lastName,
   role,
 }: {
   email: string | null;
-  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
   role: string | null;
 }) {
   const pathname = usePathname();
-  const initials = (name ?? email ?? "?")
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+  const initials =
+    [firstName, lastName]
+      .filter(Boolean)
+      .map((p) => p![0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() ||
+    (email ?? "?")[0]?.toUpperCase() ||
+    "?";
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:bg-sidebar md:text-sidebar-foreground">
@@ -113,7 +119,9 @@ export function AppSidebar({
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{name ?? "Lender"}</p>
+            <p className="truncate text-sm font-medium">
+              {fullName || "Lender"}
+            </p>
             <p className="truncate text-xs text-sidebar-foreground/60">
               {email}
             </p>

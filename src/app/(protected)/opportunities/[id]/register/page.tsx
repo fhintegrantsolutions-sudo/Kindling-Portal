@@ -28,9 +28,9 @@ export default async function RegisterForNotePage({
   }
 
   const profile = await getCurrentProfile();
-  const nameParts = (profile?.name ?? "").split(" ");
-  const firstName = nameParts[0] ?? "";
-  const lastName = nameParts.slice(1).join(" ");
+  const firstName = (profile?.first_name as string | null) ?? "";
+  const lastName = (profile?.last_name as string | null) ?? "";
+  const fullName = `${firstName} ${lastName}`.trim();
 
   const mailingAddress = [
     profile?.address_street ?? "",
@@ -65,7 +65,7 @@ export default async function RegisterForNotePage({
           phone: profile?.phone ?? null,
           email: profile?.email ?? null,
           entity_type: profile?.entity_type ?? null,
-          name_for_agreement: profile?.loan_agreement_title ?? profile?.name ?? null,
+          name_for_agreement: profile?.loan_agreement_title ?? fullName ?? null,
           mailing_address: mailingAddress || null,
           city: profile?.address_city ?? null,
           state: profile?.address_state ?? null,

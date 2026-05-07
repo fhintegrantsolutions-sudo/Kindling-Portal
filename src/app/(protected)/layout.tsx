@@ -13,7 +13,8 @@ export default async function ProtectedLayout({
     <div className="flex min-h-svh">
       <AppSidebar
         email={session.email}
-        name={profile?.name ?? null}
+        firstName={(profile?.first_name as string | null) ?? null}
+        lastName={(profile?.last_name as string | null) ?? null}
         role={profile?.role ?? null}
       />
       <main className="flex-1 overflow-y-auto">{children}</main>

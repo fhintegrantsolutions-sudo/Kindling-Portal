@@ -6,6 +6,7 @@ import {
   getFundedParticipantsForNote,
   getLendersForPicker,
   getNoteBonuses,
+  getNotePayments,
   getNoteVisibility,
 } from "@/lib/db/admin-queries";
 import { formatCurrency } from "@/lib/format";
@@ -15,8 +16,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { generateSchedule } from "@/lib/notes/schedule";
 import { NoteForm } from "../note-form";
 import { BonusesSection } from "./bonuses-section";
+import { ScheduleSection, type ReceivedPayment } from "./schedule-section";
 
 export default async function EditNotePage({
   params,
@@ -24,16 +27,56 @@ export default async function EditNotePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [note, borrowers, lenders, visibleUserIds, bonuses, participants] =
-    await Promise.all([
-      getAdminNoteById(id),
-      getBorrowersForPicker(),
-      getLendersForPicker(),
-      getNoteVisibility(id),
-      getNoteBonuses(id),
-      getFundedParticipantsForNote(id),
-    ]);
+  const [
+    note,
+    borrowers,
+    lenders,
+    visibleUserIds,
+    bonuses,
+    payments,
+    participants,
+  ] = await Promise.all([
+    getAdminNoteById(id),
+    getBorrowersForPicker(),
+    getLendersForPicker(),
+    getNoteVisibility(id),
+    getNoteBonuses(id),
+    getNotePayments(id),
+    getFundedParticipantsForNote(id),
+  ]);
   if (!note) notFound();
+
+  let scheduleRows: import("@/lib/notes/schedule").ScheduleRow[] | null = null;
+  let scheduleError: string | null = null;
+  if (
+    note.principal !== null &&
+    note.first_payment_date !== null &&
+    note.term_months &&
+    note.rate !== null
+  ) {
+    const result = generateSchedule({
+      principal: Number(note.principal),
+      annualRatePct: Number(note.rate),
+      termMonths: Number(note.term_months),
+      interestType: note.interest_type,
+      firstPaymentDate: note.first_payment_date,
+    });
+    if (result.ok) scheduleRows = result.rows;
+    else scheduleError = result.reason;
+  }
+  const received: ReceivedPayment[] = payments
+    .filter((p) => p.payment_number !== null)
+    .map((p) => ({
+      payment_id: p.id,
+      payment_number: p.payment_number as number,
+      recorded_date: p.payment_date,
+      principal_amount: p.principal_amount,
+      interest_amount: p.interest_amount,
+      payment_method: p.payment_method,
+      check_number: p.check_number,
+      wire_reference: p.wire_reference,
+      notes: p.notes,
+    }));
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
@@ -70,6 +113,7 @@ export default async function EditNotePage({
           target_raise: note.target_raise,
           monthly_payment: note.monthly_payment,
           contract_date: note.contract_date,
+          first_payment_date: note.first_payment_date,
           maturity_date: note.maturity_date,
           funding_end_date: note.funding_end_date,
           description: note.description,
@@ -122,6 +166,13 @@ export default async function EditNotePage({
           )}
         </CardContent>
       </Card>
+
+      <ScheduleSection
+        noteUuid={note.id}
+        schedule={scheduleRows}
+        scheduleError={scheduleError}
+        received={received}
+      />
 
       <BonusesSection noteUuid={note.id} bonuses={bonuses} />
     </div>

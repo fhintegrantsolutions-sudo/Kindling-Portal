@@ -20,7 +20,7 @@ export default async function DashboardPage() {
   );
   const noteCount = new Set(active.map((p) => p.note_id)).size;
 
-  const firstName = profile?.name?.split(" ")[0] ?? "there";
+  const firstName = profile?.first_name ?? "there";
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-8">

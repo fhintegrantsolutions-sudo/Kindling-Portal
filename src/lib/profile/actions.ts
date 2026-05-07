@@ -19,7 +19,8 @@ export async function updateProfile(
   if (!user) return { error: "Not signed in." };
 
   const fields = {
-    name: String(formData.get("name") ?? "").trim() || null,
+    first_name: String(formData.get("first_name") ?? "").trim() || null,
+    last_name: String(formData.get("last_name") ?? "").trim() || null,
     phone: String(formData.get("phone") ?? "").trim() || null,
     address_street: String(formData.get("address_street") ?? "").trim() || null,
     address_city: String(formData.get("address_city") ?? "").trim() || null,

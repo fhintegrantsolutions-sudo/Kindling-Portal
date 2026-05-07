@@ -17,7 +17,8 @@ export default function NewBorrowerPage() {
       <BorrowerForm
         defaults={{
           business_name: "",
-          contact_name: "",
+          first_name: "",
+          last_name: null,
           email: "",
           phone: "",
           address: null,

@@ -50,7 +50,8 @@ export default async function AdminBorrowersPage() {
                     <div>
                       <CardTitle>{b.business_name}</CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {b.contact_name} · {b.email}
+                        {[b.first_name, b.last_name].filter(Boolean).join(" ")}{" "}
+                        · {b.email}
                       </p>
                     </div>
                     {b.business_type ? (

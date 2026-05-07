@@ -11,7 +11,8 @@ export default async function ProfilePage() {
       </p>
       <ProfileForm
         defaults={{
-          name: profile?.name ?? null,
+          first_name: profile?.first_name ?? null,
+          last_name: profile?.last_name ?? null,
           phone: profile?.phone ?? null,
           address_street: profile?.address_street ?? null,
           address_city: profile?.address_city ?? null,

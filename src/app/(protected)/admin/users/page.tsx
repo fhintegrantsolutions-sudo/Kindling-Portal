@@ -55,7 +55,11 @@ export default async function AdminUsersPage({
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <CardTitle>{u.name ?? "—"}</CardTitle>
+                      <CardTitle>
+                        {[u.first_name, u.last_name]
+                          .filter(Boolean)
+                          .join(" ") || "—"}
+                      </CardTitle>
                       <p className="text-sm text-muted-foreground">
                         {u.email}
                       </p>

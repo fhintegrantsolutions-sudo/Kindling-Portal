@@ -56,7 +56,7 @@ export default async function AdminUserDetailPage({
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            {p.name ?? "—"}
+            {[p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}
           </h1>
           <p className="text-sm text-muted-foreground">{p.email}</p>
           {isSelf ? (

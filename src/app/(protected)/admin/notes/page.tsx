@@ -25,9 +25,17 @@ export default async function AdminNotesPage() {
             client status is Available.
           </p>
         </div>
-        <Link href="/admin/notes/new">
-          <Button>New note</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/notes/ledger">
+            <Button variant="outline">Payment ledger</Button>
+          </Link>
+          <Link href="/admin/notes/bonus-ledger">
+            <Button variant="outline">Bonus ledger</Button>
+          </Link>
+          <Link href="/admin/notes/new">
+            <Button>New note</Button>
+          </Link>
+        </div>
       </header>
 
       {notes.length === 0 ? (

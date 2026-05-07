@@ -71,11 +71,11 @@ export async function inviteLenderForParticipation(
   const newUserId = invited.user.id;
 
   // Update profile (the on_auth_user_created trigger created the row)
-  const fullName = `${ar.first_name ?? ""} ${ar.last_name ?? ""}`.trim();
   const { error: profileErr } = await admin
     .from("profiles")
     .update({
-      name: fullName || null,
+      first_name: ar.first_name || null,
+      last_name: ar.last_name || null,
       phone: ar.phone || null,
     })
     .eq("id", newUserId);

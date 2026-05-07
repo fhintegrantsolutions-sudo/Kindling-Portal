@@ -42,6 +42,7 @@ export default async function NewNotePage() {
           target_raise: null,
           monthly_payment: null,
           contract_date: null,
+          first_payment_date: null,
           maturity_date: null,
           funding_end_date: null,
           description: null,

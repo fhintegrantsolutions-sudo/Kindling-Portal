@@ -42,7 +42,8 @@ export default async function EditBorrowerPage({
         borrowerId={borrower.id}
         defaults={{
           business_name: borrower.business_name,
-          contact_name: borrower.contact_name,
+          first_name: borrower.first_name,
+          last_name: borrower.last_name,
           email: borrower.email,
           phone: borrower.phone,
           address: borrower.address,

@@ -60,7 +60,8 @@ type Fields = ReturnType<typeof parseFields>;
 function parseFields(formData: FormData) {
   return {
     business_name: text(formData, "business_name"),
-    contact_name: text(formData, "contact_name"),
+    first_name: text(formData, "first_name"),
+    last_name: textOrNull(formData, "last_name"),
     email: text(formData, "email"),
     phone: text(formData, "phone"),
     address: textOrNull(formData, "address"),
@@ -76,7 +77,7 @@ function parseFields(formData: FormData) {
 function validate(fields: Fields): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!fields.business_name) errors.business_name = "Required";
-  if (!fields.contact_name) errors.contact_name = "Required";
+  if (!fields.first_name) errors.first_name = "Required";
   if (!fields.email) errors.email = "Required";
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.email))
     errors.email = "Enter a valid email";

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
+import { computeMonthlyPayment } from "@/lib/notes/schedule";
 
 export type NoteFormState = {
   error?: string;
@@ -138,8 +139,8 @@ function parseFields(formData: FormData) {
     term_months: text(formData, "term_months"),
     min_investment: text(formData, "min_investment") || null,
     target_raise: text(formData, "target_raise") || null,
-    monthly_payment: text(formData, "monthly_payment") || null,
     contract_date: text(formData, "contract_date") || null,
+    first_payment_date: text(formData, "first_payment_date") || null,
     maturity_date: text(formData, "maturity_date") || null,
     funding_end_date: text(formData, "funding_end_date") || null,
     description: text(formData, "description") || null,
@@ -200,7 +201,7 @@ async function buildInsert(
       .from("borrowers")
       .insert({
         business_name: fields.new_borrower_name,
-        contact_name: "—",
+        first_name: "—",
         email: "—",
         phone: "—",
       })
@@ -211,6 +212,14 @@ async function buildInsert(
     }
     borrowerId = data.id as string;
   }
+
+  const monthly = computeMonthlyPayment({
+    principal: fields.principal !== null ? Number(fields.principal) : null,
+    annualRatePct: fields.rate !== "" ? Number(fields.rate) : null,
+    termMonths:
+      fields.term_months !== "" ? parseInt(fields.term_months, 10) : null,
+    interestType: fields.interest_type,
+  });
 
   return {
     note_id: fields.note_id,
@@ -223,8 +232,9 @@ async function buildInsert(
     type: fields.type,
     interest_type: fields.interest_type,
     is_private: fields.is_private,
-    monthly_payment: fields.monthly_payment,
+    monthly_payment: monthly !== null ? String(monthly) : null,
     contract_date: fields.contract_date,
+    first_payment_date: fields.first_payment_date,
     maturity_date: fields.maturity_date,
     funding_end_date: fields.funding_end_date,
     min_investment: fields.min_investment,

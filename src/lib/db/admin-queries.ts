@@ -214,12 +214,15 @@ export async function getParticipationById(id: string) {
   if (row.user_id) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("name, email, phone")
+      .select("first_name, last_name, email, phone")
       .eq("id", row.user_id)
       .maybeSingle();
     if (profile) {
+      const fn = (profile.first_name as string | null) ?? "";
+      const ln = (profile.last_name as string | null) ?? "";
+      const fullName = `${fn} ${ln}`.trim();
       lender = {
-        name: (profile.name as string | null) ?? null,
+        name: fullName || null,
         email: (profile.email as string | null) ?? null,
         phone: (profile.phone as string | null) ?? null,
         isProspect: false,
@@ -280,7 +283,8 @@ export async function getRegistrationById(
 export type UserListItem = {
   id: string;
   email: string;
-  name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   role: "admin" | "lender";
   created_at: string;
 };
@@ -289,7 +293,7 @@ export async function getUsers(filter?: { role?: "admin" | "lender" }) {
   const supabase = await createClient();
   let q = supabase
     .from("profiles")
-    .select("id, email, name, role, created_at")
+    .select("id, email, first_name, last_name, role, created_at")
     .order("created_at", { ascending: false });
   if (filter?.role) q = q.eq("role", filter.role);
   const { data } = await q;
@@ -299,7 +303,8 @@ export async function getUsers(filter?: { role?: "admin" | "lender" }) {
 export type UserProfile = {
   id: string;
   email: string;
-  name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   role: "admin" | "lender";
   phone: string | null;
   address_street: string | null;
@@ -411,7 +416,7 @@ export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
       .select(
         "user_id, total_referrals, signed_up_referrals, invested_referrals",
       ),
-    supabase.from("profiles").select("id, name, email"),
+    supabase.from("profiles").select("id, first_name, last_name, email"),
   ]);
 
   const codes = codesRes.data ?? [];
@@ -425,13 +430,16 @@ export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
   return codes.map((c) => {
     const s = statsByUser.get(c.user_id as string);
     const profile = profilesById.get(c.user_id as string);
+    const fn = (profile?.first_name as string | null) ?? "";
+    const ln = (profile?.last_name as string | null) ?? "";
+    const userName = `${fn} ${ln}`.trim() || null;
     return {
       id: c.id as string,
       user_id: c.user_id as string,
       code: c.code as string,
       is_active: c.is_active as boolean,
       created_at: c.created_at as string,
-      user_name: (profile?.name as string | null) ?? null,
+      user_name: userName,
       user_email: (profile?.email as string) ?? "",
       total_referrals: (s?.total_referrals as number) ?? 0,
       signed_up_referrals: (s?.signed_up_referrals as number) ?? 0,
@@ -624,7 +632,8 @@ export async function getBorrowersForPicker(): Promise<BorrowerPickerOption[]> {
 export type AdminBorrowerListItem = {
   id: string;
   business_name: string;
-  contact_name: string;
+  first_name: string;
+  last_name: string | null;
   email: string;
   phone: string;
   business_type: string | null;
@@ -638,7 +647,7 @@ export async function getAdminBorrowers(): Promise<AdminBorrowerListItem[]> {
   const { data } = await supabase
     .from("borrowers")
     .select(
-      "id, business_name, contact_name, email, phone, business_type, city, state, created_at",
+      "id, business_name, first_name, last_name, email, phone, business_type, city, state, created_at",
     )
     .order("business_name", { ascending: true });
   return (data ?? []) as AdminBorrowerListItem[];
@@ -647,7 +656,8 @@ export async function getAdminBorrowers(): Promise<AdminBorrowerListItem[]> {
 export type AdminBorrowerDetail = {
   id: string;
   business_name: string;
-  contact_name: string;
+  first_name: string;
+  last_name: string | null;
   email: string;
   phone: string;
   address: string | null;
@@ -703,9 +713,20 @@ export async function getLendersForPicker(): Promise<LenderPickerOption[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, email, name")
-    .order("name", { ascending: true });
-  return (data ?? []) as LenderPickerOption[];
+    .select("id, email, first_name, last_name")
+    .order("first_name", { ascending: true });
+  const rows = (data ?? []) as Array<{
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    name:
+      `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || null,
+  }));
 }
 
 export async function getNoteVisibility(
@@ -826,6 +847,288 @@ export async function getAdminNoteById(
   return data as unknown as AdminNoteDetail | null;
 }
 
+export type LedgerRow = {
+  note_uuid: string;
+  note_id: string;
+  note_title: string;
+  borrower_id: string | null;
+  borrower_name: string | null;
+  payment_number: number;
+  due_date: string;
+  principal_amount: number;
+  interest_amount: number;
+  received_date: string | null;
+  payment_id: string | null;
+  payment_method: string | null;
+  check_number: string | null;
+  wire_reference: string | null;
+  payment_notes: string | null;
+  has_funded_participants: boolean;
+};
+
+// Returns every scheduled payment due in [yearMonth-01, +1 month) across all
+// notes, joined with whether it's been recorded. yearMonth = "YYYY-MM".
+// Optionally filters to a single borrower for per-borrower statement views.
+export async function getLedgerForMonth(
+  yearMonth: string,
+  borrowerId?: string | null,
+): Promise<LedgerRow[]> {
+  const supabase = await createClient();
+  const { generateSchedule } = await import("@/lib/notes/schedule");
+
+  let q = supabase
+    .from("notes")
+    .select(
+      "id, note_id, title, borrower_id, principal, rate, term_months, interest_type, first_payment_date",
+    );
+  if (borrowerId) q = q.eq("borrower_id", borrowerId);
+  const { data: notes } = await q;
+  const noteRows = (notes ?? []) as Array<{
+    id: string;
+    note_id: string;
+    title: string;
+    borrower_id: string | null;
+    principal: string | null;
+    rate: string | null;
+    term_months: number | null;
+    interest_type: string;
+    first_payment_date: string | null;
+  }>;
+
+  const borrowerIds = Array.from(
+    new Set(noteRows.map((n) => n.borrower_id).filter(Boolean) as string[]),
+  );
+  const borrowerNameById = new Map<string, string>();
+  if (borrowerIds.length > 0) {
+    const { data: bs } = await supabase
+      .from("borrowers")
+      .select("id, business_name")
+      .in("id", borrowerIds);
+    for (const b of (bs ?? []) as Array<{ id: string; business_name: string }>) {
+      borrowerNameById.set(b.id, b.business_name);
+    }
+  }
+
+  // For each candidate note, ask: do you have any funded participants?
+  // (Drives whether the checkbox is enabled.)
+  const noteIds = noteRows.map((n) => n.id);
+  const fundedSet = new Set<string>();
+  if (noteIds.length > 0) {
+    const { data: parts } = await supabase
+      .from("participations")
+      .select("note_id")
+      .in("note_id", noteIds)
+      .eq("funding_cleared", true);
+    for (const p of (parts ?? []) as Array<{ note_id: string }>) {
+      fundedSet.add(p.note_id);
+    }
+  }
+
+  // Recorded payments (with payment_number) for the month so we can mark
+  // rows received. We pull a wider window than the requested month to
+  // tolerate the schedule's clamped-end-of-month dates landing in adjacent
+  // months when first_payment_date is, say, the 31st.
+  const monthStart = `${yearMonth}-01`;
+  const monthEnd = nextMonthStart(yearMonth);
+  const { data: receivedRows } = await supabase
+    .from("note_payments")
+    .select(
+      "id, note_id, payment_number, payment_date, payment_method, check_number, wire_reference, notes",
+    )
+    .gte("payment_date", monthStart)
+    .lt("payment_date", monthEnd)
+    .not("payment_number", "is", null);
+  type ReceivedRow = {
+    id: string;
+    note_id: string;
+    payment_number: number;
+    payment_date: string;
+    payment_method: string | null;
+    check_number: string | null;
+    wire_reference: string | null;
+    notes: string | null;
+  };
+  const receivedByKey = new Map<string, ReceivedRow>();
+  for (const r of (receivedRows ?? []) as ReceivedRow[]) {
+    receivedByKey.set(`${r.note_id}:${r.payment_number}`, r);
+  }
+
+  const out: LedgerRow[] = [];
+  for (const n of noteRows) {
+    if (
+      n.principal === null ||
+      n.rate === null ||
+      !n.term_months ||
+      !n.first_payment_date
+    ) {
+      continue;
+    }
+    const result = generateSchedule({
+      principal: Number(n.principal),
+      annualRatePct: Number(n.rate),
+      termMonths: Number(n.term_months),
+      interestType: n.interest_type,
+      firstPaymentDate: n.first_payment_date,
+    });
+    if (!result.ok) continue;
+    for (const row of result.rows) {
+      // Filter to rows whose scheduled due_date falls in the requested
+      // month. Receipts that drift to an adjacent month are caught above
+      // via the wider range of receivedRows; here we still group by the
+      // schedule's intent.
+      if (!row.due_date.startsWith(yearMonth)) continue;
+      const got = receivedByKey.get(`${n.id}:${row.payment_number}`);
+      out.push({
+        note_uuid: n.id,
+        note_id: n.note_id,
+        note_title: n.title,
+        borrower_id: n.borrower_id,
+        borrower_name: n.borrower_id
+          ? (borrowerNameById.get(n.borrower_id) ?? null)
+          : null,
+        payment_number: row.payment_number,
+        due_date: row.due_date,
+        principal_amount: row.principal_amount,
+        interest_amount: row.interest_amount,
+        received_date: got ? got.payment_date : null,
+        payment_id: got ? got.id : null,
+        payment_method: got ? got.payment_method : null,
+        check_number: got ? got.check_number : null,
+        wire_reference: got ? got.wire_reference : null,
+        payment_notes: got ? got.notes : null,
+        has_funded_participants: fundedSet.has(n.id),
+      });
+    }
+  }
+
+  out.sort((a, b) => {
+    if (a.due_date !== b.due_date) return a.due_date < b.due_date ? -1 : 1;
+    return a.note_id < b.note_id ? -1 : 1;
+  });
+  return out;
+}
+
+export type BonusLedgerRow = {
+  id: string;
+  note_uuid: string;
+  note_id: string;
+  note_title: string;
+  borrower_id: string | null;
+  borrower_name: string | null;
+  paid_date: string;
+  gross_amount: string;
+  retained_amount: string;
+  payment_method: string | null;
+  check_number: string | null;
+  wire_reference: string | null;
+  notes: string | null;
+};
+
+// All bonuses with paid_date in [yearMonth, +1 month). Optional borrower
+// filter for sending statements to a single borrower.
+export async function getBonusLedgerForMonth(
+  yearMonth: string,
+  borrowerId?: string | null,
+): Promise<BonusLedgerRow[]> {
+  const supabase = await createClient();
+  const monthStart = `${yearMonth}-01`;
+  const monthEnd = nextMonthStart(yearMonth);
+
+  const { data: bonuses } = await supabase
+    .from("note_bonuses")
+    .select(
+      "id, note_id, paid_date, gross_amount, retained_amount, payment_method, check_number, wire_reference, notes",
+    )
+    .gte("paid_date", monthStart)
+    .lt("paid_date", monthEnd)
+    .order("paid_date", { ascending: true });
+  const bRows = (bonuses ?? []) as Array<{
+    id: string;
+    note_id: string;
+    paid_date: string;
+    gross_amount: string;
+    retained_amount: string;
+    payment_method: string | null;
+    check_number: string | null;
+    wire_reference: string | null;
+    notes: string | null;
+  }>;
+  if (bRows.length === 0) return [];
+
+  const noteIds = Array.from(new Set(bRows.map((b) => b.note_id)));
+  const { data: notes } = await supabase
+    .from("notes")
+    .select("id, note_id, title, borrower_id")
+    .in("id", noteIds);
+  const noteMap = new Map<
+    string,
+    { note_id: string; title: string; borrower_id: string | null }
+  >();
+  for (const n of (notes ?? []) as Array<{
+    id: string;
+    note_id: string;
+    title: string;
+    borrower_id: string | null;
+  }>) {
+    noteMap.set(n.id, {
+      note_id: n.note_id,
+      title: n.title,
+      borrower_id: n.borrower_id,
+    });
+  }
+
+  const borrowerIds = Array.from(
+    new Set(
+      Array.from(noteMap.values())
+        .map((n) => n.borrower_id)
+        .filter(Boolean) as string[],
+    ),
+  );
+  const borrowerNameById = new Map<string, string>();
+  if (borrowerIds.length > 0) {
+    const { data: bs } = await supabase
+      .from("borrowers")
+      .select("id, business_name")
+      .in("id", borrowerIds);
+    for (const b of (bs ?? []) as Array<{ id: string; business_name: string }>) {
+      borrowerNameById.set(b.id, b.business_name);
+    }
+  }
+
+  const out: BonusLedgerRow[] = bRows
+    .map((b) => {
+      const n = noteMap.get(b.note_id);
+      if (!n) return null;
+      return {
+        id: b.id,
+        note_uuid: b.note_id,
+        note_id: n.note_id,
+        note_title: n.title,
+        borrower_id: n.borrower_id,
+        borrower_name: n.borrower_id
+          ? (borrowerNameById.get(n.borrower_id) ?? null)
+          : null,
+        paid_date: b.paid_date,
+        gross_amount: b.gross_amount,
+        retained_amount: b.retained_amount,
+        payment_method: b.payment_method,
+        check_number: b.check_number,
+        wire_reference: b.wire_reference,
+        notes: b.notes,
+      };
+    })
+    .filter((x): x is BonusLedgerRow => x !== null);
+
+  return borrowerId ? out.filter((r) => r.borrower_id === borrowerId) : out;
+}
+
+function nextMonthStart(yearMonth: string): string {
+  const [y, m] = yearMonth.split("-").map((s) => parseInt(s, 10));
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return `${String(ny).padStart(4, "0")}-${String(nm).padStart(2, "0")}-01`;
+}
+
 export async function countAdmins(): Promise<number> {
   const supabase = await createClient();
   const { count } = await supabase
@@ -868,14 +1171,17 @@ export async function getFundedParticipantsForNote(
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name, email")
+      .select("id, first_name, last_name, email")
       .in("id", userIds);
     for (const p of (profiles ?? []) as Array<{
       id: string;
-      name: string | null;
+      first_name: string | null;
+      last_name: string | null;
       email: string | null;
     }>) {
-      profileMap.set(p.id, { name: p.name, email: p.email });
+      const fullName =
+        `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null;
+      profileMap.set(p.id, { name: fullName, email: p.email });
     }
   }
 
@@ -900,7 +1206,11 @@ export async function getFundedParticipantsForNote(
 export type AdminBonusRow = {
   id: string;
   paid_date: string;
-  amount: string;
+  gross_amount: string;
+  retained_amount: string;
+  payment_method: string | null;
+  check_number: string | null;
+  wire_reference: string | null;
   notes: string | null;
   created_at: string;
   payouts: Array<{
@@ -919,7 +1229,9 @@ export async function getNoteBonuses(
   const supabase = await createClient();
   const { data: bonuses } = await supabase
     .from("note_bonuses")
-    .select("id, paid_date, amount, notes, created_at")
+    .select(
+      "id, paid_date, gross_amount, retained_amount, payment_method, check_number, wire_reference, notes, created_at",
+    )
     .eq("note_id", noteUuid)
     .order("paid_date", { ascending: false });
   if (!bonuses || bonuses.length === 0) return [];
@@ -950,14 +1262,17 @@ export async function getNoteBonuses(
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, name, email")
+      .select("id, first_name, last_name, email")
       .in("id", userIds);
     for (const p of (profiles ?? []) as Array<{
       id: string;
-      name: string | null;
+      first_name: string | null;
+      last_name: string | null;
       email: string | null;
     }>) {
-      profileMap.set(p.id, { name: p.name, email: p.email });
+      const fullName =
+        `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null;
+      profileMap.set(p.id, { name: fullName, email: p.email });
     }
   }
 
@@ -978,12 +1293,157 @@ export async function getNoteBonuses(
     byBonus.set(p.bonus_id, list);
   }
 
-  return bonuses.map((b) => ({
-    id: b.id as string,
-    paid_date: b.paid_date as string,
-    amount: b.amount as string,
-    notes: (b.notes as string | null) ?? null,
-    created_at: b.created_at as string,
-    payouts: byBonus.get(b.id as string) ?? [],
-  }));
+  return bonuses.map((b) => {
+    const row = b as {
+      id: string;
+      paid_date: string;
+      gross_amount: string;
+      retained_amount: string | null;
+      payment_method: string | null;
+      check_number: string | null;
+      wire_reference: string | null;
+      notes: string | null;
+      created_at: string;
+    };
+    return {
+      id: row.id,
+      paid_date: row.paid_date,
+      gross_amount: row.gross_amount,
+      retained_amount: row.retained_amount ?? "0",
+      payment_method: row.payment_method,
+      check_number: row.check_number,
+      wire_reference: row.wire_reference,
+      notes: row.notes,
+      created_at: row.created_at,
+      payouts: byBonus.get(row.id) ?? [],
+    };
+  });
+}
+
+export type AdminNotePaymentRow = {
+  id: string;
+  payment_number: number | null;
+  payment_date: string;
+  principal_amount: string;
+  interest_amount: string;
+  payment_method: string | null;
+  check_number: string | null;
+  wire_reference: string | null;
+  notes: string | null;
+  created_at: string;
+  payouts: Array<{
+    id: string;
+    principal_amount: string;
+    interest_amount: string;
+    share_basis: string;
+    participation_id: string;
+    lender_name: string | null;
+    lender_email: string | null;
+  }>;
+};
+
+export async function getNotePayments(
+  noteUuid: string,
+): Promise<AdminNotePaymentRow[]> {
+  const supabase = await createClient();
+  const { data: payments } = await supabase
+    .from("note_payments")
+    .select(
+      "id, payment_number, payment_date, principal_amount, interest_amount, payment_method, check_number, wire_reference, notes, created_at",
+    )
+    .eq("note_id", noteUuid)
+    .order("payment_date", { ascending: false });
+  if (!payments || payments.length === 0) return [];
+
+  const paymentIds = payments.map((p) => p.id as string);
+  const { data: payouts } = await supabase
+    .from("participation_payment_payouts")
+    .select(
+      `id, note_payment_id, principal_amount, interest_amount, share_basis,
+       participation_id, participation:participations ( user_id )`,
+    )
+    .in("note_payment_id", paymentIds);
+
+  const rows = (payouts ?? []) as unknown as Array<{
+    id: string;
+    note_payment_id: string;
+    principal_amount: string;
+    interest_amount: string;
+    share_basis: string;
+    participation_id: string;
+    participation: { user_id: string | null } | null;
+  }>;
+  const userIds = Array.from(
+    new Set(
+      rows
+        .map((r) => r.participation?.user_id)
+        .filter(Boolean) as string[],
+    ),
+  );
+  const profileMap = new Map<
+    string,
+    { name: string | null; email: string | null }
+  >();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .in("id", userIds);
+    for (const p of (profiles ?? []) as Array<{
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    }>) {
+      const fullName =
+        `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null;
+      profileMap.set(p.id, { name: fullName, email: p.email });
+    }
+  }
+
+  const byPayment = new Map<string, AdminNotePaymentRow["payouts"]>();
+  for (const r of rows) {
+    const list = byPayment.get(r.note_payment_id) ?? [];
+    const profile = r.participation?.user_id
+      ? profileMap.get(r.participation.user_id)
+      : null;
+    list.push({
+      id: r.id,
+      principal_amount: r.principal_amount,
+      interest_amount: r.interest_amount,
+      share_basis: r.share_basis,
+      participation_id: r.participation_id,
+      lender_name: profile?.name ?? null,
+      lender_email: profile?.email ?? null,
+    });
+    byPayment.set(r.note_payment_id, list);
+  }
+
+  return payments.map((p) => {
+    const row = p as {
+      id: string;
+      payment_number: number | null;
+      payment_date: string;
+      principal_amount: string;
+      interest_amount: string;
+      payment_method: string | null;
+      check_number: string | null;
+      wire_reference: string | null;
+      notes: string | null;
+      created_at: string;
+    };
+    return {
+      id: row.id,
+      payment_number: row.payment_number ?? null,
+      payment_date: row.payment_date,
+      principal_amount: row.principal_amount,
+      interest_amount: row.interest_amount,
+      payment_method: row.payment_method,
+      check_number: row.check_number,
+      wire_reference: row.wire_reference,
+      notes: row.notes,
+      created_at: row.created_at,
+      payouts: byPayment.get(row.id) ?? [],
+    };
+  });
 }

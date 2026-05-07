@@ -130,7 +130,7 @@ export type NoteDetail = {
   target_raise: string | null;
   min_investment: string | null;
   description: string | null;
-  borrower: { business_name: string; contact_name: string | null } | null;
+  borrower: { business_name: string } | null;
 };
 
 export async function getNoteByNoteId(noteId: string) {
@@ -145,7 +145,7 @@ export async function getNoteByNoteId(noteId: string) {
       maturity_date, funding_start_date, funding_end_date,
       first_payment_date, monthly_payment, target_raise, min_investment,
       description,
-      borrower:borrowers ( business_name, contact_name )
+      borrower:borrowers ( business_name )
       `,
     )
     .eq("note_id", noteId)
@@ -191,6 +191,124 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
     .maybeSingle();
 
   return data as MyParticipation | null;
+}
+
+export type MyScheduleRow = {
+  payment_number: number;
+  due_date: string;
+  my_principal: number;
+  my_interest: number;
+  my_balance: number;
+  received_date: string | null;
+};
+
+export type MyScheduleResult =
+  | { ok: true; rows: MyScheduleRow[] }
+  | { ok: false; reason: string };
+
+export async function getMyScheduleForNote(
+  noteUuid: string,
+  participationId: string,
+): Promise<MyScheduleResult> {
+  const supabase = await createClient();
+
+  // Note params for the schedule.
+  const { data: note } = await supabase
+    .from("notes")
+    .select("principal, rate, term_months, interest_type, first_payment_date")
+    .eq("id", noteUuid)
+    .maybeSingle();
+  if (!note) return { ok: false, reason: "Note not found." };
+  if (
+    note.principal === null ||
+    note.rate === null ||
+    !note.term_months ||
+    !note.first_payment_date
+  ) {
+    return {
+      ok: false,
+      reason: "Schedule isn't available yet — note is missing setup details.",
+    };
+  }
+
+  // Lender's share basis. Use participations on the note that are funded
+  // (cleared) so the share matches what admin uses when distributing.
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("id, invested_amount, funding_cleared")
+    .eq("note_id", noteUuid);
+  const cleared = (parts ?? []).filter(
+    (p) => p.funding_cleared && Number(p.invested_amount ?? 0) > 0,
+  );
+  const me = cleared.find((p) => p.id === participationId);
+  if (!me) {
+    return {
+      ok: false,
+      reason: "Schedule will appear once your funding clears.",
+    };
+  }
+  const totalShare = cleared.reduce(
+    (s, p) => s + Number(p.invested_amount ?? 0),
+    0,
+  );
+  const myShare = Number(me.invested_amount) / totalShare;
+
+  const { generateSchedule } = await import("@/lib/notes/schedule");
+  const result = generateSchedule({
+    principal: Number(note.principal),
+    annualRatePct: Number(note.rate),
+    termMonths: Number(note.term_months),
+    interestType: String(note.interest_type),
+    firstPaymentDate: String(note.first_payment_date),
+  });
+  if (!result.ok) return { ok: false, reason: result.reason };
+
+  // Recorded payouts to me (frozen amounts).
+  const { data: payouts } = await supabase
+    .from("participation_payment_payouts")
+    .select(
+      `principal_amount, interest_amount,
+       payment:note_payments ( payment_number, payment_date )`,
+    )
+    .eq("participation_id", participationId);
+  const receivedByNumber = new Map<
+    number,
+    { principal: number; interest: number; date: string }
+  >();
+  for (const r of (payouts ?? []) as unknown as Array<{
+    principal_amount: string;
+    interest_amount: string;
+    payment: { payment_number: number | null; payment_date: string } | null;
+  }>) {
+    if (!r.payment || r.payment.payment_number === null) continue;
+    receivedByNumber.set(r.payment.payment_number, {
+      principal: Number(r.principal_amount),
+      interest: Number(r.interest_amount),
+      date: r.payment.payment_date,
+    });
+  }
+
+  let runningBalance = Number(me.invested_amount);
+  const rows: MyScheduleRow[] = result.rows.map((row) => {
+    const got = receivedByNumber.get(row.payment_number);
+    const myPrincipal = got
+      ? got.principal
+      : Math.round(row.principal_amount * myShare * 100) / 100;
+    const myInterest = got
+      ? got.interest
+      : Math.round(row.interest_amount * myShare * 100) / 100;
+    runningBalance = Math.round((runningBalance - myPrincipal) * 100) / 100;
+    return {
+      payment_number: row.payment_number,
+      due_date: row.due_date,
+      my_principal: myPrincipal,
+      my_interest: myInterest,
+      my_balance: runningBalance < 0 ? 0 : runningBalance,
+      received_date: got ? got.date : null,
+    };
+  });
+
+  return { ok: true, rows };
 }
 
 export type MyBonusPayout = {

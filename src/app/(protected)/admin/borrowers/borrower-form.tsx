@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 
 export type BorrowerDefaults = {
   business_name: string;
-  contact_name: string;
+  first_name: string;
+  last_name: string | null;
   email: string;
   phone: string;
   address: string | null;
@@ -70,11 +71,16 @@ export function BorrowerForm({
       <Section title="Primary contact">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
-            name="contact_name"
-            label="Contact name"
-            defaultValue={defaults.contact_name}
-            error={fe.contact_name}
+            name="first_name"
+            label="First name"
+            defaultValue={defaults.first_name}
+            error={fe.first_name}
             required
+          />
+          <Field
+            name="last_name"
+            label="Last name"
+            defaultValue={defaults.last_name}
           />
           <Field
             name="email"
