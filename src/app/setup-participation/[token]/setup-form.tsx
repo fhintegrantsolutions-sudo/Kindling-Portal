@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Info } from "lucide-react";
 import {
   submitLeadParticipationForm,
   type LeadFormState,
@@ -9,6 +10,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const ENTITY_TYPES = [
+  "Individual",
+  "LLC",
+  "Trust",
+  "Corporation",
+  "Partnership",
+  "Other",
+] as const;
 
 export type LeadDefaults = {
   first_name: string | null;
@@ -31,6 +41,7 @@ export function SetupForm({
     FormData
   >(action, undefined);
   const fe = state?.fieldErrors ?? {};
+  const [entityChoice, setEntityChoice] = useState<string>("");
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -63,17 +74,58 @@ export function SetupForm({
 
       <h2 className="text-sm font-semibold">Legal information</h2>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          name="entity_type"
-          label="Entity type"
-          placeholder="Individual, LLC, Trust, etc."
-          error={fe.entity_type}
-        />
-        <Field
-          name="name_for_agreement"
-          label="Exact name for the loan agreement"
-          error={fe.name_for_agreement}
-        />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="entity_type_choice">
+            Entity type <span className="text-destructive">*</span>
+          </Label>
+          <select
+            id="entity_type_choice"
+            name="entity_type_choice"
+            value={entityChoice}
+            onChange={(e) => setEntityChoice(e.target.value)}
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+            aria-invalid={Boolean(fe.entity_type) || undefined}
+          >
+            <option value="">— select —</option>
+            {ENTITY_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          {fe.entity_type ? (
+            <p className="text-xs text-destructive">{fe.entity_type}</p>
+          ) : null}
+        </div>
+        {entityChoice === "Other" ? (
+          <Field
+            name="entity_type_other"
+            label="Specify entity type"
+            error={fe.entity_type_other}
+          />
+        ) : (
+          <div /> /* keeps the grid aligned */
+        )}
+        <div className="flex flex-col gap-2 sm:col-span-2">
+          <Label htmlFor="name_for_agreement" className="flex items-center gap-1.5">
+            Exact name for the loan agreement{" "}
+            <span className="text-destructive">*</span>
+            <span
+              title="This is the formal name used for documentation. Use the exact legal name (e.g. 'Jane Q. Doe Revocable Trust' or 'Acme Capital LLC')."
+              className="inline-flex cursor-help text-muted-foreground"
+            >
+              <Info className="size-3.5" />
+            </span>
+          </Label>
+          <Input
+            id="name_for_agreement"
+            name="name_for_agreement"
+            aria-invalid={Boolean(fe.name_for_agreement) || undefined}
+          />
+          {fe.name_for_agreement ? (
+            <p className="text-xs text-destructive">{fe.name_for_agreement}</p>
+          ) : null}
+        </div>
       </div>
 
       <h2 className="text-sm font-semibold">Mailing address</h2>

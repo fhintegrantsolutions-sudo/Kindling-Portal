@@ -840,15 +840,23 @@ export type AdminNoteListItem = {
   borrower: { business_name: string } | null;
 };
 
-export async function getAdminNotes(): Promise<AdminNoteListItem[]> {
+export async function getAdminNotes(opts?: {
+  sort?: "asc" | "desc";
+  q?: string;
+}): Promise<AdminNoteListItem[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let q = supabase
     .from("notes")
     .select(
       `id, note_id, title, principal, rate, term_months, status, client_status,
        project_type, created_at, borrower_id`,
-    )
-    .order("created_at", { ascending: false });
+    );
+  if (opts?.q) {
+    const term = opts.q.replace(/[%_]/g, ""); // strip wildcards
+    q = q.or(`note_id.ilike.%${term}%,title.ilike.%${term}%`);
+  }
+  q = q.order("note_id", { ascending: opts?.sort === "asc" });
+  const { data } = await q;
 
   const rows = (data ?? []) as Array<{
     id: string;

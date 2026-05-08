@@ -45,7 +45,11 @@ export function ProfileForm({ defaults }: { defaults: ProfileDefaults }) {
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-medium">Mailing address</h2>
+        <h2 className="text-sm font-medium">Mailing address</h2>
+        <p className="mb-3 mt-1 text-xs text-muted-foreground">
+          W-9 forms are issued digitally. If a physical copy ever needs to be
+          mailed, please provide your mailing address below.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldInput
             name="address_street"
@@ -71,18 +75,29 @@ export function ProfileForm({ defaults }: { defaults: ProfileDefaults }) {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <FieldInput
-          name="entity_type"
-          label="Entity type"
-          defaultValue={defaults.entity_type}
-          placeholder="Individual, LLC, Trust, etc."
-        />
-        <FieldInput
-          name="loan_agreement_title"
-          label="Loan agreement title"
-          defaultValue={defaults.loan_agreement_title}
-        />
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium">Loan agreement details</h2>
+        <p className="text-xs text-muted-foreground">
+          These appear on your loan agreements and can&apos;t be changed
+          here. To update, email{" "}
+          <a
+            href="mailto:info@kindling.network"
+            className="underline underline-offset-4"
+          >
+            info@kindling.network
+          </a>
+          .
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ReadonlyField
+            label="Entity type"
+            value={defaults.entity_type}
+          />
+          <ReadonlyField
+            label="Loan agreement title"
+            value={defaults.loan_agreement_title}
+          />
+        </div>
       </section>
 
       {state?.message ? (
@@ -102,6 +117,23 @@ export function ProfileForm({ defaults }: { defaults: ProfileDefaults }) {
         </Button>
       </div>
     </form>
+  );
+}
+
+function ReadonlyField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>{label}</Label>
+      <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+        {value ?? <span className="text-muted-foreground">—</span>}
+      </div>
+    </div>
   );
 }
 

@@ -41,26 +41,18 @@ export type NoteDefaults = {
 type Borrower = { id: string; business_name: string };
 type Lender = { id: string; email: string; name: string | null };
 
-type SubTab =
-  | "basics"
-  | "terms"
-  | "limits"
-  | "dates"
-  | "visibility"
-  | "description";
+type SubTab = "basics" | "terms" | "dates" | "description";
 
 const SUB_TABS: Array<{ key: SubTab; label: string }> = [
   { key: "basics", label: "Basics" },
   { key: "terms", label: "Terms" },
-  { key: "limits", label: "Limits" },
   { key: "dates", label: "Dates" },
-  { key: "visibility", label: "Visibility" },
   { key: "description", label: "Description" },
 ];
 
 export function NoteForm({
   noteId,
-  defaults,
+  defaults: initialDefaults,
   borrowers,
   lenders,
   visibleUserIds,
@@ -71,6 +63,10 @@ export function NoteForm({
   lenders: Lender[];
   visibleUserIds: string[];
 }) {
+  // Capture defaults at first render so changing parent props (after a
+  // server revalidation, for example) doesn't trip Base UI's "default
+  // value changed" warning on uncontrolled inputs.
+  const [defaults] = useState(initialDefaults);
   const action = noteId ? updateNote.bind(null, noteId) : createNote;
   const [state, formAction, pending] = useActionState<
     NoteFormState | undefined,
@@ -200,105 +196,7 @@ export function NoteForm({
           </p>
         </div>
       </Section>
-      </TabPanel>
 
-      <TabPanel active={subTab === "terms"}>
-      <Section title="Loan terms">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field
-            name="project_type"
-            label="Project type"
-            placeholder="real_estate"
-            defaultValue={defaults.project_type}
-            error={fe.project_type}
-            required
-          />
-          <Field
-            name="type"
-            label="Type"
-            placeholder="note"
-            defaultValue={defaults.type}
-          />
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="interest_type">Interest type</Label>
-            <select
-              id="interest_type"
-              name="interest_type"
-              value={interestType}
-              onChange={(e) => setInterestType(e.target.value)}
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="Amortized">Amortized</option>
-              <option value="Interest only">Interest only</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="principal">Principal (USD)</Label>
-            <Input
-              id="principal"
-              name="principal"
-              type="number"
-              step="0.01"
-              min="0"
-              value={principalStr}
-              onChange={(e) => setPrincipalStr(e.target.value)}
-              aria-invalid={Boolean(fe.principal) || undefined}
-            />
-            {fe.principal ? (
-              <p className="text-xs text-destructive">{fe.principal}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="rate">Rate (%) *</Label>
-            <Input
-              id="rate"
-              name="rate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={rateStr}
-              onChange={(e) => setRateStr(e.target.value)}
-              aria-invalid={Boolean(fe.rate) || undefined}
-            />
-            {fe.rate ? (
-              <p className="text-xs text-destructive">{fe.rate}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="term_months">Term (months) *</Label>
-            <Input
-              id="term_months"
-              name="term_months"
-              type="number"
-              step="1"
-              min="1"
-              value={termStr}
-              onChange={(e) => setTermStr(e.target.value)}
-              aria-invalid={Boolean(fe.term_months) || undefined}
-            />
-            {fe.term_months ? (
-              <p className="text-xs text-destructive">{fe.term_months}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Monthly payment</Label>
-            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
-              {monthlyPayment !== null ? (
-                <span className="font-medium">
-                  {formatCurrency(monthlyPayment)}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">
-                  Set principal, rate, and term to compute
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </Section>
-      </TabPanel>
-
-      <TabPanel active={subTab === "limits"}>
       <Section title="Investment limits">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -319,56 +217,7 @@ export function NoteForm({
           />
         </div>
       </Section>
-      </TabPanel>
 
-      <TabPanel active={subTab === "dates"}>
-      <Section title="Dates">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            name="funding_start_date"
-            label="Funding open"
-            type="date"
-            defaultValue={defaults.funding_start_date}
-          />
-          <Field
-            name="funding_end_date"
-            label="Funding closes"
-            type="date"
-            defaultValue={defaults.funding_end_date}
-          />
-          <Field
-            name="contract_date"
-            label="Contract date"
-            type="date"
-            defaultValue={defaults.contract_date}
-          />
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="first_payment_date">First payment date</Label>
-            <Input
-              id="first_payment_date"
-              name="first_payment_date"
-              type="date"
-              value={firstPaymentDate}
-              onChange={(e) => setFirstPaymentDate(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Maturity date</Label>
-            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
-              {maturityDate ? (
-                <span className="font-medium">{maturityDate}</span>
-              ) : (
-                <span className="text-muted-foreground">
-                  Set first payment date and term to compute
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </Section>
-      </TabPanel>
-
-      <TabPanel active={subTab === "visibility"}>
       <Section title="Status">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
@@ -478,6 +327,149 @@ export function NoteForm({
               ) : null}
             </>
           )}
+        </div>
+      </Section>
+      </TabPanel>
+
+      <TabPanel active={subTab === "terms"}>
+      <Section title="Loan terms">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            name="project_type"
+            label="Project type"
+            placeholder="real_estate"
+            defaultValue={defaults.project_type}
+            error={fe.project_type}
+            required
+          />
+          <Field
+            name="type"
+            label="Type"
+            placeholder="note"
+            defaultValue={defaults.type}
+          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="interest_type">Interest type</Label>
+            <select
+              id="interest_type"
+              name="interest_type"
+              value={interestType}
+              onChange={(e) => setInterestType(e.target.value)}
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="Amortized">Amortized</option>
+              <option value="Interest only">Interest only</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="principal">Principal (USD)</Label>
+            <Input
+              id="principal"
+              name="principal"
+              type="number"
+              step="0.01"
+              min="0"
+              value={principalStr}
+              onChange={(e) => setPrincipalStr(e.target.value)}
+              aria-invalid={Boolean(fe.principal) || undefined}
+            />
+            {fe.principal ? (
+              <p className="text-xs text-destructive">{fe.principal}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="rate">Rate (%) *</Label>
+            <Input
+              id="rate"
+              name="rate"
+              type="number"
+              step="0.01"
+              min="0"
+              value={rateStr}
+              onChange={(e) => setRateStr(e.target.value)}
+              aria-invalid={Boolean(fe.rate) || undefined}
+            />
+            {fe.rate ? (
+              <p className="text-xs text-destructive">{fe.rate}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="term_months">Term (months) *</Label>
+            <Input
+              id="term_months"
+              name="term_months"
+              type="number"
+              step="1"
+              min="1"
+              value={termStr}
+              onChange={(e) => setTermStr(e.target.value)}
+              aria-invalid={Boolean(fe.term_months) || undefined}
+            />
+            {fe.term_months ? (
+              <p className="text-xs text-destructive">{fe.term_months}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Monthly payment</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+              {monthlyPayment !== null ? (
+                <span className="font-medium">
+                  {formatCurrency(monthlyPayment)}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Set principal, rate, and term to compute
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </Section>
+      </TabPanel>
+
+      <TabPanel active={subTab === "dates"}>
+      <Section title="Dates">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field
+            name="funding_start_date"
+            label="Funding open"
+            type="date"
+            defaultValue={defaults.funding_start_date}
+          />
+          <Field
+            name="funding_end_date"
+            label="Funding closes"
+            type="date"
+            defaultValue={defaults.funding_end_date}
+          />
+          <Field
+            name="contract_date"
+            label="Contract date"
+            type="date"
+            defaultValue={defaults.contract_date}
+          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="first_payment_date">First payment date</Label>
+            <Input
+              id="first_payment_date"
+              name="first_payment_date"
+              type="date"
+              value={firstPaymentDate}
+              onChange={(e) => setFirstPaymentDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Maturity date</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+              {maturityDate ? (
+                <span className="font-medium">{maturityDate}</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Set first payment date and term to compute
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </Section>
       </TabPanel>

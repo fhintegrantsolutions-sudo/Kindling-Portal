@@ -77,8 +77,37 @@ export async function getMyParticipations() {
   return (data ?? []) as unknown as ParticipationWithNote[];
 }
 
+export type UpcomingNote = {
+  id: string;
+  note_id: string;
+  title: string;
+  funding_start_date: string;
+  funding_end_date: string | null;
+};
+
+// Soonest note whose funding_start_date is still in the future. Drives the
+// "Next note opens in X" countdown at the top of /opportunities.
+export async function getNextUpcomingNote(): Promise<UpcomingNote | null> {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from("notes")
+    .select("id, note_id, title, funding_start_date, funding_end_date")
+    .eq("status", "Active")
+    .eq("client_status", "Available")
+    .gt("funding_start_date", today)
+    .order("funding_start_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data as UpcomingNote | null;
+}
+
 export async function getOpportunities() {
   const supabase = await createClient();
+  // Today in YYYY-MM-DD. Notes whose funding_end_date is in the past drop
+  // off the listing on the next day (i.e. the closing day still shows;
+  // the day after, it's gone — effectively a 12:01am cutover).
+  const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
     .from("notes")
     .select(
@@ -101,6 +130,9 @@ export async function getOpportunities() {
     )
     .eq("status", "Active")
     .eq("client_status", "Available")
+    .or(`funding_start_date.is.null,funding_start_date.lte.${today}`)
+    .or(`funding_end_date.is.null,funding_end_date.gte.${today}`)
+    .order("funding_start_date", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   return (data ?? []) as unknown as Opportunity[];

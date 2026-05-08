@@ -66,9 +66,15 @@ export async function submitLeadParticipationForm(
   // 2. Validate fields
   const amountRaw = text(formData, "investment_amount");
   const amount = amountRaw ? Number(amountRaw) : NaN;
+  const entityChoice = text(formData, "entity_type_choice");
+  const entityOther = text(formData, "entity_type_other");
+  // Resolved entity type: either the dropdown value, or the typed "other"
+  // value when the user picked Other.
+  const entityType =
+    entityChoice === "Other" ? entityOther : entityChoice;
   const fields = {
     investment_amount: amountRaw,
-    entity_type: text(formData, "entity_type"),
+    entity_type: entityType,
     name_for_agreement: text(formData, "name_for_agreement"),
     mailing_address: text(formData, "mailing_address"),
     city: text(formData, "city"),
@@ -81,7 +87,9 @@ export async function submitLeadParticipationForm(
   if (!amountRaw) fieldErrors.investment_amount = "Required";
   else if (!Number.isFinite(amount) || amount <= 0)
     fieldErrors.investment_amount = "Enter an amount greater than zero";
-  if (!fields.entity_type) fieldErrors.entity_type = "Required";
+  if (!entityChoice) fieldErrors.entity_type = "Required";
+  else if (entityChoice === "Other" && !entityOther)
+    fieldErrors.entity_type_other = "Specify the entity type";
   if (!fields.name_for_agreement) fieldErrors.name_for_agreement = "Required";
   if (!fields.mailing_address) fieldErrors.mailing_address = "Required";
   if (!fields.city) fieldErrors.city = "Required";

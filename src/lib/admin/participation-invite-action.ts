@@ -9,9 +9,12 @@ import { requireAdmin } from "@/lib/dal";
  * For new-lead participations (user_id IS NULL): once funds clear, the admin
  * clicks "Invite lender" and this action:
  *   1. Reads the linked access_request for prospect contact info
- *   2. Creates a Supabase auth user via inviteUserByEmail (sends invite email)
- *   3. Backfills participation.user_id with the new user's id
- *   4. Updates the auto-created profile with name + phone from access_request
+ *   2. Reads the spawned note_registration for entity / address / agreement
+ *      details the lead filled out at /setup-participation
+ *   3. Creates a Supabase auth user via inviteUserByEmail (sends invite email)
+ *   4. Backfills participation.user_id with the new user's id
+ *   5. Hydrates the auto-created profile with everything we have so the
+ *      lender's first /profile visit isn't a blank form
  *
  * Refuses if user_id already set (returning lender — no invite needed) or
  * funding hasn't cleared yet.
@@ -50,6 +53,19 @@ export async function inviteLenderForParticipation(
     throw new Error("Linked access request is missing an email.");
   }
 
+  // Read the spawned note_registration too — the lead filled in entity /
+  // address / loan-agreement-name there at /setup-participation, and we
+  // want those on their profile when they sign in.
+  const { data: reg } = await supabase
+    .from("note_registrations")
+    .select(
+      "entity_type, name_for_agreement, mailing_address, city, state, zip_code",
+    )
+    .eq("access_request_id", p.access_request_id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   // Send the invite via service-role admin API
   const admin = createAdminClient();
   const appUrl =
@@ -70,17 +86,30 @@ export async function inviteLenderForParticipation(
   }
   const newUserId = invited.user.id;
 
-  // Update profile (the on_auth_user_created trigger created the row)
-  const { error: profileErr } = await admin
-    .from("profiles")
-    .update({
-      first_name: ar.first_name || null,
-      last_name: ar.last_name || null,
-      phone: ar.phone || null,
-    })
-    .eq("id", newUserId);
-  if (profileErr) {
-    console.error("invite: profile update failed", profileErr.message);
+  // Hydrate profile (the on_auth_user_created trigger created the row).
+  // Skip null/empty values so we don't overwrite anything the user may
+  // have already filled in elsewhere.
+  const profileUpdate: Record<string, string> = {};
+  if (ar.first_name) profileUpdate.first_name = ar.first_name;
+  if (ar.last_name) profileUpdate.last_name = ar.last_name;
+  if (ar.phone) profileUpdate.phone = ar.phone;
+  if (reg?.entity_type) profileUpdate.entity_type = reg.entity_type;
+  if (reg?.name_for_agreement)
+    profileUpdate.loan_agreement_title = reg.name_for_agreement;
+  if (reg?.mailing_address)
+    profileUpdate.address_street = reg.mailing_address;
+  if (reg?.city) profileUpdate.address_city = reg.city;
+  if (reg?.state) profileUpdate.address_state = reg.state;
+  if (reg?.zip_code) profileUpdate.address_zip = reg.zip_code;
+
+  if (Object.keys(profileUpdate).length > 0) {
+    const { error: profileErr } = await admin
+      .from("profiles")
+      .update(profileUpdate)
+      .eq("id", newUserId);
+    if (profileErr) {
+      console.error("invite: profile update failed", profileErr.message);
+    }
   }
 
   // Backfill the participation

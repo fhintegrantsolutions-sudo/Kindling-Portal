@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import {
   submitRegistration,
@@ -10,28 +11,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export type RegistrationDefaults = {
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
+export type RegistrationProfileSummary = {
+  full_name: string | null;
   email: string | null;
+  phone: string | null;
   entity_type: string | null;
   name_for_agreement: string | null;
   mailing_address: string | null;
-  city: string | null;
-  state: string | null;
-  zip_code: string | null;
 };
 
 export function RegistrationForm({
   noteUuid,
   noteHumanId,
-  defaults,
+  profile,
   minInvestment,
 }: {
   noteUuid: string;
   noteHumanId: string;
-  defaults: RegistrationDefaults;
+  profile: RegistrationProfileSummary;
   minInvestment: string | null;
 }) {
   const action = submitRegistration.bind(null, noteUuid, noteHumanId);
@@ -43,78 +40,53 @@ export function RegistrationForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-8">
-      <Section title="Your information">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            name="first_name"
-            label="First name"
-            defaultValue={defaults.first_name}
-            error={fe.first_name}
-          />
-          <Field
-            name="last_name"
-            label="Last name"
-            defaultValue={defaults.last_name}
-            error={fe.last_name}
-          />
-          <Field
-            name="email"
-            label="Email"
-            type="email"
-            defaultValue={defaults.email}
-            error={fe.email}
-          />
-          <Field
-            name="phone"
-            label="Phone"
-            type="tel"
-            defaultValue={defaults.phone}
-            error={fe.phone}
-          />
-          <Field
-            name="entity_type"
-            label="Entity type"
-            placeholder="Individual, LLC, Trust, etc."
-            defaultValue={defaults.entity_type}
-            error={fe.entity_type}
-          />
-          <Field
-            name="name_for_agreement"
+      <section className="flex flex-col gap-3 rounded-md border bg-muted/30 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-sm font-semibold">Your details</h2>
+          <Link
+            href="/profile"
+            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Edit profile
+          </Link>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Pulled from your profile. We use these for the loan agreement.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 text-sm">
+          <SummaryField label="Name" value={profile.full_name} />
+          <SummaryField label="Email" value={profile.email} />
+          <SummaryField label="Phone" value={profile.phone} />
+          <SummaryField label="Entity type" value={profile.entity_type} />
+          <SummaryField
             label="Name on loan agreement"
-            defaultValue={defaults.name_for_agreement}
-            error={fe.name_for_agreement}
+            value={profile.name_for_agreement}
+          />
+          <SummaryField
+            label="Mailing address"
+            value={profile.mailing_address}
           />
         </div>
-      </Section>
+      </section>
 
-      <Section title="Mailing address">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            name="mailing_address"
-            label="Street"
-            defaultValue={defaults.mailing_address}
-            className="sm:col-span-2"
-          />
-          <Field name="city" label="City" defaultValue={defaults.city} />
-          <Field name="state" label="State" defaultValue={defaults.state} />
-          <Field name="zip_code" label="ZIP" defaultValue={defaults.zip_code} />
-        </div>
-      </Section>
-
-      <Section title="Investment">
-        <Field
+      <section className="flex flex-col gap-2">
+        <Label htmlFor="investment_amount">
+          {minInvestment
+            ? `Investment amount (min $${Number(minInvestment).toLocaleString()})`
+            : "Investment amount"}
+        </Label>
+        <Input
+          id="investment_amount"
           name="investment_amount"
-          label={
-            minInvestment
-              ? `Investment amount (min $${Number(minInvestment).toLocaleString()})`
-              : "Investment amount"
-          }
           type="number"
           step="0.01"
           min="0"
-          error={fe.investment_amount}
+          aria-invalid={Boolean(fe.investment_amount) || undefined}
         />
-      </Section>
+        {fe.investment_amount ? (
+          <p className="text-xs text-destructive">{fe.investment_amount}</p>
+        ) : null}
+      </section>
 
       <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
         After you submit, an admin will follow up with wire / check / ACH
@@ -155,56 +127,19 @@ export function RegistrationForm({
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function Field({
-  name,
+function SummaryField({
   label,
-  defaultValue,
-  type = "text",
-  placeholder,
-  error,
-  className,
-  step,
-  min,
+  value,
 }: {
-  name: string;
   label: string;
-  defaultValue?: string | null;
-  type?: string;
-  placeholder?: string;
-  error?: string;
-  className?: string;
-  step?: string;
-  min?: string;
+  value: string | null;
 }) {
   return (
-    <div className={`flex flex-col gap-2 ${className ?? ""}`}>
-      <Label htmlFor={name}>{label}</Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        defaultValue={defaultValue ?? undefined}
-        placeholder={placeholder}
-        step={step}
-        min={min}
-        aria-invalid={Boolean(error) || undefined}
-      />
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    <div>
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="font-medium">{value ?? "—"}</p>
     </div>
   );
 }

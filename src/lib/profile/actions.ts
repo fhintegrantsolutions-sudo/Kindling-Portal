@@ -18,6 +18,9 @@ export async function updateProfile(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not signed in." };
 
+  // entity_type and loan_agreement_title are intentionally NOT writable from
+  // this self-serve action — they're locked on the lender's profile UI and
+  // can only be changed by admin support (see ReadonlyField on the form).
   const fields = {
     first_name: String(formData.get("first_name") ?? "").trim() || null,
     last_name: String(formData.get("last_name") ?? "").trim() || null,
@@ -26,9 +29,6 @@ export async function updateProfile(
     address_city: String(formData.get("address_city") ?? "").trim() || null,
     address_state: String(formData.get("address_state") ?? "").trim() || null,
     address_zip: String(formData.get("address_zip") ?? "").trim() || null,
-    entity_type: String(formData.get("entity_type") ?? "").trim() || null,
-    loan_agreement_title:
-      String(formData.get("loan_agreement_title") ?? "").trim() || null,
   };
 
   const { error } = await supabase

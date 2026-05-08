@@ -8,9 +8,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
-export default async function AdminNotesPage() {
-  const notes = await getAdminNotes();
+export default async function AdminNotesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort?: string; q?: string }>;
+}) {
+  const sp = await searchParams;
+  const sort: "asc" | "desc" = sp.sort === "asc" ? "asc" : "desc";
+  const q = (sp.q ?? "").trim();
+  const notes = await getAdminNotes({ sort, q: q || undefined });
+
+  const flippedSort = sort === "asc" ? "desc" : "asc";
+  const sortHref = (() => {
+    const params = new URLSearchParams();
+    params.set("sort", flippedSort);
+    if (q) params.set("q", q);
+    return `/admin/notes?${params.toString()}`;
+  })();
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
@@ -38,11 +54,44 @@ export default async function AdminNotesPage() {
         </div>
       </header>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <form className="flex flex-1 min-w-64 items-center gap-2" action="/admin/notes">
+          <Input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search by note ID or title…"
+          />
+          {/* preserve sort across search submissions */}
+          <input type="hidden" name="sort" value={sort} />
+          <Button type="submit" variant="outline" size="sm">
+            Search
+          </Button>
+          {q ? (
+            <Link
+              href={`/admin/notes${sort === "asc" ? "?sort=asc" : ""}`}
+              className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Clear
+            </Link>
+          ) : null}
+        </form>
+        <Link
+          href={sortHref}
+          className="rounded-md border px-3 py-1 text-sm hover:bg-muted/40"
+          title={`Sort by note ID ${flippedSort === "asc" ? "ascending" : "descending"}`}
+        >
+          Note ID {sort === "asc" ? "↑" : "↓"}
+        </Link>
+      </div>
+
       {notes.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
-              No notes yet. Create one to get started.
+              {q
+                ? `No notes match "${q}".`
+                : "No notes yet. Create one to get started."}
             </p>
           </CardContent>
         </Card>
