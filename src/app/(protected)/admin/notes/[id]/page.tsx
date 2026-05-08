@@ -1,14 +1,11 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getAdminNoteById,
-  getBorrowersForPicker,
   getFundedParticipantsForNote,
-  getLendersForPicker,
   getNoteBonuses,
   getNotePayments,
-  getNoteVisibility,
 } from "@/lib/db/admin-queries";
+import { computeMonthlyPayment, generateSchedule } from "@/lib/notes/schedule";
 import { formatCurrency } from "@/lib/format";
 import {
   Card,
@@ -16,41 +13,53 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { generateSchedule } from "@/lib/notes/schedule";
-import { NoteForm } from "../note-form";
-import { BonusesSection } from "./bonuses-section";
-import { ScheduleSection, type ReceivedPayment } from "./schedule-section";
 
-export default async function EditNotePage({
+export default async function NoteOverviewPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [
-    note,
-    borrowers,
-    lenders,
-    visibleUserIds,
-    bonuses,
-    payments,
-    participants,
-  ] = await Promise.all([
+  const [note, participants, payments, bonuses] = await Promise.all([
     getAdminNoteById(id),
-    getBorrowersForPicker(),
-    getLendersForPicker(),
-    getNoteVisibility(id),
-    getNoteBonuses(id),
-    getNotePayments(id),
     getFundedParticipantsForNote(id),
+    getNotePayments(id),
+    getNoteBonuses(id),
   ]);
   if (!note) notFound();
 
-  let scheduleRows: import("@/lib/notes/schedule").ScheduleRow[] | null = null;
-  let scheduleError: string | null = null;
+  const monthly = computeMonthlyPayment({
+    principal: note.principal !== null ? Number(note.principal) : null,
+    annualRatePct: note.rate !== null ? Number(note.rate) : null,
+    termMonths: note.term_months ?? null,
+    interestType: note.interest_type,
+  });
+
+  const totalInvested = participants.reduce(
+    (s, p) => s + Number(p.invested_amount),
+    0,
+  );
+
+  const principalReceived = payments.reduce(
+    (s, p) => s + Number(p.principal_amount),
+    0,
+  );
+  const interestReceived = payments.reduce(
+    (s, p) => s + Number(p.interest_amount),
+    0,
+  );
+  const bonusGross = bonuses.reduce((s, b) => s + Number(b.gross_amount), 0);
+
+  // Find the next scheduled payment that hasn't been recorded yet.
+  const recordedNumbers = new Set(
+    payments
+      .filter((p) => p.payment_number !== null)
+      .map((p) => p.payment_number as number),
+  );
+  let nextDue: { number: number; date: string } | null = null;
   if (
     note.principal !== null &&
-    note.first_payment_date !== null &&
+    note.first_payment_date &&
     note.term_months &&
     note.rate !== null
   ) {
@@ -61,73 +70,68 @@ export default async function EditNotePage({
       interestType: note.interest_type,
       firstPaymentDate: note.first_payment_date,
     });
-    if (result.ok) scheduleRows = result.rows;
-    else scheduleError = result.reason;
+    if (result.ok) {
+      const next = result.rows.find((r) => !recordedNumbers.has(r.payment_number));
+      if (next)
+        nextDue = { number: next.payment_number, date: next.due_date };
+    }
   }
-  const received: ReceivedPayment[] = payments
-    .filter((p) => p.payment_number !== null)
-    .map((p) => ({
-      payment_id: p.id,
-      payment_number: p.payment_number as number,
-      recorded_date: p.payment_date,
-      principal_amount: p.principal_amount,
-      interest_amount: p.interest_amount,
-      payment_method: p.payment_method,
-      check_number: p.check_number,
-      wire_reference: p.wire_reference,
-      notes: p.notes,
-    }));
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
-      <Link
-        href="/admin/notes"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        ← Back to notes
-      </Link>
-      <header>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          {note.note_id}
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">{note.title}</h1>
-      </header>
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>At a glance</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat
+            label="Principal"
+            value={
+              note.principal !== null ? formatCurrency(note.principal) : "—"
+            }
+          />
+          <Stat label="Rate" value={`${note.rate}%`} />
+          <Stat label="Term" value={`${note.term_months} months`} />
+          <Stat label="Interest" value={note.interest_type} />
+          <Stat
+            label="Monthly payment"
+            value={monthly !== null ? formatCurrency(monthly) : "—"}
+          />
+          <Stat
+            label="Status"
+            value={`${note.status} · ${note.client_status}`}
+          />
+          <Stat
+            label="Funded"
+            value={`${formatCurrency(totalInvested)} · ${participants.length} lender${participants.length === 1 ? "" : "s"}`}
+          />
+          <Stat
+            label="Next payment"
+            value={nextDue ? `#${nextDue.number} · ${nextDue.date}` : "—"}
+          />
+        </CardContent>
+      </Card>
 
-      <NoteForm
-        noteId={note.id}
-        borrowers={borrowers}
-        lenders={lenders}
-        visibleUserIds={visibleUserIds}
-        defaults={{
-          note_id: note.note_id,
-          title: note.title,
-          borrower_id: note.borrower_id,
-          project_type: note.project_type,
-          type: note.type,
-          interest_type: note.interest_type,
-          is_private: note.is_private,
-          principal: note.principal,
-          rate: note.rate,
-          term_months: String(note.term_months),
-          min_investment: note.min_investment,
-          target_raise: note.target_raise,
-          monthly_payment: note.monthly_payment,
-          contract_date: note.contract_date,
-          first_payment_date: note.first_payment_date,
-          maturity_date: note.maturity_date,
-          funding_end_date: note.funding_end_date,
-          description: note.description,
-          admin_notes: note.admin_notes,
-          status: note.status,
-          client_status: note.client_status,
-        }}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>Received to date</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat label="Principal" value={formatCurrency(principalReceived)} />
+          <Stat label="Interest" value={formatCurrency(interestReceived)} />
+          <Stat
+            label="Total payments"
+            value={formatCurrency(principalReceived + interestReceived)}
+          />
+          <Stat label="Bonus gross" value={formatCurrency(bonusGross)} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Funded participants</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Lenders eligible for bonus pro-rata distribution.
+            Lenders eligible for pro-rata distribution.
           </p>
         </CardHeader>
         <CardContent>
@@ -166,15 +170,17 @@ export default async function EditNotePage({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      <ScheduleSection
-        noteUuid={note.id}
-        schedule={scheduleRows}
-        scheduleError={scheduleError}
-        received={received}
-      />
-
-      <BonusesSection noteUuid={note.id} bonuses={bonuses} />
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <p className="text-sm font-medium">{value}</p>
     </div>
   );
 }

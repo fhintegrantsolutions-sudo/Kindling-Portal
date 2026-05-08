@@ -116,6 +116,9 @@ export type AdminParticipationListItem = {
   funding_type: string | null;
   created_at: string;
   note: { note_id: string; title: string } | null;
+  lender_name: string | null;
+  lender_email: string | null;
+  is_prospect: boolean;
 };
 
 export async function getParticipations(filter?: {
@@ -153,7 +156,90 @@ export async function getParticipations(filter?: {
   }
 
   const { data } = await q;
-  return (data ?? []) as unknown as AdminParticipationListItem[];
+  const rows = (data ?? []) as unknown as Array<
+    Omit<AdminParticipationListItem, "lender_name" | "lender_email" | "is_prospect">
+  >;
+  if (rows.length === 0) return [];
+
+  const userIds = Array.from(
+    new Set(rows.map((r) => r.user_id).filter(Boolean) as string[]),
+  );
+  const arIds = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.user_id === null)
+        .map((r) => r.access_request_id)
+        .filter(Boolean) as string[],
+    ),
+  );
+
+  const profileMap = new Map<
+    string,
+    { name: string | null; email: string | null }
+  >();
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .in("id", userIds);
+    for (const p of (profiles ?? []) as Array<{
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    }>) {
+      profileMap.set(p.id, {
+        name:
+          `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null,
+        email: p.email,
+      });
+    }
+  }
+
+  const arMap = new Map<
+    string,
+    { name: string | null; email: string | null }
+  >();
+  if (arIds.length > 0) {
+    const { data: ars } = await supabase
+      .from("access_requests")
+      .select("id, first_name, last_name, email")
+      .in("id", arIds);
+    for (const a of (ars ?? []) as Array<{
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    }>) {
+      arMap.set(a.id, {
+        name:
+          `${a.first_name ?? ""} ${a.last_name ?? ""}`.trim() || null,
+        email: a.email,
+      });
+    }
+  }
+
+  return rows.map((r) => {
+    let lenderName: string | null = null;
+    let lenderEmail: string | null = null;
+    let isProspect = false;
+    if (r.user_id) {
+      const p = profileMap.get(r.user_id);
+      lenderName = p?.name ?? null;
+      lenderEmail = p?.email ?? null;
+    } else if (r.access_request_id) {
+      const a = arMap.get(r.access_request_id);
+      lenderName = a?.name ?? null;
+      lenderEmail = a?.email ?? null;
+      isProspect = true;
+    }
+    return {
+      ...r,
+      lender_name: lenderName,
+      lender_email: lenderEmail,
+      is_prospect: isProspect,
+    };
+  });
 }
 
 export type AdminParticipationDetail = {

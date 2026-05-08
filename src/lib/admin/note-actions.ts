@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
-import { computeMonthlyPayment } from "@/lib/notes/schedule";
+import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
 
 export type NoteFormState = {
   error?: string;
@@ -128,7 +128,6 @@ function parseFields(formData: FormData) {
     note_id: text(formData, "note_id"),
     title: text(formData, "title"),
     borrower_id: text(formData, "borrower_id") || null,
-    new_borrower_name: text(formData, "new_borrower_name") || null,
     project_type: text(formData, "project_type"),
     type: text(formData, "type") || "note",
     interest_type: text(formData, "interest_type") || "Amortized",
@@ -142,6 +141,7 @@ function parseFields(formData: FormData) {
     contract_date: text(formData, "contract_date") || null,
     first_payment_date: text(formData, "first_payment_date") || null,
     maturity_date: text(formData, "maturity_date") || null,
+    funding_start_date: text(formData, "funding_start_date") || null,
     funding_end_date: text(formData, "funding_end_date") || null,
     description: text(formData, "description") || null,
     admin_notes: text(formData, "admin_notes") || null,
@@ -191,28 +191,8 @@ function validate(fields: Fields): Record<string, string> {
 
 async function buildInsert(
   fields: Fields,
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  _supabase: Awaited<ReturnType<typeof createClient>>,
 ) {
-  // Resolve borrower: explicit id > new name > null. If a name is given,
-  // create the borrower row inline (with placeholder contact).
-  let borrowerId: string | null = fields.borrower_id;
-  if (!borrowerId && fields.new_borrower_name) {
-    const { data, error } = await supabase
-      .from("borrowers")
-      .insert({
-        business_name: fields.new_borrower_name,
-        first_name: "—",
-        email: "—",
-        phone: "—",
-      })
-      .select("id")
-      .single();
-    if (error) {
-      throw new Error(`Failed to create borrower: ${error.message}`);
-    }
-    borrowerId = data.id as string;
-  }
-
   const monthly = computeMonthlyPayment({
     principal: fields.principal !== null ? Number(fields.principal) : null,
     annualRatePct: fields.rate !== "" ? Number(fields.rate) : null,
@@ -223,7 +203,7 @@ async function buildInsert(
 
   return {
     note_id: fields.note_id,
-    borrower_id: borrowerId,
+    borrower_id: fields.borrower_id,
     title: fields.title,
     principal: fields.principal,
     rate: fields.rate,
@@ -235,7 +215,8 @@ async function buildInsert(
     monthly_payment: monthly !== null ? String(monthly) : null,
     contract_date: fields.contract_date,
     first_payment_date: fields.first_payment_date,
-    maturity_date: fields.maturity_date,
+    maturity_date: deriveMaturity(fields.first_payment_date, fields.term_months),
+    funding_start_date: fields.funding_start_date,
     funding_end_date: fields.funding_end_date,
     min_investment: fields.min_investment,
     target_raise: fields.target_raise,
@@ -248,4 +229,18 @@ async function buildInsert(
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
+}
+
+// Maturity is the date of the final payment: first_payment_date + (term - 1)
+// months. Returns null if either input is missing or invalid so the column
+// stays unset until the admin fills the prerequisites.
+function deriveMaturity(
+  firstPaymentDate: string | null,
+  termMonthsStr: string,
+): string | null {
+  if (!firstPaymentDate || !/^\d{4}-\d{2}-\d{2}$/.test(firstPaymentDate))
+    return null;
+  const term = parseInt(termMonthsStr, 10);
+  if (!Number.isInteger(term) || term <= 0) return null;
+  return addMonths(firstPaymentDate, term - 1);
 }

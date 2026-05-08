@@ -80,6 +80,9 @@ export default async function AdminParticipationsPage({
                         {new Date(p.created_at).toLocaleDateString()}
                       </p>
                       <CardTitle>{p.note?.title}</CardTitle>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {p.lender_name ?? p.lender_email ?? "—"}
+                      </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 text-xs">
                       <LeadSourceBadge isNewLead={p.user_id === null} />
@@ -94,7 +97,7 @@ export default async function AdminParticipationsPage({
                   />
                   <Field
                     label="Funding type"
-                    value={p.funding_type ?? "—"}
+                    value={titleCase(p.funding_type)}
                   />
                   <Field label="Status" value={p.status} />
                 </CardContent>
@@ -166,6 +169,13 @@ function FilterTab({
       {label}
     </Link>
   );
+}
+
+function titleCase(value: string | null): string {
+  if (!value) return "—";
+  // ACH stays uppercase; everything else becomes Sentence-case.
+  if (value.toLowerCase() === "ach") return "ACH";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
 function Field({ label, value }: { label: string; value: string }) {

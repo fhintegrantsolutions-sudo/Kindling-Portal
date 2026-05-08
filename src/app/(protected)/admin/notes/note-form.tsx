@@ -6,7 +6,7 @@ import {
   updateNote,
   type NoteFormState,
 } from "@/lib/admin/note-actions";
-import { computeMonthlyPayment } from "@/lib/notes/schedule";
+import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
 import { formatCurrency } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ export type NoteDefaults = {
   contract_date: string | null;
   first_payment_date: string | null;
   maturity_date: string | null;
+  funding_start_date: string | null;
   funding_end_date: string | null;
   description: string | null;
   admin_notes: string | null;
@@ -39,6 +40,23 @@ export type NoteDefaults = {
 
 type Borrower = { id: string; business_name: string };
 type Lender = { id: string; email: string; name: string | null };
+
+type SubTab =
+  | "basics"
+  | "terms"
+  | "limits"
+  | "dates"
+  | "visibility"
+  | "description";
+
+const SUB_TABS: Array<{ key: SubTab; label: string }> = [
+  { key: "basics", label: "Basics" },
+  { key: "terms", label: "Terms" },
+  { key: "limits", label: "Limits" },
+  { key: "dates", label: "Dates" },
+  { key: "visibility", label: "Visibility" },
+  { key: "description", label: "Description" },
+];
 
 export function NoteForm({
   noteId,
@@ -65,6 +83,18 @@ export function NoteForm({
   const [principalStr, setPrincipalStr] = useState(defaults.principal ?? "");
   const [rateStr, setRateStr] = useState(defaults.rate ?? "");
   const [termStr, setTermStr] = useState(defaults.term_months ?? "");
+  const [firstPaymentDate, setFirstPaymentDate] = useState(
+    defaults.first_payment_date ?? "",
+  );
+  const [subTab, setSubTab] = useState<SubTab>("basics");
+
+  const maturityDate = useMemo(() => {
+    if (!firstPaymentDate || !/^\d{4}-\d{2}-\d{2}$/.test(firstPaymentDate))
+      return null;
+    const term = parseInt(termStr, 10);
+    if (!Number.isInteger(term) || term <= 0) return null;
+    return addMonths(firstPaymentDate, term - 1);
+  }, [firstPaymentDate, termStr]);
 
   const monthlyPayment = useMemo(
     () =>
@@ -96,7 +126,29 @@ export function NoteForm({
   const visibleCount = sortedLenders.filter(lenderMatches).length;
 
   return (
-    <form action={formAction} className="flex flex-col gap-8">
+    <form action={formAction} className="flex flex-col gap-6">
+      <nav className="flex flex-wrap gap-1 border-b">
+        {SUB_TABS.map((t) => {
+          const active = subTab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setSubTab(t.key)}
+              className={
+                "border-b-2 px-3 py-2 text-sm transition-colors -mb-px " +
+                (active
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      <TabPanel active={subTab === "basics"}>
       <Section title="Identification">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -119,35 +171,38 @@ export function NoteForm({
       </Section>
 
       <Section title="Borrower">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="borrower_id">Existing borrower</Label>
-            <select
-              id="borrower_id"
-              name="borrower_id"
-              defaultValue={defaults.borrower_id ?? ""}
-              className="h-9 rounded-md border bg-background px-3 text-sm"
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="borrower_id">Borrower</Label>
+          <select
+            id="borrower_id"
+            name="borrower_id"
+            defaultValue={defaults.borrower_id ?? ""}
+            className="h-9 rounded-md border bg-background px-3 text-sm"
+          >
+            <option value="">— none —</option>
+            {borrowers.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.business_name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Add a borrower from{" "}
+            <a
+              href="/admin/borrowers/new"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4"
             >
-              <option value="">— none —</option>
-              {borrowers.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.business_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Field
-            name="new_borrower_name"
-            label="… or create a new borrower"
-            placeholder="Business name"
-          />
+              Borrowers
+            </a>{" "}
+            if the one you need isn&apos;t in the list.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          Pick an existing borrower OR enter a new name. New ones get a
-          placeholder contact you can edit later. Borrower is optional.
-        </p>
       </Section>
+      </TabPanel>
 
+      <TabPanel active={subTab === "terms"}>
       <Section title="Loan terms">
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
@@ -241,7 +296,9 @@ export function NoteForm({
           </div>
         </div>
       </Section>
+      </TabPanel>
 
+      <TabPanel active={subTab === "limits"}>
       <Section title="Investment limits">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
@@ -262,26 +319,16 @@ export function NoteForm({
           />
         </div>
       </Section>
+      </TabPanel>
 
+      <TabPanel active={subTab === "dates"}>
       <Section title="Dates">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
-            name="contract_date"
-            label="Contract date"
+            name="funding_start_date"
+            label="Funding open"
             type="date"
-            defaultValue={defaults.contract_date}
-          />
-          <Field
-            name="first_payment_date"
-            label="First payment date"
-            type="date"
-            defaultValue={defaults.first_payment_date}
-          />
-          <Field
-            name="maturity_date"
-            label="Maturity date"
-            type="date"
-            defaultValue={defaults.maturity_date}
+            defaultValue={defaults.funding_start_date}
           />
           <Field
             name="funding_end_date"
@@ -289,9 +336,39 @@ export function NoteForm({
             type="date"
             defaultValue={defaults.funding_end_date}
           />
+          <Field
+            name="contract_date"
+            label="Contract date"
+            type="date"
+            defaultValue={defaults.contract_date}
+          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="first_payment_date">First payment date</Label>
+            <Input
+              id="first_payment_date"
+              name="first_payment_date"
+              type="date"
+              value={firstPaymentDate}
+              onChange={(e) => setFirstPaymentDate(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Maturity date</Label>
+            <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
+              {maturityDate ? (
+                <span className="font-medium">{maturityDate}</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Set first payment date and term to compute
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </Section>
+      </TabPanel>
 
+      <TabPanel active={subTab === "visibility"}>
       <Section title="Status">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
@@ -403,7 +480,9 @@ export function NoteForm({
           )}
         </div>
       </Section>
+      </TabPanel>
 
+      <TabPanel active={subTab === "description"}>
       <Section title="Description">
         <div className="flex flex-col gap-2">
           <Label htmlFor="description">Description (lender-visible)</Label>
@@ -426,6 +505,7 @@ export function NoteForm({
           />
         </div>
       </Section>
+      </TabPanel>
 
       {state?.error ? (
         <Alert variant="destructive">
@@ -444,6 +524,18 @@ export function NoteForm({
       </div>
     </form>
   );
+}
+
+function TabPanel({
+  active,
+  children,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  // Use `hidden` rather than conditional render so all inputs stay in the
+  // DOM and submit together with one click of the Save button.
+  return <div className={active ? "flex flex-col gap-8" : "hidden"}>{children}</div>;
 }
 
 function Section({

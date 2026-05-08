@@ -134,7 +134,7 @@ function round2(n: number): number {
 // Add months to YYYY-MM-DD without crossing month-boundary surprises:
 // if the day-of-month doesn't exist in the target month (e.g. Jan 31 +
 // 1 month), clamp to the last day of that month.
-function addMonths(isoDate: string, months: number): string {
+export function addMonths(isoDate: string, months: number): string {
   const [y, m, d] = isoDate.split("-").map((s) => parseInt(s, 10));
   const targetMonth = m - 1 + months;
   const targetYear = y + Math.floor(targetMonth / 12);

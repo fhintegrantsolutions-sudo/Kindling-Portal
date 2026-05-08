@@ -89,7 +89,7 @@ export default async function MyNoteDetailPage({
           />
           <Field
             label="Funding type"
-            value={participation.funding_type ?? "—"}
+            value={titleCaseFundingType(participation.funding_type)}
           />
         </CardContent>
       </Card>
@@ -233,6 +233,12 @@ export default async function MyNoteDetailPage({
       <NoteDetailCard note={note} />
     </div>
   );
+}
+
+function titleCaseFundingType(value: string | null): string {
+  if (!value) return "—";
+  if (value.toLowerCase() === "ach") return "ACH";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
 function Field({ label, value }: { label: string; value: string }) {
