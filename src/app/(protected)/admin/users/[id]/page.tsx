@@ -85,9 +85,14 @@ export default async function AdminUserDetailPage({
             </p>
           ) : null}
         </div>
-        <span className="rounded-full border px-3 py-1 text-xs">
-          {p.role}
-        </span>
+        <div className="flex flex-col items-end gap-1 text-xs">
+          <span className="rounded-full border px-3 py-1">{p.role}</span>
+          {(p as { is_referral_partner?: boolean }).is_referral_partner ? (
+            <span className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-primary">
+              Referral partner
+            </span>
+          ) : null}
+        </div>
       </header>
 
       <RoleChange
@@ -193,37 +198,6 @@ export default async function AdminUserDetailPage({
                 </Link>
               );
             })
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Pending registrations ({detail.pendingRegistrations.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {detail.pendingRegistrations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No pending registrations.</p>
-          ) : (
-            detail.pendingRegistrations.map((r) => (
-              <Link
-                key={r.id}
-                href={`/admin/registrations/${r.id}`}
-                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
-              >
-                <div>
-                  <p className="font-medium">
-                    {r.note?.note_id} · {r.note?.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatCurrency(r.investment_amount)} · submitted{" "}
-                    {new Date(r.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </Link>
-            ))
           )}
         </CardContent>
       </Card>

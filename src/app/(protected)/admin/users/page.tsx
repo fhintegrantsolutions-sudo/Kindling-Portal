@@ -93,9 +93,16 @@ export default async function AdminUsersPage({
                         {u.email}
                       </p>
                     </div>
-                    <span className="rounded-full border px-2 py-0.5 text-xs">
-                      {u.role}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 text-xs">
+                      <span className="rounded-full border px-2 py-0.5">
+                        {u.role}
+                      </span>
+                      {u.is_referral_partner ? (
+                        <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+                          Referral partner
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </CardHeader>
               </Card>

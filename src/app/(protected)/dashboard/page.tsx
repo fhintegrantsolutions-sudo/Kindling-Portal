@@ -19,7 +19,11 @@ export default async function DashboardPage() {
     getMyTotalMonthlyPayment(),
   ]);
 
-  const active = participations.filter((p) => p.status === "Active");
+  // "Active" = the row is Active AND the funding has cleared — un-cleared
+  // participations are still pending and shouldn't count as deployed capital.
+  const active = participations.filter(
+    (p) => p.status === "Active" && p.funding_cleared,
+  );
   const totalInvested = active.reduce(
     (sum, p) => sum + Number(p.invested_amount ?? 0),
     0,

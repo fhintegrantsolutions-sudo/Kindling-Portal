@@ -166,6 +166,9 @@ export default async function NoteOverviewPage({
                       </p>
                       <p className="text-xs text-muted-foreground tabular-nums">
                         {p.share_pct.toFixed(2)}%
+                        {p.monthly_payment !== null
+                          ? ` · ${formatCurrency(p.monthly_payment)}/mo`
+                          : ""}
                       </p>
                     </div>
                   </div>

@@ -1,14 +1,21 @@
 import Link from "next/link";
-import { getAllReferralCodes } from "@/lib/db/admin-queries";
+import {
+  getAllReferralCodes,
+  getNonPartnerLenders,
+} from "@/lib/db/admin-queries";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AddPartnerForm } from "./add-partner-form";
 
 export default async function AdminReferralsPage() {
-  const codes = await getAllReferralCodes();
+  const [codes, lenders] = await Promise.all([
+    getAllReferralCodes(),
+    getNonPartnerLenders(),
+  ]);
   const active = codes.filter((c) => c.is_active);
   const disabled = codes.filter((c) => !c.is_active);
 
@@ -23,6 +30,8 @@ export default async function AdminReferralsPage() {
           Lenders who can refer new sign-ups via a unique code.
         </p>
       </header>
+
+      <AddPartnerForm lenders={lenders} />
 
       <Section
         title={`Active (${active.length})`}

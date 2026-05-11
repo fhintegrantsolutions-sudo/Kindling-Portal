@@ -75,29 +75,35 @@ export default async function AdminAccessRequestsPage({
                         Submitted {new Date(r.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <span className="rounded-full border px-2 py-0.5 text-xs">
-                      {r.status}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 text-xs">
+                      <span className="rounded-full border px-2 py-0.5">
+                        {r.status}
+                      </span>
+                      {r.is_tcc_member ? (
+                        <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+                          TCC member
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </CardHeader>
-                {r.note || r.investment_amount ? (
-                  <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3 text-sm">
-                    <Field
-                      label="Note"
-                      value={
-                        r.note ? `${r.note.note_id} · ${r.note.title}` : "—"
-                      }
-                    />
-                    <Field
-                      label="Amount"
-                      value={
-                        r.investment_amount
-                          ? formatCurrency(r.investment_amount)
-                          : "—"
-                      }
-                    />
-                  </CardContent>
-                ) : null}
+                <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3 text-sm">
+                  <Field
+                    label="Note"
+                    value={
+                      r.note ? `${r.note.note_id} · ${r.note.title}` : "—"
+                    }
+                  />
+                  <Field
+                    label="Amount"
+                    value={
+                      r.investment_amount
+                        ? formatCurrency(r.investment_amount)
+                        : "—"
+                    }
+                  />
+                  <Field label="Referral" value={r.referral_code ?? "—"} />
+                </CardContent>
               </Card>
             </Link>
           ))}

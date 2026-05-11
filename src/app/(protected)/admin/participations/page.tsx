@@ -83,6 +83,11 @@ export default async function AdminParticipationsPage({
                       <p className="mt-1 text-sm text-muted-foreground">
                         {p.lender_name ?? p.lender_email ?? "—"}
                       </p>
+                      {p.business_name ? (
+                        <p className="text-xs text-muted-foreground">
+                          {p.business_name}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex flex-col items-end gap-1 text-xs">
                       <LeadSourceBadge isNewLead={p.user_id === null} />

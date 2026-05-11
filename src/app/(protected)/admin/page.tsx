@@ -122,6 +122,7 @@ export default async function AdminDashboardPage() {
           <Stat
             label="Active notes"
             value={String(stats.activeNotes)}
+            subtitle={`${stats.activeNotesPublic} public · ${stats.activeNotesPrivate} private`}
             icon={<PieChart className="size-4" />}
             href="/admin/notes"
           />
@@ -171,35 +172,49 @@ export default async function AdminDashboardPage() {
 function Stat({
   label,
   value,
+  subtitle,
   icon,
   href,
   className,
 }: {
   label: string;
   value: string;
+  subtitle?: string;
   icon: React.ReactNode;
   href?: string;
   className?: string;
 }) {
   const inner = (
-    <Card className={href ? "transition-colors hover:bg-muted/40" : ""}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
+    <Card
+      className={
+        "flex h-full flex-col" +
+        (href ? " transition-colors hover:bg-muted/40" : "")
+      }
+    >
+      <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">
           {label}
         </CardTitle>
-        <div className="text-muted-foreground">{icon}</div>
+        <div className="shrink-0 text-muted-foreground">{icon}</div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="mt-auto">
         <p className="text-2xl font-semibold tabular-nums">{value}</p>
+        <p
+          className={`mt-1 text-xs text-muted-foreground tabular-nums ${
+            subtitle ? "" : "invisible"
+          }`}
+        >
+          {subtitle ?? "—"}
+        </p>
       </CardContent>
     </Card>
   );
   return href ? (
-    <Link href={href} className={`block ${className ?? ""}`}>
+    <Link href={href} className={`block h-full ${className ?? ""}`}>
       {inner}
     </Link>
   ) : (
-    <div className={className}>{inner}</div>
+    <div className={`h-full ${className ?? ""}`}>{inner}</div>
   );
 }
 

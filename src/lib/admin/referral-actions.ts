@@ -75,3 +75,78 @@ export async function setReferralCodeActive(
   revalidatePath(`/admin/users/${target.user_id}`);
   revalidatePath("/profile/referrals");
 }
+
+// Add a user as a referral partner: flips the badge on their profile AND
+// generates a referral code if they don't already have one. Idempotent for
+// the badge; the code-generation step is skipped if one exists.
+export type AddReferralPartnerState = {
+  error?: string;
+  message?: string;
+};
+
+export async function addReferralPartner(
+  _prev: AddReferralPartnerState | undefined,
+  formData: FormData,
+): Promise<AddReferralPartnerState> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const userId = String(formData.get("user_id") ?? "").trim();
+  if (!userId) return { error: "Select a lender." };
+
+  // 1. Flag the profile.
+  const { error: profErr } = await supabase
+    .from("profiles")
+    .update({ is_referral_partner: true })
+    .eq("id", userId);
+  if (profErr) return { error: profErr.message };
+
+  // 2. Generate a code if they don't have one. We swallow the existing-code
+  // case so the action is idempotent for re-adding the badge.
+  const { data: existing } = await supabase
+    .from("referral_codes")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!existing) {
+    try {
+      await createReferralCode(userId);
+    } catch (e) {
+      if (
+        !(e instanceof Error) ||
+        !e.message.includes("already enabled")
+      ) {
+        return {
+          error: `Badge set, but referral code generation failed: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        };
+      }
+    }
+  }
+
+  revalidatePath("/admin/referrals");
+  revalidatePath(`/admin/users/${userId}`);
+  return { message: "Added as referral partner." };
+}
+
+// Clear the badge (and disable any active referral code).
+export async function removeReferralPartner(userId: string): Promise<void> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error: profErr } = await supabase
+    .from("profiles")
+    .update({ is_referral_partner: false })
+    .eq("id", userId);
+  if (profErr) throw new Error(profErr.message);
+
+  // Deactivate any active codes so they stop accepting new referrals.
+  await supabase
+    .from("referral_codes")
+    .update({ is_active: false })
+    .eq("user_id", userId)
+    .eq("is_active", true);
+
+  revalidatePath("/admin/referrals");
+  revalidatePath(`/admin/users/${userId}`);
+}

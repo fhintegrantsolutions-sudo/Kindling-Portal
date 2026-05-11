@@ -31,12 +31,17 @@ const NAV = [
   { label: "Profile", href: "/profile", icon: User },
 ] as const;
 
-const ADMIN_NAV = [
+// Two groups separated by a thin divider in the sidebar: the note-workflow
+// items (everything tied to a deal), then the admin tools (system-level
+// user / referral management).
+const ADMIN_WORKFLOW = [
   { label: "Overview", href: "/admin", icon: Shield },
   { label: "Access requests", href: "/admin/access-requests", icon: Inbox },
+  { label: "Participations", href: "/admin/participations", icon: Banknote },
   { label: "Notes", href: "/admin/notes", icon: FileText },
   { label: "Borrowers", href: "/admin/borrowers", icon: Building2 },
-  { label: "Participations", href: "/admin/participations", icon: Banknote },
+] as const;
+const ADMIN_TOOLS = [
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Referrals", href: "/admin/referrals", icon: Handshake },
 ] as const;
@@ -97,7 +102,7 @@ export function AppSidebar({
             <p className="mt-4 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
               Admin
             </p>
-            {ADMIN_NAV.map((item) => (
+            {ADMIN_WORKFLOW.map((item) => (
               <NavLink
                 key={item.href}
                 href={item.href}
@@ -105,6 +110,16 @@ export function AppSidebar({
                 Icon={item.icon}
                 pathname={pathname}
                 exact={item.href === "/admin"}
+              />
+            ))}
+            <div className="my-2 border-t border-sidebar-border" />
+            {ADMIN_TOOLS.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                Icon={item.icon}
+                pathname={pathname}
               />
             ))}
           </>

@@ -17,6 +17,8 @@ export type AdminStats = {
   activeParticipations: number;
   totalInvested: number;
   activeNotes: number;
+  activeNotesPublic: number;
+  activeNotesPrivate: number;
 };
 
 // Count of unique lenders by US state for the admin geography heat map.
@@ -29,10 +31,27 @@ export type StateUserCount = {
 
 export async function getUsersByState(): Promise<StateUserCount[]> {
   const supabase = await createClient();
+
+  // Only count users who have at least one cleared participation on a note
+  // whose status is "Active" — admins/lenders without any active position
+  // don't represent capital deployed and shouldn't show on the heat map.
+  const { data: activeParts } = await supabase
+    .from("participations")
+    .select("user_id, note:notes!inner(status)")
+    .eq("funding_cleared", true)
+    .eq("note.status", "Active");
+
+  const activeUserIds = new Set(
+    ((activeParts ?? []) as Array<{ user_id: string | null }>)
+      .map((p) => p.user_id)
+      .filter(Boolean) as string[],
+  );
+  if (activeUserIds.size === 0) return [];
+
   const { data } = await supabase
     .from("profiles")
-    .select("address_state")
-    .eq("role", "lender")
+    .select("id, address_state")
+    .in("id", Array.from(activeUserIds))
     .not("address_state", "is", null);
 
   const counts = new Map<string, number>();
@@ -61,6 +80,8 @@ export async function getAdminStats(): Promise<AdminStats> {
     activeParts,
     allActive,
     activeNotes,
+    activeNotesPublic,
+    activeNotesPrivate,
   ] = await Promise.all([
     // Leads
     supabase
@@ -99,18 +120,33 @@ export async function getAdminStats(): Promise<AdminStats> {
     supabase
       .from("profiles")
       .select("*", { count: "exact", head: true }),
+    // "Active" participations = the row is Active AND the lender's funding
+    // has cleared — un-cleared rows are still in the funding workflow, not
+    // actually deployed capital.
     supabase
       .from("participations")
       .select("*", { count: "exact", head: true })
-      .eq("status", "Active"),
+      .eq("status", "Active")
+      .eq("funding_cleared", true),
     supabase
       .from("participations")
       .select("invested_amount")
-      .eq("status", "Active"),
+      .eq("status", "Active")
+      .eq("funding_cleared", true),
     supabase
       .from("notes")
       .select("*", { count: "exact", head: true })
       .eq("status", "Active"),
+    supabase
+      .from("notes")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "Active")
+      .eq("is_private", false),
+    supabase
+      .from("notes")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "Active")
+      .eq("is_private", true),
   ]);
 
   const totalInvested = (allActive.data ?? []).reduce(
@@ -130,6 +166,8 @@ export async function getAdminStats(): Promise<AdminStats> {
     activeParticipations: activeParts.count ?? 0,
     totalInvested,
     activeNotes: activeNotes.count ?? 0,
+    activeNotesPublic: activeNotesPublic.count ?? 0,
+    activeNotesPrivate: activeNotesPrivate.count ?? 0,
   };
 }
 
@@ -200,6 +238,7 @@ export type AdminParticipationListItem = {
   note: { note_id: string; title: string } | null;
   lender_name: string | null;
   lender_email: string | null;
+  business_name: string | null;
   is_prospect: boolean;
 };
 
@@ -239,7 +278,10 @@ export async function getParticipations(filter?: {
 
   const { data } = await q;
   const rows = (data ?? []) as unknown as Array<
-    Omit<AdminParticipationListItem, "lender_name" | "lender_email" | "is_prospect">
+    Omit<
+      AdminParticipationListItem,
+      "lender_name" | "lender_email" | "business_name" | "is_prospect"
+    >
   >;
   if (rows.length === 0) return [];
 
@@ -257,23 +299,25 @@ export async function getParticipations(filter?: {
 
   const profileMap = new Map<
     string,
-    { name: string | null; email: string | null }
+    { name: string | null; email: string | null; business_name: string | null }
   >();
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, email")
+      .select("id, first_name, last_name, email, business_name")
       .in("id", userIds);
     for (const p of (profiles ?? []) as Array<{
       id: string;
       first_name: string | null;
       last_name: string | null;
       email: string | null;
+      business_name: string | null;
     }>) {
       profileMap.set(p.id, {
         name:
           `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null,
         email: p.email,
+        business_name: p.business_name,
       });
     }
   }
@@ -304,11 +348,13 @@ export async function getParticipations(filter?: {
   return rows.map((r) => {
     let lenderName: string | null = null;
     let lenderEmail: string | null = null;
+    let businessName: string | null = null;
     let isProspect = false;
     if (r.user_id) {
       const p = profileMap.get(r.user_id);
       lenderName = p?.name ?? null;
       lenderEmail = p?.email ?? null;
+      businessName = p?.business_name ?? null;
     } else if (r.access_request_id) {
       const a = arMap.get(r.access_request_id);
       lenderName = a?.name ?? null;
@@ -319,6 +365,7 @@ export async function getParticipations(filter?: {
       ...r,
       lender_name: lenderName,
       lender_email: lenderEmail,
+      business_name: businessName,
       is_prospect: isProspect,
     };
   });
@@ -454,6 +501,7 @@ export type UserListItem = {
   first_name: string | null;
   last_name: string | null;
   role: "admin" | "lender";
+  is_referral_partner: boolean;
   created_at: string;
 };
 
@@ -464,7 +512,9 @@ export async function getUsers(filter?: {
   const supabase = await createClient();
   let q = supabase
     .from("profiles")
-    .select("id, email, first_name, last_name, role, created_at")
+    .select(
+      "id, email, first_name, last_name, role, is_referral_partner, created_at",
+    )
     // Sort by first_name (nulls last so unfilled profiles drop to the end);
     // last_name and email are tie-breakers.
     .order("first_name", { ascending: true, nullsFirst: false })
@@ -513,13 +563,6 @@ export type UserParticipationRow = {
   monthly_payment: number | null;
 };
 
-export type UserPendingRegistration = {
-  id: string;
-  investment_amount: string;
-  created_at: string;
-  note: { note_id: string; title: string } | null;
-};
-
 export type UserBeneficiary = {
   id: string;
   name: string;
@@ -531,14 +574,13 @@ export type UserBeneficiary = {
 export type UserDetail = {
   profile: UserProfile;
   participations: UserParticipationRow[];
-  pendingRegistrations: UserPendingRegistration[];
   beneficiaries: UserBeneficiary[];
 };
 
 export async function getUserById(userId: string): Promise<UserDetail | null> {
   const supabase = await createClient();
 
-  const [profileRes, partsRes, regsRes, bensRes] = await Promise.all([
+  const [profileRes, partsRes, bensRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase
       .from("participations")
@@ -549,15 +591,6 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
                       interest_type )`,
       )
       .eq("user_id", userId)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("note_registrations")
-      .select(
-        `id, investment_amount, created_at,
-         note:notes ( note_id, title )`,
-      )
-      .eq("user_id", userId)
-      .eq("status", "pending")
       .order("created_at", { ascending: false }),
     supabase
       .from("beneficiaries")
@@ -651,7 +684,6 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
   return {
     profile: profileRes.data as UserProfile,
     participations,
-    pendingRegistrations: (regsRes.data ?? []) as unknown as UserPendingRegistration[],
     beneficiaries: (bensRes.data ?? []) as UserBeneficiary[],
   };
 }
@@ -762,6 +794,8 @@ export type AccessRequestListItem = {
   email: string;
   phone: string;
   investment_amount: string | null;
+  is_tcc_member: boolean;
+  referral_code: string | null;
   created_at: string;
   note: { note_id: string; title: string } | null;
 };
@@ -775,7 +809,7 @@ export async function getAccessRequests(filter?: {
     .select(
       `
       id, status, first_name, last_name, email, phone, note_id,
-      investment_amount, created_at
+      investment_amount, is_tcc_member, referral_code, created_at
       `,
     )
     .order("created_at", { ascending: false });
@@ -790,6 +824,8 @@ export async function getAccessRequests(filter?: {
     phone: string;
     note_id: string | null;
     investment_amount: string | null;
+    is_tcc_member: boolean;
+    referral_code: string | null;
     created_at: string;
   }>;
 
@@ -974,6 +1010,29 @@ export type LenderPickerOption = {
   email: string;
   name: string | null;
 };
+
+// Lenders who are not yet flagged as referral partners — used to populate
+// the "Add referral partner" picker on /admin/referrals.
+export async function getNonPartnerLenders(): Promise<LenderPickerOption[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, email, first_name, last_name")
+    .eq("role", "lender")
+    .eq("is_referral_partner", false)
+    .order("first_name", { ascending: true, nullsFirst: false });
+  const rows = (data ?? []) as Array<{
+    id: string;
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    name: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || null,
+  }));
+}
 
 export async function getLendersForPicker(): Promise<LenderPickerOption[]> {
   const supabase = await createClient();
@@ -1294,6 +1353,7 @@ export type BonusLedgerRow = {
   paid_date: string;
   gross_amount: string;
   retained_amount: string;
+  status: "requested" | "received";
   payment_method: string | null;
   check_number: string | null;
   wire_reference: string | null;
@@ -1313,7 +1373,7 @@ export async function getBonusLedgerForMonth(
   const { data: bonuses } = await supabase
     .from("note_bonuses")
     .select(
-      "id, note_id, paid_date, gross_amount, retained_amount, payment_method, check_number, wire_reference, notes",
+      "id, note_id, paid_date, gross_amount, retained_amount, status, payment_method, check_number, wire_reference, notes",
     )
     .gte("paid_date", monthStart)
     .lt("paid_date", monthEnd)
@@ -1324,6 +1384,7 @@ export async function getBonusLedgerForMonth(
     paid_date: string;
     gross_amount: string;
     retained_amount: string;
+    status: "requested" | "received";
     payment_method: string | null;
     check_number: string | null;
     wire_reference: string | null;
@@ -1387,6 +1448,7 @@ export async function getBonusLedgerForMonth(
         paid_date: b.paid_date,
         gross_amount: b.gross_amount,
         retained_amount: b.retained_amount,
+        status: b.status,
         payment_method: b.payment_method,
         check_number: b.check_number,
         wire_reference: b.wire_reference,
@@ -1422,12 +1484,18 @@ export type FundedParticipantRow = {
   business_name: string | null;
   invested_amount: string;
   share_pct: number;
+  monthly_payment: number | null;
 };
 
 export async function getFundedParticipantsForNote(
   noteUuid: string,
 ): Promise<FundedParticipantRow[]> {
   const supabase = await createClient();
+  const { data: note } = await supabase
+    .from("notes")
+    .select("principal, rate, term_months, interest_type")
+    .eq("id", noteUuid)
+    .maybeSingle();
   const { data: parts } = await supabase
     .from("participations")
     .select("id, user_id, invested_amount")
@@ -1472,10 +1540,30 @@ export async function getFundedParticipantsForNote(
 
   const total = rows.reduce((s, r) => s + Number(r.invested_amount ?? 0), 0);
 
+  // Compute the note's monthly payment once; per-row monthly is the
+  // lender's pro-rata of that.
+  const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
+  const noteMonthly =
+    note &&
+    note.principal !== null &&
+    note.rate !== null &&
+    note.term_months
+      ? computeMonthlyPayment({
+          principal: Number(note.principal),
+          annualRatePct: Number(note.rate),
+          termMonths: Number(note.term_months),
+          interestType: String(note.interest_type),
+        })
+      : null;
+
   return rows
     .map((r) => {
       const profile = r.user_id ? profileMap.get(r.user_id) : null;
       const invested = Number(r.invested_amount ?? 0);
+      const monthly =
+        noteMonthly !== null && total > 0
+          ? Math.round(((invested / total) * noteMonthly) * 100) / 100
+          : null;
       return {
         participation_id: r.id,
         user_id: r.user_id,
@@ -1484,9 +1572,16 @@ export async function getFundedParticipantsForNote(
         business_name: profile?.business_name ?? null,
         invested_amount: r.invested_amount,
         share_pct: total > 0 ? (invested / total) * 100 : 0,
+        monthly_payment: monthly,
       };
     })
-    .sort((a, b) => Number(b.invested_amount) - Number(a.invested_amount));
+    .sort((a, b) => {
+      // Alphabetize by lender name (fall back to email so rows without
+      // a name still group together at the end).
+      const an = (a.lender_name ?? a.lender_email ?? "").toLowerCase();
+      const bn = (b.lender_name ?? b.lender_email ?? "").toLowerCase();
+      return an.localeCompare(bn);
+    });
 }
 
 export type AdminBonusRow = {
@@ -1494,6 +1589,7 @@ export type AdminBonusRow = {
   paid_date: string;
   gross_amount: string;
   retained_amount: string;
+  status: "requested" | "received";
   payment_method: string | null;
   check_number: string | null;
   wire_reference: string | null;
@@ -1516,7 +1612,7 @@ export async function getNoteBonuses(
   const { data: bonuses } = await supabase
     .from("note_bonuses")
     .select(
-      "id, paid_date, gross_amount, retained_amount, payment_method, check_number, wire_reference, notes, created_at",
+      "id, paid_date, gross_amount, retained_amount, status, payment_method, check_number, wire_reference, notes, created_at",
     )
     .eq("note_id", noteUuid)
     .order("paid_date", { ascending: false });
@@ -1585,6 +1681,7 @@ export async function getNoteBonuses(
       paid_date: string;
       gross_amount: string;
       retained_amount: string | null;
+      status: "requested" | "received";
       payment_method: string | null;
       check_number: string | null;
       wire_reference: string | null;
@@ -1596,6 +1693,7 @@ export async function getNoteBonuses(
       paid_date: row.paid_date,
       gross_amount: row.gross_amount,
       retained_amount: row.retained_amount ?? "0",
+      status: row.status,
       payment_method: row.payment_method,
       check_number: row.check_number,
       wire_reference: row.wire_reference,
