@@ -106,6 +106,14 @@ export function SetupForm({
         ) : (
           <div /> /* keeps the grid aligned */
         )}
+        {entityChoice && entityChoice !== "Individual" ? (
+          <Field
+            name="business_name"
+            label="Business / entity name"
+            error={fe.business_name}
+            className="sm:col-span-2"
+          />
+        ) : null}
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="name_for_agreement" className="flex items-center gap-1.5">
             Exact name for the loan agreement{" "}

@@ -19,6 +19,7 @@ export default async function ProfilePage() {
           address_state: profile?.address_state ?? null,
           address_zip: profile?.address_zip ?? null,
           entity_type: profile?.entity_type ?? null,
+          business_name: (profile?.business_name as string | null) ?? null,
           loan_agreement_title: profile?.loan_agreement_title ?? null,
         }}
       />

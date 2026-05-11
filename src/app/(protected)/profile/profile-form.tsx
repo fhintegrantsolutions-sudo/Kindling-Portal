@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   updateProfile,
   type ProfileFormState,
@@ -19,10 +19,19 @@ type ProfileDefaults = {
   address_state: string | null;
   address_zip: string | null;
   entity_type: string | null;
+  business_name: string | null;
   loan_agreement_title: string | null;
 };
 
-export function ProfileForm({ defaults }: { defaults: ProfileDefaults }) {
+export function ProfileForm({
+  defaults: initialDefaults,
+}: {
+  defaults: ProfileDefaults;
+}) {
+  // Capture defaults at first render so changing parent props (after a
+  // server revalidation, for example) doesn't trip Base UI's "default
+  // value changed" warning on uncontrolled inputs.
+  const [defaults] = useState(initialDefaults);
   const [state, action, pending] = useActionState<
     ProfileFormState | undefined,
     FormData
@@ -50,28 +59,29 @@ export function ProfileForm({ defaults }: { defaults: ProfileDefaults }) {
           W-9 forms are issued digitally. If a physical copy ever needs to be
           mailed, please provide your mailing address below.
         </p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-4">
           <FieldInput
             name="address_street"
             label="Street"
             defaultValue={defaults.address_street}
-            className="sm:col-span-2"
           />
-          <FieldInput
-            name="address_city"
-            label="City"
-            defaultValue={defaults.address_city}
-          />
-          <FieldInput
-            name="address_state"
-            label="State"
-            defaultValue={defaults.address_state}
-          />
-          <FieldInput
-            name="address_zip"
-            label="ZIP"
-            defaultValue={defaults.address_zip}
-          />
+          <div className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr]">
+            <FieldInput
+              name="address_city"
+              label="City"
+              defaultValue={defaults.address_city}
+            />
+            <FieldInput
+              name="address_state"
+              label="State"
+              defaultValue={defaults.address_state}
+            />
+            <FieldInput
+              name="address_zip"
+              label="ZIP"
+              defaultValue={defaults.address_zip}
+            />
+          </div>
         </div>
       </section>
 
@@ -93,6 +103,12 @@ export function ProfileForm({ defaults }: { defaults: ProfileDefaults }) {
             label="Entity type"
             value={defaults.entity_type}
           />
+          {defaults.entity_type && defaults.entity_type !== "Individual" ? (
+            <ReadonlyField
+              label="Business / entity name"
+              value={defaults.business_name}
+            />
+          ) : null}
           <ReadonlyField
             label="Loan agreement title"
             value={defaults.loan_agreement_title}

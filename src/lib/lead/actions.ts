@@ -75,6 +75,7 @@ export async function submitLeadParticipationForm(
   const fields = {
     investment_amount: amountRaw,
     entity_type: entityType,
+    business_name: text(formData, "business_name"),
     name_for_agreement: text(formData, "name_for_agreement"),
     mailing_address: text(formData, "mailing_address"),
     city: text(formData, "city"),
@@ -90,6 +91,8 @@ export async function submitLeadParticipationForm(
   if (!entityChoice) fieldErrors.entity_type = "Required";
   else if (entityChoice === "Other" && !entityOther)
     fieldErrors.entity_type_other = "Specify the entity type";
+  if (entityChoice && entityChoice !== "Individual" && !fields.business_name)
+    fieldErrors.business_name = "Required for non-Individual entities";
   if (!fields.name_for_agreement) fieldErrors.name_for_agreement = "Required";
   if (!fields.mailing_address) fieldErrors.mailing_address = "Required";
   if (!fields.city) fieldErrors.city = "Required";
@@ -130,6 +133,7 @@ export async function submitLeadParticipationForm(
     phone: ar.phone,
     email: ar.email,
     entity_type: fields.entity_type,
+    business_name: fields.business_name || null,
     name_for_agreement: fields.name_for_agreement,
     mailing_address: fields.mailing_address,
     city: fields.city,

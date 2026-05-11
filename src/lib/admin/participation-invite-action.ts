@@ -59,7 +59,7 @@ export async function inviteLenderForParticipation(
   const { data: reg } = await supabase
     .from("note_registrations")
     .select(
-      "entity_type, name_for_agreement, mailing_address, city, state, zip_code",
+      "entity_type, business_name, name_for_agreement, mailing_address, city, state, zip_code",
     )
     .eq("access_request_id", p.access_request_id)
     .order("created_at", { ascending: false })
@@ -94,6 +94,7 @@ export async function inviteLenderForParticipation(
   if (ar.last_name) profileUpdate.last_name = ar.last_name;
   if (ar.phone) profileUpdate.phone = ar.phone;
   if (reg?.entity_type) profileUpdate.entity_type = reg.entity_type;
+  if (reg?.business_name) profileUpdate.business_name = reg.business_name;
   if (reg?.name_for_agreement)
     profileUpdate.loan_agreement_title = reg.name_for_agreement;
   if (reg?.mailing_address)
