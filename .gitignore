@@ -51,3 +51,7 @@ supabase/.branches/
 # Legacy app artifacts we don't archive
 legacy/uploads/
 legacy/node_modules/
+
+# Real lender data — templates with .example suffix are tracked
+scripts/users.csv
+scripts/participations.csv
