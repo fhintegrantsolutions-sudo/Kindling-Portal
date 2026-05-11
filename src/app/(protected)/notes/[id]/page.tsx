@@ -162,13 +162,13 @@ export default async function MyNoteDetailPage({
                         <td className="py-2 pr-2">
                           {r.received_date ?? r.due_date}
                         </td>
-                        <td className="py-2 pr-2 text-right">
+                        <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(r.my_principal)}
                         </td>
-                        <td className="py-2 pr-2 text-right">
+                        <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(r.my_interest)}
                         </td>
-                        <td className="py-2 pr-2 text-right text-muted-foreground">
+                        <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">
                           {formatCurrency(r.my_balance)}
                         </td>
                         <td className="py-2 pr-2 text-right text-xs">

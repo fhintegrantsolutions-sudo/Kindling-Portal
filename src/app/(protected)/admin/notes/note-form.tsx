@@ -7,7 +7,6 @@ import {
   type NoteFormState,
 } from "@/lib/admin/note-actions";
 import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
-import { formatCurrency } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,11 +75,29 @@ export function NoteForm({
   const [isPrivate, setIsPrivate] = useState(defaults.is_private);
   const [search, setSearch] = useState("");
   const [interestType, setInterestType] = useState(defaults.interest_type);
-  const [principalStr, setPrincipalStr] = useState(defaults.principal ?? "");
-  const [rateStr, setRateStr] = useState(defaults.rate ?? "");
-  const [termStr, setTermStr] = useState(defaults.term_months ?? "");
+  // Supabase numeric/integer columns can come back as either strings or
+  // numbers depending on the driver — coerce to string so .replace() and
+  // friends are safe.
+  const [principalStr, setPrincipalStr] = useState(
+    defaults.principal == null ? "" : String(defaults.principal),
+  );
+  const [rateStr, setRateStr] = useState(
+    defaults.rate == null ? "" : String(defaults.rate),
+  );
+  const [termStr, setTermStr] = useState(
+    defaults.term_months == null ? "" : String(defaults.term_months),
+  );
   const [firstPaymentDate, setFirstPaymentDate] = useState(
     defaults.first_payment_date ?? "",
+  );
+  const [fundingStart, setFundingStart] = useState(
+    defaults.funding_start_date ?? "",
+  );
+  const [fundingEnd, setFundingEnd] = useState(
+    defaults.funding_end_date ?? "",
+  );
+  const [contractDate, setContractDate] = useState(
+    defaults.contract_date ?? "",
   );
   const [subTab, setSubTab] = useState<SubTab>("basics");
 
@@ -92,16 +109,15 @@ export function NoteForm({
     return addMonths(firstPaymentDate, term - 1);
   }, [firstPaymentDate, termStr]);
 
-  const monthlyPayment = useMemo(
-    () =>
-      computeMonthlyPayment({
-        principal: principalStr === "" ? null : Number(principalStr),
-        annualRatePct: rateStr === "" ? null : Number(rateStr),
-        termMonths: termStr === "" ? null : parseInt(termStr, 10),
-        interestType,
-      }),
-    [principalStr, rateStr, termStr, interestType],
-  );
+  const monthlyPayment = useMemo(() => {
+    const cleanPrincipal = principalStr.replace(/,/g, "");
+    return computeMonthlyPayment({
+      principal: cleanPrincipal === "" ? null : Number(cleanPrincipal),
+      annualRatePct: rateStr === "" ? null : Number(rateStr),
+      termMonths: termStr === "" ? null : parseInt(termStr, 10),
+      interestType,
+    });
+  }, [principalStr, rateStr, termStr, interestType]);
 
   // Sort lenders by name (with email fallback) so the list is scannable.
   const sortedLenders = [...lenders].sort((a, b) => {
@@ -161,7 +177,6 @@ export function NoteForm({
             placeholder="Austin Multi-Family Fund III"
             defaultValue={defaults.title}
             error={fe.title}
-            required
           />
         </div>
       </Section>
@@ -366,11 +381,14 @@ export function NoteForm({
             <Input
               id="principal"
               name="principal"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
+              inputMode="decimal"
               value={principalStr}
-              onChange={(e) => setPrincipalStr(e.target.value)}
+              onChange={(e) => {
+                // Allow digits, comma, and one decimal point.
+                const next = e.target.value.replace(/[^0-9.,]/g, "");
+                setPrincipalStr(next);
+              }}
               aria-invalid={Boolean(fe.principal) || undefined}
             />
             {fe.principal ? (
@@ -414,7 +432,12 @@ export function NoteForm({
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
               {monthlyPayment !== null ? (
                 <span className="font-medium">
-                  {formatCurrency(monthlyPayment)}
+                  {monthlyPayment.toLocaleString("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
                 </span>
               ) : (
                 <span className="text-muted-foreground">
@@ -430,24 +453,36 @@ export function NoteForm({
       <TabPanel active={subTab === "dates"}>
       <Section title="Dates">
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            name="funding_start_date"
-            label="Funding open"
-            type="date"
-            defaultValue={defaults.funding_start_date}
-          />
-          <Field
-            name="funding_end_date"
-            label="Funding closes"
-            type="date"
-            defaultValue={defaults.funding_end_date}
-          />
-          <Field
-            name="contract_date"
-            label="Contract date"
-            type="date"
-            defaultValue={defaults.contract_date}
-          />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="funding_start_date">Funding open</Label>
+            <Input
+              id="funding_start_date"
+              name="funding_start_date"
+              type="date"
+              value={fundingStart}
+              onChange={(e) => setFundingStart(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="funding_end_date">Funding closes</Label>
+            <Input
+              id="funding_end_date"
+              name="funding_end_date"
+              type="date"
+              value={fundingEnd}
+              onChange={(e) => setFundingEnd(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="contract_date">Contract date</Label>
+            <Input
+              id="contract_date"
+              name="contract_date"
+              type="date"
+              value={contractDate}
+              onChange={(e) => setContractDate(e.target.value)}
+            />
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="first_payment_date">First payment date</Label>
             <Input
@@ -462,7 +497,7 @@ export function NoteForm({
             <Label>Maturity date</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
               {maturityDate ? (
-                <span className="font-medium">{maturityDate}</span>
+                <span className="font-medium">{formatMMDDYYYY(maturityDate)}</span>
               ) : (
                 <span className="text-muted-foreground">
                   Set first payment date and term to compute
@@ -585,4 +620,9 @@ function Field({
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
+}
+
+function formatMMDDYYYY(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-");
+  return `${m}/${d}/${y}`;
 }

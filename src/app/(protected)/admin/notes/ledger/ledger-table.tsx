@@ -1,16 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   recordScheduledPayment,
   unrecordScheduledPayment,
 } from "@/lib/admin/payment-actions";
 import { formatCurrency } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import { PaymentDetailsButton } from "@/components/admin/payment-details-sheet";
 import type { LedgerRow } from "@/lib/db/admin-queries";
 
-export function LedgerTable({ rows }: { rows: LedgerRow[] }) {
+export function LedgerTable({
+  rows,
+  monthLabel,
+}: {
+  rows: LedgerRow[];
+  monthLabel: string;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const allKeys = useMemo(
+    () => rows.map((r) => `${r.note_uuid}:${r.payment_number}`),
+    [rows],
+  );
+  const allSelected = rows.length > 0 && selected.size === rows.length;
+  const someSelected = selected.size > 0 && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(allKeys));
+  };
+  const toggleRow = (key: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   if (rows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -19,32 +48,85 @@ export function LedgerTable({ rows }: { rows: LedgerRow[] }) {
     );
   }
 
+  const exportSelected = () => {
+    const keys = selected.size > 0 ? selected : new Set(allKeys);
+    const exportRows = rows.filter((r) =>
+      keys.has(`${r.note_uuid}:${r.payment_number}`),
+    );
+    downloadCsv(exportRows, monthLabel);
+  };
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <th className="py-2 pr-2 font-medium">Due</th>
-            <th className="py-2 pr-2 font-medium">Borrower</th>
-            <th className="py-2 pr-2 font-medium">Note</th>
-            <th className="py-2 pr-2 font-medium">#</th>
-            <th className="py-2 pr-2 font-medium text-right">Principal</th>
-            <th className="py-2 pr-2 font-medium text-right">Interest</th>
-            <th className="py-2 pr-2 font-medium text-right">Total</th>
-            <th className="py-2 pr-2 font-medium text-right">Received</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <Row key={`${row.note_uuid}:${row.payment_number}`} row={row} />
-          ))}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between text-sm">
+        <p className="text-muted-foreground">
+          {selected.size > 0
+            ? `${selected.size} of ${rows.length} selected`
+            : `${rows.length} row${rows.length === 1 ? "" : "s"}`}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={exportSelected}
+        >
+          {selected.size > 0 ? "Download selected (CSV)" : "Download all (CSV)"}
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <th className="py-2 pr-2 font-medium">
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border-muted-foreground/40"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected;
+                  }}
+                  onChange={toggleAll}
+                  aria-label="Select all"
+                />
+              </th>
+              <th className="py-2 pr-2 font-medium">Due</th>
+              <th className="py-2 pr-2 font-medium">Borrower</th>
+              <th className="py-2 pr-2 font-medium">Note</th>
+              <th className="py-2 pr-2 font-medium">#</th>
+              <th className="py-2 pr-2 font-medium text-right">Principal</th>
+              <th className="py-2 pr-2 font-medium text-right">Interest</th>
+              <th className="py-2 pr-2 font-medium text-right">Total</th>
+              <th className="py-2 pr-2 font-medium text-right">Received</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const key = `${row.note_uuid}:${row.payment_number}`;
+              return (
+                <Row
+                  key={key}
+                  row={row}
+                  selected={selected.has(key)}
+                  onToggleSelect={() => toggleRow(key)}
+                />
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-function Row({ row }: { row: LedgerRow }) {
+function Row({
+  row,
+  selected,
+  onToggleSelect,
+}: {
+  row: LedgerRow;
+  selected: boolean;
+  onToggleSelect: () => void;
+}) {
   const [pending, startTransition] = useTransition();
   const isReceived = row.received_date !== null;
   const total = row.principal_amount + row.interest_amount;
@@ -67,6 +149,15 @@ function Row({ row }: { row: LedgerRow }) {
 
   return (
     <tr className={`border-b last:border-b-0 ${isReceived ? "bg-muted/40" : ""}`}>
+      <td className="py-2 pr-2">
+        <input
+          type="checkbox"
+          className="size-4 rounded border-muted-foreground/40"
+          checked={selected}
+          onChange={onToggleSelect}
+          aria-label={`Select ${row.note_id} payment #${row.payment_number}`}
+        />
+      </td>
       <td className="py-2 pr-2">{row.due_date}</td>
       <td className="py-2 pr-2">{row.borrower_name ?? "—"}</td>
       <td className="py-2 pr-2">
@@ -81,13 +172,13 @@ function Row({ row }: { row: LedgerRow }) {
         </span>
       </td>
       <td className="py-2 pr-2 text-muted-foreground">{row.payment_number}</td>
-      <td className="py-2 pr-2 text-right">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(row.principal_amount)}
       </td>
-      <td className="py-2 pr-2 text-right">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(row.interest_amount)}
       </td>
-      <td className="py-2 pr-2 text-right font-medium">
+      <td className="py-2 pr-2 text-right font-medium tabular-nums">
         {formatCurrency(total)}
       </td>
       <td className="py-2 pr-2 text-right">
@@ -133,4 +224,69 @@ function Row({ row }: { row: LedgerRow }) {
       </td>
     </tr>
   );
+}
+
+function downloadCsv(rows: LedgerRow[], monthLabel: string) {
+  const header = [
+    "Due",
+    "Borrower",
+    "Note ID",
+    "Note title",
+    "Payment #",
+    "Principal",
+    "Interest",
+    "Total",
+    "Status",
+    "Received date",
+    "Method",
+    "Check #",
+    "Wire reference",
+    "Notes",
+  ];
+  const body = rows.map((r) => {
+    const total = r.principal_amount + r.interest_amount;
+    const status = r.received_date ? "Received" : "Scheduled";
+    return [
+      r.due_date,
+      r.borrower_name ?? "",
+      r.note_id,
+      r.note_title,
+      String(r.payment_number),
+      r.principal_amount.toFixed(2),
+      r.interest_amount.toFixed(2),
+      total.toFixed(2),
+      status,
+      r.received_date ?? "",
+      r.payment_method ?? "",
+      r.check_number ?? "",
+      r.wire_reference ?? "",
+      r.payment_notes ?? "",
+    ];
+  });
+
+  const csv = [header, ...body].map(toCsvRow).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const filename = `payment-ledger-${slug(monthLabel)}.csv`;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function toCsvRow(cells: string[]): string {
+  return cells
+    .map((c) => {
+      const needsQuotes = /[",\n]/.test(c);
+      const escaped = c.replace(/"/g, '""');
+      return needsQuotes ? `"${escaped}"` : escaped;
+    })
+    .join(",");
+}
+
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

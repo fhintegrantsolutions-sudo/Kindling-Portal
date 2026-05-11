@@ -77,6 +77,84 @@ export async function getMyParticipations() {
   return (data ?? []) as unknown as ParticipationWithNote[];
 }
 
+// Total monthly payment the signed-in lender is expected to receive across
+// all their funded participations. Each row's contribution is the note's
+// monthly payment × the lender's pro-rata share of cleared funding on
+// that note.
+export async function getMyTotalMonthlyPayment(): Promise<number> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { data: myParts } = await supabase
+    .from("participations")
+    .select(
+      `id, note_id, invested_amount, funding_cleared,
+       note:notes ( principal, rate, term_months, interest_type )`,
+    )
+    .eq("user_id", user.id)
+    .eq("funding_cleared", true);
+
+  const rows = (myParts ?? []) as unknown as Array<{
+    id: string;
+    note_id: string;
+    invested_amount: string;
+    funding_cleared: boolean;
+    note: {
+      principal: string | number | null;
+      rate: string | number | null;
+      term_months: number | null;
+      interest_type: string;
+    } | null;
+  }>;
+  if (rows.length === 0) return 0;
+
+  const noteIds = Array.from(new Set(rows.map((r) => r.note_id)));
+  const { data: allClearedParts } = await supabase
+    .from("participations")
+    .select("note_id, invested_amount")
+    .in("note_id", noteIds)
+    .eq("funding_cleared", true);
+  const totalsByNote = new Map<string, number>();
+  for (const p of (allClearedParts ?? []) as Array<{
+    note_id: string;
+    invested_amount: string;
+  }>) {
+    const inv = Number(p.invested_amount);
+    if (!Number.isFinite(inv)) continue;
+    totalsByNote.set(p.note_id, (totalsByNote.get(p.note_id) ?? 0) + inv);
+  }
+
+  const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
+  let total = 0;
+  for (const r of rows) {
+    const n = r.note;
+    const totalCleared = totalsByNote.get(r.note_id);
+    if (
+      !n ||
+      n.principal === null ||
+      n.rate === null ||
+      !n.term_months ||
+      !totalCleared ||
+      totalCleared <= 0
+    ) {
+      continue;
+    }
+    const noteMonthly = computeMonthlyPayment({
+      principal: Number(n.principal),
+      annualRatePct: Number(n.rate),
+      termMonths: Number(n.term_months),
+      interestType: n.interest_type,
+    });
+    if (noteMonthly === null) continue;
+    const myShare = Number(r.invested_amount) / totalCleared;
+    total += noteMonthly * myShare;
+  }
+  return Math.round(total * 100) / 100;
+}
+
 export type UpcomingNote = {
   id: string;
   note_id: string;

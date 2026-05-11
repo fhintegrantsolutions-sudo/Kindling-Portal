@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getAdminNoteById,
@@ -141,31 +142,49 @@ export default async function NoteOverviewPage({
             </p>
           ) : (
             <ul className="flex flex-col gap-2 text-sm">
-              {participants.map((p) => (
-                <li
-                  key={p.participation_id}
-                  className="flex items-center justify-between gap-3 rounded-md border p-3"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">
-                      {p.lender_name ?? p.lender_email ?? "—"}
-                    </p>
-                    {p.lender_name && p.lender_email ? (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {p.lender_email}
+              {participants.map((p) => {
+                const inner = (
+                  <div className="flex items-center justify-between gap-3 rounded-md border p-3 transition-colors">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">
+                        {p.lender_name ?? p.lender_email ?? "—"}
                       </p>
-                    ) : null}
+                      {p.business_name ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {p.business_name}
+                        </p>
+                      ) : null}
+                      {p.lender_name && p.lender_email ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {p.lender_email}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium tabular-nums">
+                        {formatCurrency(p.invested_amount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {p.share_pct.toFixed(2)}%
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium">
-                      {formatCurrency(p.invested_amount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.share_pct.toFixed(2)}%
-                    </p>
-                  </div>
-                </li>
-              ))}
+                );
+                return (
+                  <li key={p.participation_id}>
+                    {p.user_id ? (
+                      <Link
+                        href={`/admin/users/${p.user_id}`}
+                        className="block rounded-md hover:bg-muted/40"
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      inner
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>

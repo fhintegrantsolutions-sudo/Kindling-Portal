@@ -1,12 +1,18 @@
 import Link from "next/link";
 import {
+  Banknote,
+  CheckCircle2,
+  CircleDashed,
   ClipboardList,
   DollarSign,
+  Hourglass,
   Inbox,
   PieChart,
   TrendingUp,
+  UserCheck,
+  Users,
 } from "lucide-react";
-import { getAdminStats } from "@/lib/db/admin-queries";
+import { getAdminStats, getUsersByState } from "@/lib/db/admin-queries";
 import { formatCurrency } from "@/lib/format";
 import {
   Card,
@@ -14,9 +20,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { UserHeatMap } from "@/components/admin/user-heat-map";
 
 export default async function AdminDashboardPage() {
-  const stats = await getAdminStats();
+  const [stats, statesData] = await Promise.all([
+    getAdminStats(),
+    getUsersByState(),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-8">
@@ -27,42 +37,95 @@ export default async function AdminDashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat
-          label="Pending access requests"
-          value={String(stats.pendingAccessRequests)}
-          icon={<Inbox className="size-4" />}
-          href={
-            stats.pendingAccessRequests > 0
-              ? "/admin/access-requests"
-              : undefined
-          }
-        />
-        <Stat
-          label="Pending registrations"
-          value={String(stats.pendingRegistrations)}
-          icon={<ClipboardList className="size-4" />}
-          href={
-            stats.pendingRegistrations > 0
-              ? "/admin/registrations"
-              : undefined
-          }
-        />
-        <Stat
-          label="Active participations"
-          value={String(stats.activeParticipations)}
-          icon={<TrendingUp className="size-4" />}
-        />
-        <Stat
-          label="Total invested"
-          value={formatCurrency(stats.totalInvested)}
-          icon={<DollarSign className="size-4" />}
-        />
-        <Stat
-          label="Active notes"
-          value={String(stats.activeNotes)}
-          icon={<PieChart className="size-4" />}
-        />
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium">Leads</h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Stat
+            label="Pending access requests"
+            value={String(stats.pendingAccessRequests)}
+            icon={<Inbox className="size-4" />}
+            href={
+              stats.pendingAccessRequests > 0
+                ? "/admin/access-requests"
+                : undefined
+            }
+          />
+          <Stat
+            label="Awaiting lead submission"
+            value={String(stats.awaitingLeadSubmission)}
+            icon={<ClipboardList className="size-4" />}
+            href={
+              stats.awaitingLeadSubmission > 0
+                ? "/admin/access-requests"
+                : undefined
+            }
+          />
+          <Stat
+            label="Converted"
+            value={String(stats.convertedLeads)}
+            icon={<UserCheck className="size-4" />}
+          />
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium">Participations</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat
+            label="Awaiting funding"
+            value={String(stats.participationsAwaitingFunding)}
+            icon={<Hourglass className="size-4" />}
+            href="/admin/participations?funding=awaiting_funding"
+          />
+          <Stat
+            label="Received"
+            value={String(stats.participationsReceived)}
+            icon={<Banknote className="size-4" />}
+            href="/admin/participations?funding=received"
+          />
+          <Stat
+            label="Deposited"
+            value={String(stats.participationsDeposited)}
+            icon={<CircleDashed className="size-4" />}
+            href="/admin/participations?funding=deposited"
+          />
+          <Stat
+            label="Cleared"
+            value={String(stats.participationsCleared)}
+            icon={<CheckCircle2 className="size-4" />}
+            href="/admin/participations?funding=cleared"
+          />
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium">Portfolio</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <Stat
+            label="Users"
+            value={String(stats.totalUsers)}
+            icon={<Users className="size-4" />}
+            href="/admin/users"
+          />
+          <Stat
+            label="Active participations"
+            value={String(stats.activeParticipations)}
+            icon={<TrendingUp className="size-4" />}
+            href="/admin/participations"
+          />
+          <Stat
+            label="Total invested"
+            value={formatCurrency(stats.totalInvested)}
+            icon={<DollarSign className="size-4" />}
+            className="lg:col-span-2"
+          />
+          <Stat
+            label="Active notes"
+            value={String(stats.activeNotes)}
+            icon={<PieChart className="size-4" />}
+            href="/admin/notes"
+          />
+        </div>
       </section>
 
       <section className="rounded-lg border bg-card p-6">
@@ -80,8 +143,27 @@ export default async function AdminDashboardPage() {
           >
             Review pending registrations →
           </Link>
+          <Link
+            href="/admin/notes/ledger"
+            className="text-sm font-medium underline underline-offset-4"
+          >
+            Payment ledger →
+          </Link>
         </div>
       </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Lenders by state</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Unique lenders mapped by mailing-address state. Hover a state to
+            see its count.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <UserHeatMap rows={statesData} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -91,11 +173,13 @@ function Stat({
   value,
   icon,
   href,
+  className,
 }: {
   label: string;
   value: string;
   icon: React.ReactNode;
   href?: string;
+  className?: string;
 }) {
   const inner = (
     <Card className={href ? "transition-colors hover:bg-muted/40" : ""}>
@@ -106,15 +190,16 @@ function Stat({
         <div className="text-muted-foreground">{icon}</div>
       </CardHeader>
       <CardContent>
-        <p className="text-2xl font-semibold">{value}</p>
+        <p className="text-2xl font-semibold tabular-nums">{value}</p>
       </CardContent>
     </Card>
   );
   return href ? (
-    <Link href={href} className="block">
+    <Link href={href} className={`block ${className ?? ""}`}>
       {inner}
     </Link>
   ) : (
-    inner
+    <div className={className}>{inner}</div>
   );
 }
+

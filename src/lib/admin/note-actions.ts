@@ -133,7 +133,7 @@ function parseFields(formData: FormData) {
     interest_type: text(formData, "interest_type") || "Amortized",
     is_private: formData.get("is_private") === "on",
     visible_user_ids: formData.getAll("visible_user_ids").map(String),
-    principal: text(formData, "principal") || null,
+    principal: money(formData, "principal"),
     rate: text(formData, "rate"),
     term_months: text(formData, "term_months"),
     min_investment: text(formData, "min_investment") || null,
@@ -153,7 +153,6 @@ function parseFields(formData: FormData) {
 function validate(fields: Fields): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!fields.note_id) errors.note_id = "Required";
-  if (!fields.title) errors.title = "Required";
   if (!fields.project_type) errors.project_type = "Required";
 
   if (fields.principal !== null) {
@@ -229,6 +228,15 @@ async function buildInsert(
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
+}
+
+// Strip commas from money inputs (the principal field uses type="text" so
+// admins can type "100,000"). Returns null when the cleaned value is empty.
+function money(formData: FormData, key: string): string | null {
+  const cleaned = String(formData.get(key) ?? "")
+    .trim()
+    .replace(/,/g, "");
+  return cleaned.length > 0 ? cleaned : null;
 }
 
 // Maturity is the date of the final payment: first_payment_date + (term - 1)

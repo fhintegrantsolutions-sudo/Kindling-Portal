@@ -44,6 +44,26 @@ export default async function AdminUserDetailPage({
     .filter(Boolean)
     .join(", ");
 
+  // Investment stats. detail.participations is ordered created_at DESC
+  // (newest first) — so head=last note invested, tail=first note invested.
+  // Count unique notes since a lender could in theory hold multiple
+  // participations on the same note.
+  const totalInvested = detail.participations.reduce(
+    (sum, row) => sum + Number(row.invested_amount ?? 0),
+    0,
+  );
+  const totalMonthly = detail.participations.reduce(
+    (sum, row) => sum + (row.monthly_payment ?? 0),
+    0,
+  );
+  const uniqueNoteIds = new Set(
+    detail.participations
+      .map((r) => r.note?.note_id)
+      .filter((x): x is string => Boolean(x)),
+  );
+  const firstNote = detail.participations[detail.participations.length - 1]?.note ?? null;
+  const lastNote = detail.participations[0]?.note ?? null;
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
       <Link
@@ -102,6 +122,38 @@ export default async function AdminUserDetailPage({
         </CardContent>
       </Card>
 
+      {detail.participations.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Investment summary</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            <Field
+              label="Total invested"
+              value={formatCurrency(totalInvested)}
+            />
+            <Field
+              label="Monthly payment"
+              value={
+                totalMonthly > 0 ? formatCurrency(totalMonthly) : "—"
+              }
+            />
+            <Field
+              label={`Notes (${uniqueNoteIds.size})`}
+              value={String(uniqueNoteIds.size)}
+            />
+            <Field
+              label="First note"
+              value={firstNote?.note_id ?? "—"}
+            />
+            <Field
+              label="Latest note"
+              value={lastNote?.note_id ?? "—"}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
@@ -133,6 +185,9 @@ export default async function AdminUserDetailPage({
                     <p className="text-xs text-muted-foreground">
                       {formatCurrency(row.invested_amount)} · {label} ·{" "}
                       {row.status}
+                      {row.monthly_payment !== null
+                        ? ` · ${formatCurrency(row.monthly_payment)}/mo`
+                        : ""}
                     </p>
                   </div>
                 </Link>

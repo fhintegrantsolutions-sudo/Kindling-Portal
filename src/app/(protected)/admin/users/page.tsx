@@ -1,24 +1,28 @@
 import Link from "next/link";
 import { getUsers } from "@/lib/db/admin-queries";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 type FilterValue = "all" | "admin" | "lender";
 
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: FilterValue }>;
+  searchParams: Promise<{ role?: FilterValue; q?: string }>;
 }) {
   const sp = await searchParams;
   const filter = sp.role ?? "all";
-  const users = await getUsers(
-    filter === "all" ? undefined : { role: filter },
-  );
+  const query = (sp.q ?? "").trim();
+  const users = await getUsers({
+    role: filter === "all" ? undefined : filter,
+    q: query || undefined,
+  });
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
@@ -30,16 +34,41 @@ export default async function AdminUsersPage({
       </header>
 
       <nav className="flex gap-1 border-b">
-        <FilterTab label="All" value="all" current={filter} />
-        <FilterTab label="Admins" value="admin" current={filter} />
-        <FilterTab label="Lenders" value="lender" current={filter} />
+        <FilterTab label="All" value="all" current={filter} query={query} />
+        <FilterTab label="Admins" value="admin" current={filter} query={query} />
+        <FilterTab label="Lenders" value="lender" current={filter} query={query} />
       </nav>
+
+      <form
+        className="flex flex-1 items-center gap-2"
+        action="/admin/users"
+      >
+        <Input
+          type="search"
+          name="q"
+          defaultValue={query}
+          placeholder="Search by first name, last name, or email…"
+        />
+        {/* preserve role across search submissions */}
+        <input type="hidden" name="role" value={filter} />
+        <Button type="submit" variant="outline" size="sm">
+          Search
+        </Button>
+        {query ? (
+          <Link
+            href={`/admin/users${filter === "all" ? "" : `?role=${filter}`}`}
+            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Clear
+          </Link>
+        ) : null}
+      </form>
 
       {users.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
-              No users match this filter.
+              {query ? `No users match "${query}".` : "No users match this filter."}
             </p>
           </CardContent>
         </Card>
@@ -82,15 +111,20 @@ function FilterTab({
   label,
   value,
   current,
+  query,
 }: {
   label: string;
   value: FilterValue;
   current: string;
+  query: string;
 }) {
   const active = current === value;
+  const params = new URLSearchParams();
+  params.set("role", value);
+  if (query) params.set("q", query);
   return (
     <Link
-      href={`/admin/users?role=${value}`}
+      href={`/admin/users?${params.toString()}`}
       className={`border-b-2 px-3 py-2 text-sm transition-colors ${
         active
           ? "border-foreground font-medium text-foreground"

@@ -1,6 +1,9 @@
-import { DollarSign, PieChart, TrendingUp } from "lucide-react";
+import { CalendarClock, DollarSign, PieChart, TrendingUp } from "lucide-react";
 import { getCurrentProfile } from "@/lib/dal";
-import { getMyParticipations } from "@/lib/db/queries";
+import {
+  getMyParticipations,
+  getMyTotalMonthlyPayment,
+} from "@/lib/db/queries";
 import { formatCurrency } from "@/lib/format";
 import {
   Card,
@@ -10,8 +13,11 @@ import {
 } from "@/components/ui/card";
 
 export default async function DashboardPage() {
-  const profile = await getCurrentProfile();
-  const participations = await getMyParticipations();
+  const [profile, participations, totalMonthly] = await Promise.all([
+    getCurrentProfile(),
+    getMyParticipations(),
+    getMyTotalMonthlyPayment(),
+  ]);
 
   const active = participations.filter((p) => p.status === "Active");
   const totalInvested = active.reduce(
@@ -33,11 +39,16 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           label="Total invested"
           value={formatCurrency(totalInvested)}
           icon={<DollarSign className="size-4" />}
+        />
+        <Stat
+          label="Monthly payment"
+          value={totalMonthly > 0 ? formatCurrency(totalMonthly) : "—"}
+          icon={<CalendarClock className="size-4" />}
         />
         <Stat
           label="Active notes"

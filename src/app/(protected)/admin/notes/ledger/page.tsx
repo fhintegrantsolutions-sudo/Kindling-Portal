@@ -104,7 +104,7 @@ export default async function PaymentLedgerPage({
           </div>
         </CardHeader>
         <CardContent>
-          <LedgerTable rows={rows} />
+          <LedgerTable rows={rows} monthLabel={formatYearMonth(yearMonth)} />
         </CardContent>
       </Card>
     </div>

@@ -124,18 +124,18 @@ function ScheduleRowItem({
     >
       <td className="py-2 pr-2 text-muted-foreground">{row.payment_number}</td>
       <td className="py-2 pr-2">{row.due_date}</td>
-      <td className="py-2 pr-2 text-right">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(row.principal_amount)}
       </td>
-      <td className="py-2 pr-2 text-right">
+      <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(row.interest_amount)}
       </td>
-      <td className="py-2 pr-2 text-right text-muted-foreground">
+      <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">
         {formatCurrency(row.ending_balance)}
       </td>
-      <td className="py-2 pr-2 text-right">
-        <div className="inline-flex items-center justify-end gap-2">
-          <label className="inline-flex cursor-pointer items-center gap-2">
+      <td className="py-2 pr-2">
+        <div className="flex items-center justify-end gap-3">
+          <label className="flex w-28 cursor-pointer items-center gap-2">
             <input
               type="checkbox"
               checked={isReceived}
@@ -143,24 +143,26 @@ function ScheduleRowItem({
               disabled={pending}
               className="size-4 rounded border-muted-foreground/40"
             />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground tabular-nums">
               {isReceived ? received?.recorded_date : ""}
             </span>
           </label>
-          {isReceived && received ? (
-            <PaymentDetailsButton
-              payment={{
-                payment_id: received.payment_id,
-                note_uuid: noteUuid,
-                note_label: `Payment #${row.payment_number}`,
-                payment_date: received.recorded_date,
-                payment_method: received.payment_method,
-                check_number: received.check_number,
-                wire_reference: received.wire_reference,
-                notes: received.notes,
-              }}
-            />
-          ) : null}
+          <div className="w-24 text-right">
+            {isReceived && received ? (
+              <PaymentDetailsButton
+                payment={{
+                  payment_id: received.payment_id,
+                  note_uuid: noteUuid,
+                  note_label: `Payment #${row.payment_number}`,
+                  payment_date: received.recorded_date,
+                  payment_method: received.payment_method,
+                  check_number: received.check_number,
+                  wire_reference: received.wire_reference,
+                  notes: received.notes,
+                }}
+              />
+            ) : null}
+          </div>
         </div>
       </td>
     </tr>

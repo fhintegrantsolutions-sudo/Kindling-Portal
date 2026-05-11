@@ -3,39 +3,115 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 
 export type AdminStats = {
+  // Leads
   pendingAccessRequests: number;
-  pendingRegistrations: number;
+  awaitingLeadSubmission: number;
+  convertedLeads: number;
+  // Participations funding pipeline
+  participationsAwaitingFunding: number;
+  participationsReceived: number;
+  participationsDeposited: number;
+  participationsCleared: number;
+  // Portfolio
+  totalUsers: number;
   activeParticipations: number;
   totalInvested: number;
   activeNotes: number;
 };
 
+// Count of unique lenders by US state for the admin geography heat map.
+// Normalizes state to its uppercase 2-letter code; rows without a state are
+// dropped (so only mappable lenders get plotted).
+export type StateUserCount = {
+  state: string; // uppercase 2-letter code, e.g. "TX"
+  count: number;
+};
+
+export async function getUsersByState(): Promise<StateUserCount[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("address_state")
+    .eq("role", "lender")
+    .not("address_state", "is", null);
+
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as Array<{ address_state: string | null }>) {
+    const raw = (row.address_state ?? "").trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(raw)) continue;
+    counts.set(raw, (counts.get(raw) ?? 0) + 1);
+  }
+  return Array.from(counts, ([state, count]) => ({ state, count })).sort(
+    (a, b) => b.count - a.count,
+  );
+}
+
 export async function getAdminStats(): Promise<AdminStats> {
   const supabase = await createClient();
 
-  const [pendingAR, pendingReg, activeParts, allActive, activeNotes] =
-    await Promise.all([
-      supabase
-        .from("access_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
-      supabase
-        .from("note_registrations")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
-      supabase
-        .from("participations")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Active"),
-      supabase
-        .from("participations")
-        .select("invested_amount")
-        .eq("status", "Active"),
-      supabase
-        .from("notes")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "Active"),
-    ]);
+  const [
+    pendingAR,
+    awaitingLead,
+    convertedAR,
+    awaitingFunding,
+    received,
+    deposited,
+    cleared,
+    totalUsers,
+    activeParts,
+    allActive,
+    activeNotes,
+  ] = await Promise.all([
+    // Leads
+    supabase
+      .from("access_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
+    // Approved lead with a setup token, lead hasn't submitted yet
+    supabase
+      .from("access_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "approved"),
+    supabase
+      .from("access_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "converted"),
+    // Participations by funding stage
+    supabase
+      .from("participations")
+      .select("*", { count: "exact", head: true })
+      .eq("funding_received", false),
+    supabase
+      .from("participations")
+      .select("*", { count: "exact", head: true })
+      .eq("funding_received", true)
+      .eq("funding_deposited", false),
+    supabase
+      .from("participations")
+      .select("*", { count: "exact", head: true })
+      .eq("funding_deposited", true)
+      .eq("funding_cleared", false),
+    supabase
+      .from("participations")
+      .select("*", { count: "exact", head: true })
+      .eq("funding_cleared", true),
+    // Portfolio
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true }),
+    supabase
+      .from("participations")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "Active"),
+    supabase
+      .from("participations")
+      .select("invested_amount")
+      .eq("status", "Active"),
+    supabase
+      .from("notes")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "Active"),
+  ]);
 
   const totalInvested = (allActive.data ?? []).reduce(
     (sum, row) => sum + Number(row.invested_amount ?? 0),
@@ -44,7 +120,13 @@ export async function getAdminStats(): Promise<AdminStats> {
 
   return {
     pendingAccessRequests: pendingAR.count ?? 0,
-    pendingRegistrations: pendingReg.count ?? 0,
+    awaitingLeadSubmission: awaitingLead.count ?? 0,
+    convertedLeads: convertedAR.count ?? 0,
+    participationsAwaitingFunding: awaitingFunding.count ?? 0,
+    participationsReceived: received.count ?? 0,
+    participationsDeposited: deposited.count ?? 0,
+    participationsCleared: cleared.count ?? 0,
+    totalUsers: totalUsers.count ?? 0,
     activeParticipations: activeParts.count ?? 0,
     totalInvested,
     activeNotes: activeNotes.count ?? 0,
@@ -375,13 +457,26 @@ export type UserListItem = {
   created_at: string;
 };
 
-export async function getUsers(filter?: { role?: "admin" | "lender" }) {
+export async function getUsers(filter?: {
+  role?: "admin" | "lender";
+  q?: string;
+}) {
   const supabase = await createClient();
   let q = supabase
     .from("profiles")
     .select("id, email, first_name, last_name, role, created_at")
-    .order("created_at", { ascending: false });
+    // Sort by first_name (nulls last so unfilled profiles drop to the end);
+    // last_name and email are tie-breakers.
+    .order("first_name", { ascending: true, nullsFirst: false })
+    .order("last_name", { ascending: true, nullsFirst: false })
+    .order("email", { ascending: true });
   if (filter?.role) q = q.eq("role", filter.role);
+  if (filter?.q) {
+    const term = filter.q.replace(/[%_]/g, "");
+    q = q.or(
+      `first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`,
+    );
+  }
   const { data } = await q;
   return (data ?? []) as UserListItem[];
 }
@@ -411,6 +506,11 @@ export type UserParticipationRow = {
   funding_deposited: boolean;
   funding_cleared: boolean;
   note: { note_id: string; title: string } | null;
+  // Monthly payment the lender is expected to receive on this
+  // participation: their pro-rata share of the note's monthly payment.
+  // null when the note doesn't have enough info to compute one (missing
+  // principal/rate/term, or when the lender's funding hasn't cleared).
+  monthly_payment: number | null;
 };
 
 export type UserPendingRegistration = {
@@ -443,9 +543,10 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
     supabase
       .from("participations")
       .select(
-        `id, invested_amount, status,
+        `id, note_id, invested_amount, status,
          funding_received, funding_deposited, funding_cleared,
-         note:notes ( note_id, title )`,
+         note:notes ( id, note_id, title, principal, rate, term_months,
+                      interest_type )`,
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
@@ -468,9 +569,88 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
 
   if (!profileRes.data) return null;
 
+  const rawParts = (partsRes.data ?? []) as unknown as Array<{
+    id: string;
+    note_id: string;
+    invested_amount: string;
+    status: string;
+    funding_received: boolean;
+    funding_deposited: boolean;
+    funding_cleared: boolean;
+    note: {
+      id: string;
+      note_id: string;
+      title: string;
+      principal: string | number | null;
+      rate: string | number | null;
+      term_months: number | null;
+      interest_type: string;
+    } | null;
+  }>;
+
+  // Pre-fetch totals of cleared invested_amount per note so we can compute
+  // each lender's pro-rata share of the note's monthly payment.
+  const noteIds = Array.from(
+    new Set(rawParts.map((r) => r.note_id).filter(Boolean)),
+  );
+  const totalsByNote = new Map<string, number>();
+  if (noteIds.length > 0) {
+    const { data: allParts } = await supabase
+      .from("participations")
+      .select("note_id, invested_amount, funding_cleared")
+      .in("note_id", noteIds)
+      .eq("funding_cleared", true);
+    for (const p of (allParts ?? []) as Array<{
+      note_id: string;
+      invested_amount: string;
+    }>) {
+      const inv = Number(p.invested_amount);
+      if (!Number.isFinite(inv)) continue;
+      totalsByNote.set(p.note_id, (totalsByNote.get(p.note_id) ?? 0) + inv);
+    }
+  }
+
+  const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
+
+  const participations: UserParticipationRow[] = rawParts.map((r) => {
+    let monthly: number | null = null;
+    const n = r.note;
+    const total = totalsByNote.get(r.note_id);
+    if (
+      r.funding_cleared &&
+      n &&
+      n.principal !== null &&
+      n.rate !== null &&
+      n.term_months &&
+      total &&
+      total > 0
+    ) {
+      const noteMonthly = computeMonthlyPayment({
+        principal: Number(n.principal),
+        annualRatePct: Number(n.rate),
+        termMonths: Number(n.term_months),
+        interestType: n.interest_type,
+      });
+      if (noteMonthly !== null) {
+        const myShare = Number(r.invested_amount) / total;
+        monthly = Math.round(noteMonthly * myShare * 100) / 100;
+      }
+    }
+    return {
+      id: r.id,
+      invested_amount: r.invested_amount,
+      status: r.status,
+      funding_received: r.funding_received,
+      funding_deposited: r.funding_deposited,
+      funding_cleared: r.funding_cleared,
+      note: n ? { note_id: n.note_id, title: n.title } : null,
+      monthly_payment: monthly,
+    };
+  });
+
   return {
     profile: profileRes.data as UserProfile,
-    participations: (partsRes.data ?? []) as unknown as UserParticipationRow[],
+    participations,
     pendingRegistrations: (regsRes.data ?? []) as unknown as UserPendingRegistration[],
     beneficiaries: (bensRes.data ?? []) as UserBeneficiary[],
   };
@@ -1095,9 +1275,11 @@ export async function getLedgerForMonth(
     }
   }
 
+  // Primary sort: note_id ascending (oldest note first). Tie-breaker:
+  // due_date ascending so a single note's payments group in date order.
   out.sort((a, b) => {
-    if (a.due_date !== b.due_date) return a.due_date < b.due_date ? -1 : 1;
-    return a.note_id < b.note_id ? -1 : 1;
+    if (a.note_id !== b.note_id) return a.note_id < b.note_id ? -1 : 1;
+    return a.due_date < b.due_date ? -1 : 1;
   });
   return out;
 }
@@ -1237,6 +1419,7 @@ export type FundedParticipantRow = {
   user_id: string | null;
   lender_name: string | null;
   lender_email: string | null;
+  business_name: string | null;
   invested_amount: string;
   share_pct: number;
 };
@@ -1261,21 +1444,29 @@ export async function getFundedParticipantsForNote(
   const userIds = Array.from(
     new Set(rows.map((r) => r.user_id).filter(Boolean) as string[]),
   );
-  const profileMap = new Map<string, { name: string | null; email: string | null }>();
+  const profileMap = new Map<
+    string,
+    { name: string | null; email: string | null; business_name: string | null }
+  >();
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, email")
+      .select("id, first_name, last_name, email, business_name")
       .in("id", userIds);
     for (const p of (profiles ?? []) as Array<{
       id: string;
       first_name: string | null;
       last_name: string | null;
       email: string | null;
+      business_name: string | null;
     }>) {
       const fullName =
         `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null;
-      profileMap.set(p.id, { name: fullName, email: p.email });
+      profileMap.set(p.id, {
+        name: fullName,
+        email: p.email,
+        business_name: p.business_name,
+      });
     }
   }
 
@@ -1290,6 +1481,7 @@ export async function getFundedParticipantsForNote(
         user_id: r.user_id,
         lender_name: profile?.name ?? null,
         lender_email: profile?.email ?? null,
+        business_name: profile?.business_name ?? null,
         invested_amount: r.invested_amount,
         share_pct: total > 0 ? (invested / total) * 100 : 0,
       };
