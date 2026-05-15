@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { normalizeEmail, toProperCase } from "@/lib/text";
 
 export type AccessRequestFormState = {
   error?: string;
@@ -13,9 +14,9 @@ export async function submitAccessRequest(
   formData: FormData,
 ): Promise<AccessRequestFormState> {
   const fields = {
-    first_name: String(formData.get("first_name") ?? "").trim(),
-    last_name: String(formData.get("last_name") ?? "").trim(),
-    email: String(formData.get("email") ?? "").trim(),
+    first_name: toProperCase(String(formData.get("first_name") ?? "")),
+    last_name: toProperCase(String(formData.get("last_name") ?? "")),
+    email: normalizeEmail(String(formData.get("email") ?? "")),
     phone: String(formData.get("phone") ?? "").trim(),
     is_tcc_member: formData.get("is_tcc_member") === "on",
     message: String(formData.get("message") ?? "").trim() || null,

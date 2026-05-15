@@ -31,8 +31,23 @@ export const getCurrentProfile = cache(async () => {
 
 export const requireAdmin = cache(async () => {
   const profile = await getCurrentProfile();
-  if (profile?.role !== "admin") {
-    redirect("/dashboard");
+  if (profile?.role === "admin") return profile;
+  // A scoped admin (currently just participations_admin) lands inside the
+  // admin shell, just not on the same page. Send them somewhere usable
+  // rather than bouncing them to the lender dashboard which they can't see.
+  if (profile?.role === "participations_admin") {
+    redirect("/admin/participations");
   }
-  return profile;
+  redirect("/dashboard");
+});
+
+// Used by routes/actions that the scoped `participations_admin` role is
+// allowed to touch: viewing and updating participations + reading the tables
+// referenced on those pages. Full admins still pass.
+export const requireParticipationsAccess = cache(async () => {
+  const profile = await getCurrentProfile();
+  if (profile?.role === "admin" || profile?.role === "participations_admin") {
+    return profile;
+  }
+  redirect("/dashboard");
 });

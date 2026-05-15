@@ -12,6 +12,7 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import { requireAdmin } from "@/lib/dal";
 import { getAdminStats, getUsersByState } from "@/lib/db/admin-queries";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -23,6 +24,7 @@ import {
 import { UserHeatMap } from "@/components/admin/user-heat-map";
 
 export default async function AdminDashboardPage() {
+  await requireAdmin();
   const [stats, statesData] = await Promise.all([
     getAdminStats(),
     getUsersByState(),

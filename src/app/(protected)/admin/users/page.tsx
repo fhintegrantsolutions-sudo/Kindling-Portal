@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { CreateUserSheet } from "./create-user-sheet";
 
 type FilterValue = "all" | "admin" | "lender";
 
@@ -26,11 +27,14 @@ export default async function AdminUsersPage({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
-      <header>
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          Admin · Users
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight">All users</h1>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Admin · Users
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">All users</h1>
+        </div>
+        <CreateUserSheet />
       </header>
 
       <nav className="flex gap-1 border-b">

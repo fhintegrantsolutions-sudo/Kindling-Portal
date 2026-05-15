@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
+import { normalizeEmail, toProperCase } from "@/lib/text";
 
 export type BorrowerFormState = {
   error?: string;
@@ -60,9 +61,9 @@ type Fields = ReturnType<typeof parseFields>;
 function parseFields(formData: FormData) {
   return {
     business_name: text(formData, "business_name"),
-    first_name: text(formData, "first_name"),
-    last_name: textOrNull(formData, "last_name"),
-    email: text(formData, "email"),
+    first_name: toProperCase(text(formData, "first_name")),
+    last_name: toProperCase(text(formData, "last_name")) || null,
+    email: normalizeEmail(text(formData, "email")),
     phone: text(formData, "phone"),
     address: textOrNull(formData, "address"),
     city: textOrNull(formData, "city"),

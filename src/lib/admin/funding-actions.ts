@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/dal";
+import { requireParticipationsAccess } from "@/lib/dal";
 
 export type FundingFormState = {
   error?: string;
@@ -16,7 +16,7 @@ export async function updateFundingStatus(
   _prev: FundingFormState | undefined,
   formData: FormData,
 ): Promise<FundingFormState> {
-  await requireAdmin();
+  await requireParticipationsAccess();
   const supabase = await createClient();
 
   const fundingType = String(formData.get("funding_type") ?? "");

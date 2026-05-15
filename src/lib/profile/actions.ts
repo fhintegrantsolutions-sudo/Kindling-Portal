@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { toProperCase } from "@/lib/text";
 
 export type ProfileFormState = {
   error?: string;
@@ -22,8 +23,8 @@ export async function updateProfile(
   // this self-serve action — they're locked on the lender's profile UI and
   // can only be changed by admin support (see ReadonlyField on the form).
   const fields = {
-    first_name: String(formData.get("first_name") ?? "").trim() || null,
-    last_name: String(formData.get("last_name") ?? "").trim() || null,
+    first_name: toProperCase(String(formData.get("first_name") ?? "")) || null,
+    last_name: toProperCase(String(formData.get("last_name") ?? "")) || null,
     phone: String(formData.get("phone") ?? "").trim() || null,
     address_street: String(formData.get("address_street") ?? "").trim() || null,
     address_city: String(formData.get("address_city") ?? "").trim() || null,
@@ -31,13 +32,23 @@ export async function updateProfile(
     address_zip: String(formData.get("address_zip") ?? "").trim() || null,
   };
 
-  const { error } = await supabase
+  // Use .select() to detect silent RLS rejections: without it, .update()
+  // returns success even when 0 rows match the policy, masking failures.
+  const { data, error } = await supabase
     .from("profiles")
     .update(fields)
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     return { error: error.message };
+  }
+  if (!data) {
+    return {
+      error:
+        "Profile could not be updated — your session may have expired. Try signing out and back in.",
+    };
   }
 
   revalidatePath("/profile");

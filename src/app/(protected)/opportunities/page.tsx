@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getNextUpcomingNote, getOpportunities } from "@/lib/db/queries";
 import { formatCurrency, formatPercent } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Countdown } from "./countdown";
 
@@ -58,13 +59,17 @@ export default async function OpportunitiesPage() {
           {notes.map((n) => {
             const borrower = n.borrower;
             return (
-              <Link
-                key={n.id}
-                href={`/opportunities/${n.note_id}`}
-                className="block rounded-lg transition-colors hover:bg-muted/40"
-              >
-                <Card>
-                  <CardHeader>
+              // Card body is click-through to the detail page via a full-card
+              // overlay link; the Register button sits above it with its own
+              // Link so it goes straight to the register flow. Avoids nested
+              // <a> tags which are invalid HTML.
+              <Card key={n.id} className="relative transition-colors hover:bg-muted/40">
+                <Link
+                  href={`/opportunities/${n.note_id}`}
+                  className="absolute inset-0 z-0 rounded-lg"
+                  aria-label={`View ${n.note_id} details`}
+                />
+                <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -95,17 +100,24 @@ export default async function OpportunitiesPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
-                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                    <Field label="Rate" value={formatPercent(n.rate)} />
-                    <Field label="Term" value={`${n.term_months} mo`} />
-                    <Field
-                      label="Min investment"
-                      value={
-                        n.min_investment
-                          ? formatCurrency(n.min_investment)
-                          : "—"
-                      }
-                    />
+                  <div className="flex flex-wrap items-end justify-between gap-4">
+                    <div className="grid flex-1 grid-cols-2 gap-4 sm:grid-cols-3">
+                      <Field label="Rate" value={formatPercent(n.rate)} />
+                      <Field label="Term" value={`${n.term_months} mo`} />
+                      <Field
+                        label="Min investment"
+                        value={
+                          n.min_investment
+                            ? formatCurrency(n.min_investment)
+                            : "—"
+                        }
+                      />
+                    </div>
+                    <div className="relative z-10">
+                      <Link href={`/opportunities/${n.note_id}`}>
+                        <Button size="sm">Register</Button>
+                      </Link>
+                    </div>
                   </div>
                   {n.description ? (
                     <p className="text-sm text-muted-foreground">
@@ -113,8 +125,7 @@ export default async function OpportunitiesPage() {
                     </p>
                   ) : null}
                 </CardContent>
-                </Card>
-              </Link>
+              </Card>
             );
           })}
         </div>

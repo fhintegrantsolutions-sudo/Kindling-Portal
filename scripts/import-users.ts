@@ -200,6 +200,23 @@ async function main() {
   );
 }
 
+// Display normalization helpers (kept inline so the script is self-contained
+// without reaching into src/ — the matching server-side versions live in
+// src/lib/text.ts and use the same algorithm).
+function toProperCase(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  // Skip mixed-case input to preserve names like "McCleary" / "JoLea".
+  const hasUpper = /[A-Z]/.test(trimmed);
+  const hasLower = /[a-z]/.test(trimmed);
+  if (hasUpper && hasLower) return trimmed;
+  return trimmed
+    .toLowerCase()
+    .replace(/(^|[\s\-'\.])([a-z])/g, (_m, sep: string, ch: string) =>
+      sep + ch.toUpperCase(),
+    );
+}
+
 function randomPassword(): string {
   const chars =
     "ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghjkmnpqrstuvwxyz";
@@ -265,11 +282,12 @@ function parseCsv(input: string): {
     const send_invite =
       inviteRaw === "true" || inviteRaw === "yes" || inviteRaw === "1";
 
+    // Normalize at import: emails lowercased, names title-cased.
     rows.push({
       line: i + 1,
-      email,
-      first_name,
-      last_name,
+      email: email.toLowerCase(),
+      first_name: toProperCase(first_name),
+      last_name: toProperCase(last_name),
       phone: opt("phone"),
       address_street: opt("address_street"),
       address_city: opt("address_city"),

@@ -746,6 +746,33 @@ export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
   });
 }
 
+export type ExternalReferralPartner = {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  business_name: string | null;
+  referral_code: string;
+  notes: string | null;
+  converted_user_id: string | null;
+  converted_at: string | null;
+  created_at: string;
+};
+
+export async function getExternalReferralPartners(): Promise<
+  ExternalReferralPartner[]
+> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("referral_partners")
+    .select(
+      "id, first_name, last_name, email, phone, business_name, referral_code, notes, converted_user_id, converted_at, created_at",
+    )
+    .order("created_at", { ascending: false });
+  return (data ?? []) as ExternalReferralPartner[];
+}
+
 export type AdminReferralCodeForUser = {
   id: string;
   code: string;
@@ -1010,29 +1037,6 @@ export type LenderPickerOption = {
   email: string;
   name: string | null;
 };
-
-// Lenders who are not yet flagged as referral partners — used to populate
-// the "Add referral partner" picker on /admin/referrals.
-export async function getNonPartnerLenders(): Promise<LenderPickerOption[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, email, first_name, last_name")
-    .eq("role", "lender")
-    .eq("is_referral_partner", false)
-    .order("first_name", { ascending: true, nullsFirst: false });
-  const rows = (data ?? []) as Array<{
-    id: string;
-    email: string;
-    first_name: string | null;
-    last_name: string | null;
-  }>;
-  return rows.map((r) => ({
-    id: r.id,
-    email: r.email,
-    name: `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || null,
-  }));
-}
 
 export async function getLendersForPicker(): Promise<LenderPickerOption[]> {
   const supabase = await createClient();

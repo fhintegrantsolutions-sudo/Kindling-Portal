@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import {
   updateProfile,
   type ProfileFormState,
@@ -24,21 +24,24 @@ type ProfileDefaults = {
 };
 
 export function ProfileForm({
-  defaults: initialDefaults,
+  defaults,
 }: {
   defaults: ProfileDefaults;
 }) {
-  // Capture defaults at first render so changing parent props (after a
-  // server revalidation, for example) doesn't trip Base UI's "default
-  // value changed" warning on uncontrolled inputs.
-  const [defaults] = useState(initialDefaults);
   const [state, action, pending] = useActionState<
     ProfileFormState | undefined,
     FormData
   >(updateProfile, undefined);
 
+  // React 19 auto-resets a form after its Server Action resolves, which
+  // restores each input's `defaultValue`. We re-key the form on the current
+  // server-side defaults so it remounts with the just-saved values rather
+  // than the originals — otherwise the form would appear to "forget" the
+  // save on next render.
+  const formKey = JSON.stringify(defaults);
+
   return (
-    <form action={action} className="flex flex-col gap-6">
+    <form action={action} key={formKey} className="flex flex-col gap-6">
       <section className="grid gap-4 sm:grid-cols-2">
         <FieldInput
           name="first_name"

@@ -239,9 +239,11 @@ function buildParticipation(
 function buildAccessRequest(r: AirtableRecord) {
   const f = r.fields;
   return {
-    first_name: ((f["First Name"] as string) ?? "").trim() || "Unknown",
-    last_name: ((f["Last Name"] as string) ?? "").trim() || "Unknown",
-    email: ((f["Email"] as string) ?? "").trim(),
+    first_name:
+      toProperCase(((f["First Name"] as string) ?? "").trim()) || "Unknown",
+    last_name:
+      toProperCase(((f["Last Name"] as string) ?? "").trim()) || "Unknown",
+    email: ((f["Email"] as string) ?? "").trim().toLowerCase(),
     phone: ((f["Phone Number"] as string) ?? "").trim() || "",
     is_tcc_member: false,
     message: `From Airtable Lender Packet · investment $${Number(f["Investment Amount"]).toFixed(2)}`,
@@ -249,6 +251,20 @@ function buildAccessRequest(r: AirtableRecord) {
     referral_code: ((f["Referral Source"] as string) ?? "").trim() || null,
     status: "pending" as const,
   };
+}
+
+function toProperCase(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  // Skip mixed-case input to preserve names like "McCleary" / "JoLea".
+  const hasUpper = /[A-Z]/.test(trimmed);
+  const hasLower = /[a-z]/.test(trimmed);
+  if (hasUpper && hasLower) return trimmed;
+  return trimmed
+    .toLowerCase()
+    .replace(/(^|[\s\-'\.])([a-z])/g, (_m, sep: string, ch: string) =>
+      sep + ch.toUpperCase(),
+    );
 }
 
 function mapType(v: string | undefined): "wire" | "check" | "ach" | "other" | null {

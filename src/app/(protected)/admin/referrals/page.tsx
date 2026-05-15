@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   getAllReferralCodes,
-  getNonPartnerLenders,
+  getExternalReferralPartners,
 } from "@/lib/db/admin-queries";
 import {
   Card,
@@ -9,15 +9,32 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AddPartnerForm } from "./add-partner-form";
+import { AddExternalPartnerForm } from "./add-external-partner-form";
+import { ExternalPartnerRow } from "./external-partner-row";
 
 export default async function AdminReferralsPage() {
-  const [codes, lenders] = await Promise.all([
+  const [codes, externals] = await Promise.all([
     getAllReferralCodes(),
-    getNonPartnerLenders(),
+    getExternalReferralPartners(),
   ]);
-  const active = codes.filter((c) => c.is_active);
-  const disabled = codes.filter((c) => !c.is_active);
+  const byName = (a: string | null, b: string | null) =>
+    (a ?? "~").localeCompare(b ?? "~", undefined, { sensitivity: "base" });
+  const sortedCodes = [...codes].sort((a, b) => byName(a.user_name, b.user_name));
+  const active = sortedCodes.filter((c) => c.is_active);
+  const disabled = sortedCodes.filter((c) => !c.is_active);
+
+  const sortedExternals = [...externals].sort((a, b) => {
+    const an = `${a.first_name} ${a.last_name ?? ""}`.trim();
+    const bn = `${b.first_name} ${b.last_name ?? ""}`.trim();
+    return byName(an, bn);
+  });
+  const externalPending = sortedExternals.filter((e) => !e.converted_user_id);
+  const externalConverted = sortedExternals.filter((e) => e.converted_user_id);
+
+  // Public origin used to build sharable referral links. Falls back to a
+  // relative path if the env var is missing — the form's ?ref= handler reads
+  // the param either way.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
@@ -27,11 +44,10 @@ export default async function AdminReferralsPage() {
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">Referrals</h1>
         <p className="text-sm text-muted-foreground">
-          Lenders who can refer new sign-ups via a unique code.
+          Lenders and external partners who refer new sign-ups via a unique
+          code. Enable referrals on an existing lender from their user page.
         </p>
       </header>
-
-      <AddPartnerForm lenders={lenders} />
 
       <Section
         title={`Active (${active.length})`}
@@ -45,7 +61,81 @@ export default async function AdminReferralsPage() {
           empty="No disabled referrers."
         />
       ) : null}
+
+      <section className="flex flex-col gap-3 border-t pt-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold">External partners</h2>
+            <p className="text-xs text-muted-foreground">
+              People who refer but don&apos;t hold a portal account. Convert
+              them to a lender later if they decide to invest.
+            </p>
+          </div>
+          <AddExternalPartnerForm />
+        </div>
+      </section>
+
+      <ExternalSection
+        title={`External — Active (${externalPending.length})`}
+        partners={externalPending}
+        appUrl={appUrl}
+        empty="No external partners yet."
+      />
+      {externalConverted.length > 0 ? (
+        <ExternalSection
+          title={`External — Converted (${externalConverted.length})`}
+          partners={externalConverted}
+          appUrl={appUrl}
+          empty="None converted yet."
+        />
+      ) : null}
     </div>
+  );
+}
+
+function ExternalSection({
+  title,
+  partners,
+  appUrl,
+  empty,
+}: {
+  title: string;
+  partners: Awaited<ReturnType<typeof getExternalReferralPartners>>;
+  appUrl: string;
+  empty: string;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-semibold">{title}</h2>
+      {partners.length === 0 ? (
+        <Card>
+          <CardContent className="py-6 text-center">
+            <p className="text-sm text-muted-foreground">{empty}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3">
+          {partners.map((p) => {
+            const link = `${appUrl}/request-access?ref=${p.referral_code}`;
+            return (
+              <ExternalPartnerRow
+                key={p.id}
+                id={p.id}
+                firstName={p.first_name}
+                lastName={p.last_name}
+                email={p.email}
+                phone={p.phone}
+                businessName={p.business_name}
+                code={p.referral_code}
+                notes={p.notes}
+                link={link}
+                convertedUserId={p.converted_user_id}
+              />
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

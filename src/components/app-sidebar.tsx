@@ -88,15 +88,17 @@ export function AppSidebar({
       </div>
       <Separator className="bg-sidebar-border" />
       <nav className="flex flex-1 flex-col gap-1 p-4">
-        {NAV.map((item) => (
-          <NavLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            Icon={item.icon}
-            pathname={pathname}
-          />
-        ))}
+        {role !== "participations_admin"
+          ? NAV.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                Icon={item.icon}
+                pathname={pathname}
+              />
+            ))
+          : null}
         {role === "admin" ? (
           <>
             <p className="mt-4 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
@@ -123,6 +125,16 @@ export function AppSidebar({
               />
             ))}
           </>
+        ) : role === "participations_admin" ? (
+          // Scoped admin — only the participations link is visible. The
+          // lender-side NAV items above are hidden by the role check in
+          // the parent block.
+          <NavLink
+            href="/admin/participations"
+            label="Participations"
+            Icon={Banknote}
+            pathname={pathname}
+          />
         ) : null}
       </nav>
       <Separator className="bg-sidebar-border" />
