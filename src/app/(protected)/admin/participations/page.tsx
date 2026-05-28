@@ -1,4 +1,12 @@
 import Link from "next/link";
+import {
+  Banknote,
+  CheckCircle2,
+  CircleDashed,
+  Hourglass,
+  Layers,
+  UserPlus,
+} from "lucide-react";
 import { getParticipations } from "@/lib/db/admin-queries";
 import { formatCurrency } from "@/lib/format";
 import {
@@ -23,9 +31,60 @@ export default async function AdminParticipationsPage({
 }) {
   const sp = await searchParams;
   const filter = sp.funding ?? "all";
-  const participations = await getParticipations(
-    filter === "all" ? undefined : { fundingState: filter },
-  );
+  const allParticipations = await getParticipations();
+
+  const matchesFilter = (p: {
+    funding_received: boolean;
+    funding_deposited: boolean;
+    funding_cleared: boolean;
+    user_id: string | null;
+  }): boolean => {
+    switch (filter) {
+      case "awaiting_funding":
+        return !p.funding_received;
+      case "received":
+        return p.funding_received && !p.funding_deposited;
+      case "deposited":
+        return p.funding_deposited && !p.funding_cleared;
+      case "cleared":
+        return p.funding_cleared;
+      case "awaiting_invite":
+        return p.funding_cleared && p.user_id === null;
+      case "all":
+      default:
+        return true;
+    }
+  };
+
+  // Sort the filtered list alphabetically by lender. Rows missing a name
+  // fall back to the email, then to "~" so they sort to the end.
+  const participations = allParticipations
+    .filter(matchesFilter)
+    .sort((a, b) => {
+      const an = (a.lender_name ?? a.lender_email ?? "~").toLowerCase();
+      const bn = (b.lender_name ?? b.lender_email ?? "~").toLowerCase();
+      return an.localeCompare(bn);
+    });
+
+  const counts = {
+    all: allParticipations.length,
+    awaiting_funding: allParticipations.filter((p) => !p.funding_received)
+      .length,
+    received: allParticipations.filter(
+      (p) => p.funding_received && !p.funding_deposited,
+    ).length,
+    deposited: allParticipations.filter(
+      (p) => p.funding_deposited && !p.funding_cleared,
+    ).length,
+    cleared: allParticipations.filter((p) => p.funding_cleared).length,
+    awaiting_invite: allParticipations.filter(
+      (p) => p.funding_cleared && p.user_id === null,
+    ).length,
+  };
+
+  const clearedInvested = allParticipations
+    .filter((p) => p.funding_cleared)
+    .reduce((sum, p) => sum + Number(p.invested_amount), 0);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
@@ -38,22 +97,51 @@ export default async function AdminParticipationsPage({
         </h1>
       </header>
 
-      <nav className="flex flex-wrap gap-1 border-b">
-        <FilterTab label="All" value="all" current={filter} />
-        <FilterTab
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <Stat
+          label="All"
+          value={String(counts.all)}
+          subtitle={`${formatCurrency(clearedInvested)} cleared`}
+          icon={<Layers className="size-4" />}
+          href="/admin/participations"
+          active={filter === "all"}
+        />
+        <Stat
           label="Awaiting funding"
-          value="awaiting_funding"
-          current={filter}
+          value={String(counts.awaiting_funding)}
+          icon={<Hourglass className="size-4" />}
+          href="/admin/participations?funding=awaiting_funding"
+          active={filter === "awaiting_funding"}
         />
-        <FilterTab label="Received" value="received" current={filter} />
-        <FilterTab label="Deposited" value="deposited" current={filter} />
-        <FilterTab label="Cleared" value="cleared" current={filter} />
-        <FilterTab
+        <Stat
+          label="Received"
+          value={String(counts.received)}
+          icon={<Banknote className="size-4" />}
+          href="/admin/participations?funding=received"
+          active={filter === "received"}
+        />
+        <Stat
+          label="Deposited"
+          value={String(counts.deposited)}
+          icon={<CircleDashed className="size-4" />}
+          href="/admin/participations?funding=deposited"
+          active={filter === "deposited"}
+        />
+        <Stat
+          label="Cleared"
+          value={String(counts.cleared)}
+          icon={<CheckCircle2 className="size-4" />}
+          href="/admin/participations?funding=cleared"
+          active={filter === "cleared"}
+        />
+        <Stat
           label="Awaiting invite"
-          value="awaiting_invite"
-          current={filter}
+          value={String(counts.awaiting_invite)}
+          icon={<UserPlus className="size-4" />}
+          href="/admin/participations?funding=awaiting_invite"
+          active={filter === "awaiting_invite"}
         />
-      </nav>
+      </section>
 
       {participations.length === 0 ? (
         <Card>
@@ -152,26 +240,45 @@ function FundingBadge({
   return <span className="rounded-full border px-2 py-0.5">{label}</span>;
 }
 
-function FilterTab({
+function Stat({
   label,
   value,
-  current,
+  subtitle,
+  icon,
+  href,
+  active,
 }: {
   label: string;
-  value: FilterValue;
-  current: string;
+  value: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  href: string;
+  active: boolean;
 }) {
-  const active = current === value;
   return (
-    <Link
-      href={`/admin/participations?funding=${value}`}
-      className={`border-b-2 px-3 py-2 text-sm transition-colors ${
-        active
-          ? "border-foreground font-medium text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {label}
+    <Link href={href} className="block h-full">
+      <Card
+        className={`flex h-full flex-col transition-colors hover:bg-muted/40 ${
+          active ? "ring-2 ring-primary" : ""
+        }`}
+      >
+        <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {label}
+          </CardTitle>
+          <div className="shrink-0 text-muted-foreground">{icon}</div>
+        </CardHeader>
+        <CardContent className="mt-auto">
+          <p className="text-2xl font-semibold tabular-nums">{value}</p>
+          <p
+            className={`mt-1 text-xs text-muted-foreground tabular-nums ${
+              subtitle ? "" : "invisible"
+            }`}
+          >
+            {subtitle ?? "—"}
+          </p>
+        </CardContent>
+      </Card>
     </Link>
   );
 }

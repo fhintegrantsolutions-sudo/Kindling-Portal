@@ -16,6 +16,7 @@ import {
 import { NoteDetailCard } from "@/components/note-detail-card";
 import { getCurrentProfile } from "@/lib/dal";
 import { DownloadScheduleButton } from "./download-schedule-button";
+import { EditInvestedAmount } from "./edit-invested-amount";
 
 export default async function MyNoteDetailPage({
   params,
@@ -36,7 +37,12 @@ export default async function MyNoteDetailPage({
     getMyScheduleForNote(note.id, participation.id),
     getCurrentProfile(),
   ]);
+  // Prefer the formal loan-agreement title (e.g. "Specialized Trust Company
+  // Custodian FBO Felipe Vazquez ROTH IRA") since that's what appears on the
+  // executed loan docs. Fall back to first + last, then email, then a
+  // generic placeholder.
   const lenderName =
+    ((profile?.loan_agreement_title as string | null) ?? "").trim() ||
     [
       (profile?.first_name as string | null) ?? "",
       (profile?.last_name as string | null) ?? "",
@@ -70,10 +76,15 @@ export default async function MyNoteDetailPage({
           <CardTitle>Your participation</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field
-            label="Invested"
-            value={formatCurrency(participation.invested_amount)}
-          />
+          <div>
+            <p className="text-xs text-muted-foreground">Invested</p>
+            <EditInvestedAmount
+              participationId={participation.id}
+              invested={participation.invested_amount}
+              minInvestment={note.min_investment}
+              fundingReceived={Boolean(participation.funding_received)}
+            />
+          </div>
           <Field label="Status" value={participation.status} />
           <Field
             label="Funding"
@@ -105,6 +116,10 @@ export default async function MyNoteDetailPage({
                 noteTitle={note.title}
                 lenderName={lenderName}
                 invested={participation.invested_amount}
+                annualRatePct={Number(note.rate ?? 0)}
+                termMonths={Number(note.term_months ?? 0)}
+                interestType={String(note.interest_type ?? "")}
+                startDate={note.first_payment_date ?? null}
               />
             ) : null}
           </div>
@@ -114,7 +129,7 @@ export default async function MyNoteDetailPage({
             <p className="text-sm text-muted-foreground">{schedule.reason}</p>
           ) : (
             <>
-              <div className="mb-3 grid grid-cols-3 gap-3 text-sm">
+              <div className="mb-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                 <Field
                   label="Received to date"
                   value={formatCurrency(totalReceived)}
@@ -126,6 +141,10 @@ export default async function MyNoteDetailPage({
                 <Field
                   label="Interest"
                   value={formatCurrency(totalInterest)}
+                />
+                <Field
+                  label="Payments left"
+                  value={`${scheduleRows.length - receivedRows.length} of ${scheduleRows.length}`}
                 />
               </div>
               <div className="overflow-x-auto">

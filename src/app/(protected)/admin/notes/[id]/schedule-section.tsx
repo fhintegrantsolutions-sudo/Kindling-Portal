@@ -32,22 +32,29 @@ export function ScheduleSection({
   schedule,
   scheduleError,
   received,
+  headerAction,
 }: {
   noteUuid: string;
   schedule: ScheduleRow[] | null;
   scheduleError: string | null;
   received: ReceivedPayment[];
+  headerAction?: React.ReactNode;
 }) {
   const receivedByNumber = new Map(received.map((r) => [r.payment_number, r]));
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Payment schedule</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Generated from the note&apos;s principal, rate, term, interest type,
-          and first payment date. Check a row to record receipt.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>Payment schedule</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Generated from the note&apos;s principal, rate, term, interest
+              type, and first payment date. Check a row to record receipt.
+            </p>
+          </div>
+          {headerAction}
+        </div>
       </CardHeader>
       <CardContent>
         {!schedule ? (

@@ -111,34 +111,22 @@ export async function getMyTotalMonthlyPayment(): Promise<number> {
   }>;
   if (rows.length === 0) return 0;
 
-  const noteIds = Array.from(new Set(rows.map((r) => r.note_id)));
-  const { data: allClearedParts } = await supabase
-    .from("participations")
-    .select("note_id, invested_amount")
-    .in("note_id", noteIds)
-    .eq("funding_cleared", true);
-  const totalsByNote = new Map<string, number>();
-  for (const p of (allClearedParts ?? []) as Array<{
-    note_id: string;
-    invested_amount: string;
-  }>) {
-    const inv = Number(p.invested_amount);
-    if (!Number.isFinite(inv)) continue;
-    totalsByNote.set(p.note_id, (totalsByNote.get(p.note_id) ?? 0) + inv);
-  }
-
+  // Projected share = invested_amount / note.principal. Lender-side RLS
+  // hides other participations on each note, so we can't sum cleared
+  // funding to match admin's distribution exactly. For fully-subscribed
+  // notes this is identical; for under-subscribed notes it slightly
+  // under-states the lender's projected income. See the matching note in
+  // getMyScheduleForNote.
   const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
   let total = 0;
   for (const r of rows) {
     const n = r.note;
-    const totalCleared = totalsByNote.get(r.note_id);
     if (
       !n ||
       n.principal === null ||
       n.rate === null ||
       !n.term_months ||
-      !totalCleared ||
-      totalCleared <= 0
+      Number(n.principal) <= 0
     ) {
       continue;
     }
@@ -149,7 +137,7 @@ export async function getMyTotalMonthlyPayment(): Promise<number> {
       interestType: n.interest_type,
     });
     if (noteMonthly === null) continue;
-    const myShare = Number(r.invested_amount) / totalCleared;
+    const myShare = Number(r.invested_amount) / Number(n.principal);
     total += noteMonthly * myShare;
   }
   return Math.round(total * 100) / 100;
@@ -341,27 +329,30 @@ export async function getMyScheduleForNote(
     };
   }
 
-  // Lender's share basis. Use participations on the note that are funded
-  // (cleared) so the share matches what admin uses when distributing.
-  const { data: parts } = await supabase
+  // Projected share = invested_amount / note.principal. Lender-side RLS
+  // hides other participations on this note, so we can't replicate admin's
+  // distribution math exactly (which divides by the sum of funded shares
+  // across all participants). For a fully-subscribed note the two are
+  // identical; for an under-subscribed note this projection slightly
+  // under-states the lender's actual share. Actual recorded payouts on
+  // received rows always read from `participation_payment_payouts` (frozen
+  // amounts), so this approximation only affects forward-looking rows.
+  const { data: me } = await supabase
     .from("participations")
     .select("id, invested_amount, funding_cleared")
-    .eq("note_id", noteUuid);
-  const cleared = (parts ?? []).filter(
-    (p) => p.funding_cleared && Number(p.invested_amount ?? 0) > 0,
-  );
-  const me = cleared.find((p) => p.id === participationId);
-  if (!me) {
+    .eq("id", participationId)
+    .maybeSingle();
+  if (
+    !me ||
+    !me.funding_cleared ||
+    Number(me.invested_amount ?? 0) <= 0
+  ) {
     return {
       ok: false,
       reason: "Schedule will appear once your funding clears.",
     };
   }
-  const totalShare = cleared.reduce(
-    (s, p) => s + Number(p.invested_amount ?? 0),
-    0,
-  );
-  const myShare = Number(me.invested_amount) / totalShare;
+  const myShare = Number(me.invested_amount) / Number(note.principal);
 
   const { generateSchedule } = await import("@/lib/notes/schedule");
   const result = generateSchedule({

@@ -80,7 +80,7 @@ export function RegistrationForm({
           name="investment_amount"
           type="number"
           step="0.01"
-          min="0"
+          min={minInvestment ?? "0"}
           aria-invalid={Boolean(fe.investment_amount) || undefined}
         />
         {fe.investment_amount ? (

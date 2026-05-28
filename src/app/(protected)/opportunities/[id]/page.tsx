@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import {
   getNoteByNoteId,
   getMyParticipationByNoteId,
+  getMyRegistrationByNoteId,
   type MyParticipation,
 } from "@/lib/db/queries";
-import { formatCurrency } from "@/lib/format";
+import { getCurrentProfile } from "@/lib/dal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { NoteDetailCard } from "@/components/note-detail-card";
+import { RegistrationForm } from "./registration-form";
 
 export default async function OpportunityDetailPage({
   params,
@@ -23,7 +25,42 @@ export default async function OpportunityDetailPage({
   const note = await getNoteByNoteId(id);
   if (!note) notFound();
 
-  const existingParticipation = await getMyParticipationByNoteId(note.id);
+  // Both pieces of registration state are needed because admin can flip a
+  // pending registration into a participation; either implies "already
+  // signed up on this note" and should hide the form.
+  const [existingParticipation, existingRegistration, profile] =
+    await Promise.all([
+      getMyParticipationByNoteId(note.id),
+      getMyRegistrationByNoteId(note.id),
+      getCurrentProfile(),
+    ]);
+
+  const firstName = (profile?.first_name as string | null) ?? "";
+  const lastName = (profile?.last_name as string | null) ?? "";
+  const fullName = `${firstName} ${lastName}`.trim() || null;
+  const phone = (profile?.phone as string | null) ?? null;
+  const entityType = (profile?.entity_type as string | null) ?? null;
+  const loanTitle =
+    (profile?.loan_agreement_title as string | null) ?? fullName;
+  const mailingAddress =
+    [
+      profile?.address_street,
+      profile?.address_city,
+      profile?.address_state,
+      profile?.address_zip,
+    ]
+      .filter(Boolean)
+      .join(", ") || null;
+
+  const missing: string[] = [];
+  if (!firstName) missing.push("first name");
+  if (!lastName) missing.push("last name");
+  if (!phone) missing.push("phone");
+  if (!entityType) missing.push("entity type");
+
+  const alreadySignedUp = Boolean(
+    existingParticipation || existingRegistration,
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
@@ -47,52 +84,60 @@ export default async function OpportunityDetailPage({
 
       <NoteDetailCard note={note} showPrincipal={false} />
 
-      <ActionPanel
-        noteHumanId={note.note_id}
-        existingParticipation={existingParticipation}
-        minInvestment={note.min_investment}
-      />
+      {alreadySignedUp ? (
+        <ExistingParticipationPanel
+          noteHumanId={note.note_id}
+          existingParticipation={existingParticipation}
+        />
+      ) : missing.length > 0 ? (
+        <Alert>
+          <AlertDescription className="flex flex-col gap-3">
+            <span>
+              Your profile is missing: {missing.join(", ")}. Complete it
+              before registering.
+            </span>
+            <Link href="/profile">
+              <Button size="sm">Complete profile</Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <RegistrationForm
+          noteUuid={note.id}
+          noteHumanId={note.note_id}
+          minInvestment={note.min_investment}
+          profile={{
+            full_name: fullName,
+            email: profile?.email ?? null,
+            phone,
+            entity_type: entityType,
+            name_for_agreement: loanTitle,
+            mailing_address: mailingAddress,
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function ActionPanel({
+function ExistingParticipationPanel({
   noteHumanId,
   existingParticipation,
-  minInvestment,
 }: {
   noteHumanId: string;
   existingParticipation: MyParticipation | null;
-  minInvestment: string | null;
 }) {
-  if (existingParticipation) {
-    const isAwaitingFunding = !existingParticipation.funding_received;
-    return (
-      <div className="flex flex-col gap-3 rounded-lg border bg-card p-6">
-        <p className="text-sm text-muted-foreground">
-          {isAwaitingFunding
-            ? "You've registered for this note — awaiting funds."
-            : "You're already a participant in this note."}
-        </p>
-        <Link href={`/notes/${noteHumanId}`}>
-          <Button variant="outline">View your participation →</Button>
-        </Link>
-      </div>
-    );
-  }
-
+  const isAwaitingFunding =
+    !existingParticipation || !existingParticipation.funding_received;
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border bg-card p-6">
-      <div>
-        <p className="text-sm font-medium">Ready to invest?</p>
-        {minInvestment ? (
-          <p className="text-xs text-muted-foreground">
-            Minimum investment {formatCurrency(minInvestment)}.
-          </p>
-        ) : null}
-      </div>
-      <Link href={`/opportunities/${noteHumanId}/register`}>
-        <Button>Register to invest</Button>
+    <div className="flex flex-col gap-3 rounded-lg border bg-card p-6">
+      <p className="text-sm text-muted-foreground">
+        {isAwaitingFunding
+          ? "You've registered for this note — awaiting funds."
+          : "You're already a participant in this note."}
+      </p>
+      <Link href={`/notes/${noteHumanId}`}>
+        <Button variant="outline">View your participation →</Button>
       </Link>
     </div>
   );

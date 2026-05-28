@@ -4,25 +4,30 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatPercent } from "@/lib/format";
-import { computeMonthlyPayment } from "@/lib/notes/schedule";
-import type { MyScheduleRow } from "@/lib/db/queries";
+import { computeMonthlyPayment, type ScheduleRow } from "@/lib/notes/schedule";
 
-export function DownloadScheduleButton({
+// Same PDF layout as the lender-facing schedule, but uses the note's full
+// principal and lists the borrower instead of a lender. Useful for sharing
+// the schedule with the borrower or pulling a clean reference copy from the
+// admin console.
+export function DownloadNoteScheduleButton({
   rows,
+  receivedNumbers,
   noteId,
   noteTitle,
-  lenderName,
-  invested,
+  borrowerName,
+  principal,
   annualRatePct,
   termMonths,
   interestType,
   startDate,
 }: {
-  rows: MyScheduleRow[];
+  rows: ScheduleRow[];
+  receivedNumbers: Set<number>;
   noteId: string;
   noteTitle: string;
-  lenderName: string;
-  invested: string;
+  borrowerName: string;
+  principal: number;
   annualRatePct: number;
   termMonths: number;
   interestType: string;
@@ -44,18 +49,15 @@ export function DownloadScheduleButton({
     doc.setTextColor(0);
     doc.text(noteId, pageWidth - margin, 60, { align: "right" });
 
-    // Thin orange rule under the title.
     doc.setDrawColor(242, 106, 66);
     doc.setLineWidth(1);
     doc.line(margin, 70, pageWidth - margin, 70);
     doc.setDrawColor(0);
 
     // ============ Two-column summary ============
-    // Left: lender's inputs that drive the schedule. Right: derived values.
-    const invDollars = Number(invested);
     const years = termMonths > 0 ? termMonths / 12 : 0;
     const scheduled = computeMonthlyPayment({
-      principal: invDollars,
+      principal,
       annualRatePct,
       termMonths,
       interestType,
@@ -67,7 +69,7 @@ export function DownloadScheduleButton({
     };
 
     const leftRows: Array<[string, string]> = [
-      ["Loan amount", formatCurrency(invDollars)],
+      ["Loan amount", formatCurrency(principal)],
       ["Annual interest rate", formatPercent(annualRatePct)],
       ["Loan period in years", years % 1 === 0 ? String(years) : years.toFixed(2)],
       ["Number of payments per year", "12"],
@@ -76,10 +78,9 @@ export function DownloadScheduleButton({
     const rightRows: Array<[string, string]> = [
       ["Scheduled payment", scheduled === null ? "—" : formatCurrency(scheduled)],
       ["Scheduled number of payments", String(termMonths || rows.length)],
-      ["Lender name", lenderName],
+      ["Borrower name", borrowerName],
     ];
 
-    // Left summary table (ENTER VALUES).
     autoTable(doc, {
       startY: 85,
       head: [["ENTER VALUES", ""]],
@@ -99,16 +100,13 @@ export function DownloadScheduleButton({
       },
     });
 
-    // Right summary table (LOAN SUMMARY). autoTable wraps long values onto
-    // additional lines automatically (overflow defaults to "linebreak"), so
-    // a long loan_agreement_title like "Specialized Trust Company Custodian
-    // FBO Felipe Vazquez ROTH IRA" will flow across two lines in the value
-    // cell. We also shrink the font for very long lender names so the row
-    // doesn't dominate the summary block.
-    const lenderNameRowIndex = rightRows.findIndex(
-      ([label]) => label === "Lender name",
+    // Borrower names can be long entity names. Shrink the value font when
+    // it exceeds ~28 chars so the row stays single-line where possible and
+    // wraps cleanly when it doesn't.
+    const borrowerRowIndex = rightRows.findIndex(
+      ([label]) => label === "Borrower name",
     );
-    const longName = lenderName.length > 28;
+    const longName = borrowerName.length > 28;
     autoTable(doc, {
       startY: 85,
       head: [["LOAN SUMMARY", ""]],
@@ -130,7 +128,7 @@ export function DownloadScheduleButton({
         if (
           longName &&
           data.section === "body" &&
-          data.row.index === lenderNameRowIndex &&
+          data.row.index === borrowerRowIndex &&
           data.column.index === 1
         ) {
           data.cell.styles.fontSize = 8;
@@ -138,9 +136,6 @@ export function DownloadScheduleButton({
       },
     });
 
-    // Generated-on stamp sits above the schedule table, right-aligned over
-    // the CUMULATIVE INTEREST column so the metadata reads top-left
-    // (title block) and top-right (generated date).
     const afterSummaryY =
       Math.max(
         // @ts-expect-error — autoTable attaches lastAutoTable at runtime
@@ -162,22 +157,25 @@ export function DownloadScheduleButton({
     doc.setTextColor(0);
 
     // ============ Detailed schedule ============
-    // Walk the rows once to build beginning balances + a running cumulative
-    // interest. Beginning balance of payment 1 is the lender's invested
-    // amount; for payment N it's the previous row's ending balance.
+    // Track beginning balance + cumulative interest as we walk the rows.
+    // Row 1's beginning balance is the note's full principal.
     let cumulativeInterest = 0;
-    let beginningBalance = invDollars;
+    let beginningBalance = principal;
     const body: string[][] = rows.map((r) => {
       const begin = beginningBalance;
-      const end = r.my_balance;
-      cumulativeInterest += r.my_interest;
+      const end = r.ending_balance;
+      cumulativeInterest += r.interest_amount;
       beginningBalance = end;
+      // Received rows surface the actual recorded date implicitly via the
+      // separate ledger; for the borrower's reference copy we just show
+      // the due date for every row.
+      void receivedNumbers; // kept on the API for future "received_date" mode
       return [
         String(r.payment_number),
-        formatDate(r.received_date ?? r.due_date),
+        formatDate(r.due_date),
         formatCurrency(begin),
-        formatCurrency(r.my_principal),
-        formatCurrency(r.my_interest),
+        formatCurrency(r.principal_amount),
+        formatCurrency(r.interest_amount),
         formatCurrency(end),
         formatCurrency(cumulativeInterest),
       ];

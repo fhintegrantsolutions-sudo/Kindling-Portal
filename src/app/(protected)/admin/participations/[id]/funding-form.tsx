@@ -37,8 +37,14 @@ export function FundingForm({
     FormData
   >(action, undefined);
 
+  // React 19 auto-resets forms after their Server Action resolves, which
+  // restores each input's defaultValue. Re-keying on the current server
+  // defaults forces a clean remount when the page revalidates so the form
+  // shows the just-saved values instead of stale ones.
+  const formKey = JSON.stringify(defaults);
+
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <form action={formAction} key={formKey} className="flex flex-col gap-6">
       <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-6">
         <legend className="px-1 text-sm font-semibold">Stages</legend>
         <Stage

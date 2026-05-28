@@ -1,5 +1,5 @@
 import type { NoteDetail } from "@/lib/db/queries";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -44,11 +44,11 @@ export function NoteDetailCard({
           <Field label="Interest type" value={note.interest_type} />
           <Field
             label="Maturity"
-            value={note.maturity_date ?? "—"}
+            value={formatDate(note.maturity_date)}
           />
           <Field
             label="Funding closes"
-            value={note.funding_end_date ?? "—"}
+            value={formatDate(note.funding_end_date)}
           />
         </div>
         {note.description ? (
