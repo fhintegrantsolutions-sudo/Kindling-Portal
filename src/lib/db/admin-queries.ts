@@ -1837,3 +1837,23 @@ export async function getNotePayments(
     };
   });
 }
+
+/**
+ * Funding-archive eligibility summary for a note: total participations and how
+ * many have not cleared funding yet. Used to build the soft warning on the
+ * Settings tab archive button.
+ */
+export async function getNoteFundingArchiveSummary(
+  noteUuid: string,
+): Promise<{ total: number; uncleared: number }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("participations")
+    .select("funding_cleared")
+    .eq("note_id", noteUuid);
+  const rows = (data ?? []) as Array<{ funding_cleared: boolean }>;
+  return {
+    total: rows.length,
+    uncleared: rows.filter((r) => !r.funding_cleared).length,
+  };
+}
