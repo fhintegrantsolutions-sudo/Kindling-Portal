@@ -91,6 +91,35 @@ export async function updateNote(
 }
 
 /**
+ * Archive a note's funding round (per-note, one-way). Stamps funding_archived_at
+ * so the note's participations drop out of the active admin funding workflow.
+ * Does NOT touch notes.status or any lender-facing view. Idempotent: re-archiving
+ * an already-archived note is a no-op.
+ */
+export async function archiveNoteFunding(
+  noteUuid: string,
+): Promise<{ error?: string }> {
+  const admin = await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("notes")
+    .update({
+      funding_archived_at: new Date().toISOString(),
+      funding_archived_by: admin.id,
+    })
+    .eq("id", noteUuid)
+    .is("funding_archived_at", null);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/participations");
+  revalidatePath(`/admin/notes/${noteUuid}`);
+  revalidatePath(`/admin/notes/${noteUuid}/settings`);
+  revalidatePath("/admin");
+  return {};
+}
+
+/**
  * Reset and re-insert the note_visibility allowlist for this note.
  * - If is_private is false, we drop all visibility rows (the note is public).
  * - If is_private is true, the visibility list dictates who can see it.

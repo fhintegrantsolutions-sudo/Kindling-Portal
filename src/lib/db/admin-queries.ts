@@ -100,22 +100,26 @@ export async function getAdminStats(): Promise<AdminStats> {
     // Participations by funding stage
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
-      .eq("funding_received", false),
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
+      .eq("funding_received", false)
+      .is("notes.funding_archived_at", null),
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
       .eq("funding_received", true)
-      .eq("funding_deposited", false),
+      .eq("funding_deposited", false)
+      .is("notes.funding_archived_at", null),
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
       .eq("funding_deposited", true)
-      .eq("funding_cleared", false),
+      .eq("funding_cleared", false)
+      .is("notes.funding_archived_at", null),
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
-      .eq("funding_cleared", true),
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
+      .eq("funding_cleared", true)
+      .is("notes.funding_archived_at", null),
     // Portfolio
     supabase
       .from("profiles")
@@ -235,7 +239,11 @@ export type AdminParticipationListItem = {
   funding_cleared: boolean;
   funding_type: string | null;
   created_at: string;
-  note: { note_id: string; title: string } | null;
+  note: {
+    note_id: string;
+    title: string;
+    funding_archived_at: string | null;
+  } | null;
   lender_name: string | null;
   lender_email: string | null;
   business_name: string | null;
@@ -253,7 +261,7 @@ export async function getParticipations(filter?: {
       id, user_id, access_request_id, invested_amount, status,
       funding_received, funding_deposited, funding_cleared,
       funding_type, created_at,
-      note:notes ( note_id, title )
+      note:notes ( note_id, title, funding_archived_at )
       `,
     )
     .order("created_at", { ascending: false });
@@ -1169,6 +1177,8 @@ export type AdminNoteDetail = {
   target_raise: string | null;
   min_investment: string | null;
   created_at: string;
+  funding_archived_at: string | null;
+  funding_archived_by: string | null;
   updated_at: string;
 };
 
@@ -1866,5 +1876,25 @@ export async function getAdminNoteNeighbors(currentNoteId: string): Promise<{
   return {
     prev: (prev.data as { id: string; note_id: string } | null) ?? null,
     next: (next.data as { id: string; note_id: string } | null) ?? null,
+  };
+}
+
+/**
+ * Funding-archive eligibility summary for a note: total participations and how
+ * many have not cleared funding yet. Used to build the soft warning on the
+ * Settings tab archive button.
+ */
+export async function getNoteFundingArchiveSummary(
+  noteUuid: string,
+): Promise<{ total: number; uncleared: number }> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("participations")
+    .select("funding_cleared")
+    .eq("note_id", noteUuid);
+  const rows = (data ?? []) as Array<{ funding_cleared: boolean }>;
+  return {
+    total: rows.length,
+    uncleared: rows.filter((r) => !r.funding_cleared).length,
   };
 }
