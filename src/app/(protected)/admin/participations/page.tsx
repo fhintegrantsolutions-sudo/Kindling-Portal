@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Archive,
   Banknote,
   CheckCircle2,
   CircleDashed,
@@ -22,7 +23,8 @@ type FilterValue =
   | "received"
   | "deposited"
   | "cleared"
-  | "awaiting_invite";
+  | "awaiting_invite"
+  | "archived";
 
 export default async function AdminParticipationsPage({
   searchParams,
@@ -33,7 +35,16 @@ export default async function AdminParticipationsPage({
   const filter = sp.funding ?? "all";
   const allParticipations = await getParticipations();
 
-  const matchesFilter = (p: {
+  const isArchived = (p: {
+    note: { funding_archived_at: string | null } | null;
+  }) => p.note?.funding_archived_at != null;
+
+  // Active workflow excludes archived notes entirely; the Archived filter shows
+  // only those.
+  const active = allParticipations.filter((p) => !isArchived(p));
+  const archived = allParticipations.filter(isArchived);
+
+  const matchesStage = (p: {
     funding_received: boolean;
     funding_deposited: boolean;
     funding_cleared: boolean;
@@ -50,39 +61,52 @@ export default async function AdminParticipationsPage({
         return p.funding_cleared;
       case "awaiting_invite":
         return p.funding_cleared && p.user_id === null;
+      case "archived":
+        return false;
       case "all":
       default:
         return true;
     }
   };
 
-  // Sort the filtered list alphabetically by lender. Rows missing a name
-  // fall back to the email, then to "~" so they sort to the end.
-  const participations = allParticipations
-    .filter(matchesFilter)
-    .sort((a, b) => {
-      const an = (a.lender_name ?? a.lender_email ?? "~").toLowerCase();
-      const bn = (b.lender_name ?? b.lender_email ?? "~").toLowerCase();
-      return an.localeCompare(bn);
-    });
-
-  const counts = {
-    all: allParticipations.length,
-    awaiting_funding: allParticipations.filter((p) => !p.funding_received)
-      .length,
-    received: allParticipations.filter(
-      (p) => p.funding_received && !p.funding_deposited,
-    ).length,
-    deposited: allParticipations.filter(
-      (p) => p.funding_deposited && !p.funding_cleared,
-    ).length,
-    cleared: allParticipations.filter((p) => p.funding_cleared).length,
-    awaiting_invite: allParticipations.filter(
-      (p) => p.funding_cleared && p.user_id === null,
-    ).length,
+  const byLender = (
+    a: { lender_name: string | null; lender_email: string | null },
+    b: { lender_name: string | null; lender_email: string | null },
+  ) => {
+    const an = (a.lender_name ?? a.lender_email ?? "~").toLowerCase();
+    const bn = (b.lender_name ?? b.lender_email ?? "~").toLowerCase();
+    return an.localeCompare(bn);
   };
 
-  const clearedInvested = allParticipations
+  // Archived view: sort by note_id then lender so same-note rows group together.
+  // Active views: filter by funding stage, sort by lender.
+  const participations =
+    filter === "archived"
+      ? [...archived].sort((a, b) => {
+          const noteCmp = (a.note?.note_id ?? "~").localeCompare(
+            b.note?.note_id ?? "~",
+          );
+          return noteCmp !== 0 ? noteCmp : byLender(a, b);
+        })
+      : active.filter(matchesStage).sort(byLender);
+
+  const counts = {
+    all: active.length,
+    awaiting_funding: active.filter((p) => !p.funding_received).length,
+    received: active.filter(
+      (p) => p.funding_received && !p.funding_deposited,
+    ).length,
+    deposited: active.filter(
+      (p) => p.funding_deposited && !p.funding_cleared,
+    ).length,
+    cleared: active.filter((p) => p.funding_cleared).length,
+    awaiting_invite: active.filter(
+      (p) => p.funding_cleared && p.user_id === null,
+    ).length,
+    archived: archived.length,
+  };
+
+  const clearedInvested = active
     .filter((p) => p.funding_cleared)
     .reduce((sum, p) => sum + Number(p.invested_amount), 0);
 
@@ -97,7 +121,7 @@ export default async function AdminParticipationsPage({
         </h1>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
         <Stat
           label="All"
           value={String(counts.all)}
@@ -141,6 +165,13 @@ export default async function AdminParticipationsPage({
           href="/admin/participations?funding=awaiting_invite"
           active={filter === "awaiting_invite"}
         />
+        <Stat
+          label="Archived"
+          value={String(counts.archived)}
+          icon={<Archive className="size-4" />}
+          href="/admin/participations?funding=archived"
+          active={filter === "archived"}
+        />
       </section>
 
       {participations.length === 0 ? (
@@ -166,6 +197,11 @@ export default async function AdminParticipationsPage({
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">
                         {p.note?.note_id} ·{" "}
                         {new Date(p.created_at).toLocaleDateString()}
+                        {p.note?.funding_archived_at
+                          ? ` · Archived ${new Date(
+                              p.note.funding_archived_at,
+                            ).toLocaleDateString()}`
+                          : ""}
                       </p>
                       <CardTitle>{p.note?.title}</CardTitle>
                       <p className="mt-1 text-sm text-muted-foreground">
