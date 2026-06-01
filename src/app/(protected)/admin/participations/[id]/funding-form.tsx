@@ -1,83 +1,95 @@
 "use client";
 
-import { useActionState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { saveFundingStatus } from "@/lib/admin/funding-actions";
 import {
-  updateFundingStatus,
-  type FundingFormState,
-} from "@/lib/admin/funding-actions";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+  normalizeFundingValues,
+  requiresDeposit,
+  type FundingValues,
+} from "@/lib/admin/funding-stages";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export type FundingDefaults = {
-  funding_received: boolean;
-  funding_deposited: boolean;
-  funding_cleared: boolean;
-  funding_type: string | null;
-  funding_received_date: string | null;
-  funding_deposited_date: string | null;
-  funding_cleared_date: string | null;
-  funding_check_number: string | null;
-  funding_wire_reference_number: string | null;
-  funding_other_type_description: string | null;
-  funding_notes: string | null;
-};
+function todayLocal(): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+}
 
 export function FundingForm({
   participationId,
   defaults,
 }: {
   participationId: string;
-  defaults: FundingDefaults;
+  defaults: FundingValues;
 }) {
-  const action = updateFundingStatus.bind(null, participationId);
-  const [state, formAction, pending] = useActionState<
-    FundingFormState | undefined,
-    FormData
-  >(action, undefined);
+  const [values, setValues] = useState<FundingValues>(defaults);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">(
+    "idle",
+  );
+  const [error, setError] = useState<string | null>(null);
 
-  // React 19 auto-resets forms after their Server Action resolves, which
-  // restores each input's defaultValue. Re-keying on the current server
-  // defaults forces a clean remount when the page revalidates so the form
-  // shows the just-saved values instead of stale ones.
-  const formKey = JSON.stringify(defaults);
+  const firstRender = useRef(true);
+  const inFlight = useRef(false);
+  const pending = useRef<FundingValues | null>(null);
+
+  // Debounced autosave. The effect re-runs whenever `values` changes, so the
+  // snapshot it saves is always the latest — no render-time refs needed. An
+  // in-flight guard queues the newest snapshot so saves never overlap.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    setStatus("saving");
+    const handle = setTimeout(() => {
+      const run = async (snapshot: FundingValues) => {
+        if (inFlight.current) {
+          pending.current = snapshot;
+          return;
+        }
+        inFlight.current = true;
+        const res = await saveFundingStatus(participationId, snapshot);
+        inFlight.current = false;
+        if (res?.error) {
+          setError(res.error);
+          setStatus("error");
+        } else {
+          setError(null);
+          setStatus("saved");
+        }
+        const next = pending.current;
+        pending.current = null;
+        if (next) void run(next);
+      };
+      void run(values);
+    }, 1000);
+    return () => clearTimeout(handle);
+  }, [values, participationId]);
+
+  function change(patch: Partial<FundingValues>) {
+    setValues((prev) =>
+      normalizeFundingValues({ ...prev, ...patch }, todayLocal()),
+    );
+  }
+
+  const dep = requiresDeposit(values.funding_type);
+  const receivedComplete =
+    values.funding_received && !!values.funding_received_date;
+  const depositedComplete =
+    values.funding_deposited && !!values.funding_deposited_date;
 
   return (
-    <form action={formAction} key={formKey} className="flex flex-col gap-6">
-      <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-6">
-        <legend className="px-1 text-sm font-semibold">Stages</legend>
-        <Stage
-          name="funding_received"
-          label="Funding received"
-          dateName="funding_received_date"
-          defaultChecked={defaults.funding_received}
-          defaultDate={defaults.funding_received_date}
-        />
-        <Stage
-          name="funding_deposited"
-          label="Funding deposited"
-          dateName="funding_deposited_date"
-          defaultChecked={defaults.funding_deposited}
-          defaultDate={defaults.funding_deposited_date}
-        />
-        <Stage
-          name="funding_cleared"
-          label="Funding cleared"
-          dateName="funding_cleared_date"
-          defaultChecked={defaults.funding_cleared}
-          defaultDate={defaults.funding_cleared_date}
-        />
-      </fieldset>
-
+    <div className="flex flex-col gap-6">
       <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-6">
         <legend className="px-1 text-sm font-semibold">Method</legend>
         <div className="flex flex-col gap-2">
           <Label htmlFor="funding_type">Funding type</Label>
           <select
             id="funding_type"
-            name="funding_type"
-            defaultValue={defaults.funding_type ?? ""}
+            value={values.funding_type ?? ""}
+            onChange={(e) => change({ funding_type: e.target.value || null })}
             className="h-9 rounded-md border bg-background px-3 text-sm"
           >
             <option value="">—</option>
@@ -88,100 +100,133 @@ export function FundingForm({
           </select>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            name="funding_check_number"
+          <TextField
             label="Check number"
-            defaultValue={defaults.funding_check_number}
+            value={values.funding_check_number}
+            onChange={(v) => change({ funding_check_number: v })}
           />
-          <Field
-            name="funding_wire_reference_number"
+          <TextField
             label="Wire reference"
-            defaultValue={defaults.funding_wire_reference_number}
+            value={values.funding_wire_reference_number}
+            onChange={(v) => change({ funding_wire_reference_number: v })}
           />
         </div>
-        <Field
-          name="funding_other_type_description"
+        <TextField
           label="Other (describe)"
-          defaultValue={defaults.funding_other_type_description}
+          value={values.funding_other_type_description}
+          onChange={(v) => change({ funding_other_type_description: v })}
+        />
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-6">
+        <legend className="px-1 text-sm font-semibold">Stages</legend>
+        <Stage
+          label="Funding received"
+          checked={values.funding_received}
+          date={values.funding_received_date}
+          disabled={false}
+          onToggle={(c) => change({ funding_received: c })}
+          onDate={(d) => change({ funding_received_date: d })}
+        />
+        {dep ? (
+          <Stage
+            label="Funding deposited"
+            checked={values.funding_deposited}
+            date={values.funding_deposited_date}
+            disabled={!receivedComplete}
+            onToggle={(c) => change({ funding_deposited: c })}
+            onDate={(d) => change({ funding_deposited_date: d })}
+          />
+        ) : null}
+        <Stage
+          label="Funding cleared"
+          checked={values.funding_cleared}
+          date={values.funding_cleared_date}
+          disabled={dep ? !depositedComplete : !receivedComplete}
+          onToggle={(c) => change({ funding_cleared: c })}
+          onDate={(d) => change({ funding_cleared_date: d })}
         />
       </fieldset>
 
       <fieldset className="rounded-lg border bg-card p-6">
         <legend className="px-1 text-sm font-semibold">Notes</legend>
         <textarea
-          name="funding_notes"
           rows={3}
-          defaultValue={defaults.funding_notes ?? ""}
+          value={values.funding_notes ?? ""}
+          onChange={(e) => change({ funding_notes: e.target.value })}
           className="mt-2 w-full rounded-md border bg-background p-2 text-sm"
         />
       </fieldset>
 
-      {state?.message ? (
-        <Alert>
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      ) : null}
-      {state?.error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      <div>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save funding status"}
-        </Button>
+      <div className="text-sm" aria-live="polite">
+        {status === "error" ? (
+          <span className="text-destructive">{error}</span>
+        ) : status === "saving" ? (
+          <span className="text-muted-foreground">Saving…</span>
+        ) : status === "saved" ? (
+          <span className="text-muted-foreground">All changes saved</span>
+        ) : (
+          <span className="invisible">placeholder</span>
+        )}
       </div>
-    </form>
+    </div>
   );
 }
 
 function Stage({
-  name,
   label,
-  dateName,
-  defaultChecked,
-  defaultDate,
+  checked,
+  date,
+  disabled,
+  onToggle,
+  onDate,
 }: {
-  name: string;
   label: string;
-  dateName: string;
-  defaultChecked: boolean;
-  defaultDate: string | null;
+  checked: boolean;
+  date: string | null;
+  disabled: boolean;
+  onToggle: (checked: boolean) => void;
+  onDate: (date: string | null) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-4">
+    <div
+      className={
+        "flex flex-wrap items-center gap-4" + (disabled ? " opacity-50" : "")
+      }
+    >
       <label className="flex w-44 items-center gap-2 text-sm">
         <input
           type="checkbox"
-          name={name}
-          defaultChecked={defaultChecked}
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onToggle(e.target.checked)}
         />
         {label}
       </label>
       <Input
         type="date"
-        name={dateName}
-        defaultValue={defaultDate ?? undefined}
+        value={date ?? ""}
+        disabled={disabled}
+        onChange={(e) => onDate(e.target.value || null)}
         className="w-44"
       />
     </div>
   );
 }
 
-function Field({
-  name,
+function TextField({
   label,
-  defaultValue,
+  value,
+  onChange,
 }: {
-  name: string;
   label: string;
-  defaultValue: string | null;
+  value: string | null;
+  onChange: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} defaultValue={defaultValue ?? undefined} />
+      <Label>{label}</Label>
+      <Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
