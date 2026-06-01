@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireParticipationsAccess } from "@/lib/dal";
 import {
+  clearUnusedMethodFields,
   FUNDING_TYPES,
   requiresDeposit,
   validateFundingValues,
@@ -50,12 +51,15 @@ export async function saveFundingStatus(
     v.funding_deposited_date = null;
   }
 
-  const err = validateFundingValues(v);
+  // Drop method fields that don't belong to the chosen type.
+  const cleaned = clearUnusedMethodFields(v);
+
+  const err = validateFundingValues(cleaned);
   if (err) return { error: err };
 
   const { error } = await supabase
     .from("participations")
-    .update(v)
+    .update(cleaned)
     .eq("id", participationId);
   if (error) return { error: error.message };
 

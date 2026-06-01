@@ -32,6 +32,21 @@ export function isStageComplete(
   return checked && !!date && date.trim().length > 0;
 }
 
+// Each funding type surfaces one "method detail" field; the others don't apply
+// and are nulled so a type switch can't leave orphaned data:
+//   check        -> funding_check_number
+//   wire / ach   -> funding_wire_reference_number (labelled per type in the UI)
+//   other        -> funding_other_type_description
+//   (none)       -> nothing
+export function clearUnusedMethodFields(values: FundingValues): FundingValues {
+  const v: FundingValues = { ...values };
+  const t = v.funding_type;
+  if (t !== "check") v.funding_check_number = null;
+  if (t !== "wire" && t !== "ach") v.funding_wire_reference_number = null;
+  if (t !== "other") v.funding_other_type_description = null;
+  return v;
+}
+
 // Pure normalizer applied on every client change before saving. Enforces the
 // wire/ACH no-deposit rule, gates stages downward (a stage can only stay set
 // when its prerequisite is complete), auto-fills a newly-checked stage's date
@@ -41,7 +56,7 @@ export function normalizeFundingValues(
   values: FundingValues,
   today: string,
 ): FundingValues {
-  const v: FundingValues = { ...values };
+  const v: FundingValues = clearUnusedMethodFields(values);
   const dep = requiresDeposit(v.funding_type);
 
   // Wire/ACH never have a deposit step.

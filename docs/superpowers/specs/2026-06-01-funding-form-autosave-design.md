@@ -46,6 +46,18 @@ Helper: `requiresDeposit(type) = !(type === "wire" || type === "ach")`.
 
 This makes invalid states unreachable from the UI, so autosave never trips a validation error.
 
+## Method fields (type-aware)
+
+The Method section shows only the detail field relevant to the chosen type; switching type nulls the others (via `clearUnusedMethodFields`, enforced on client and server) so no orphan data persists:
+
+| Type | Field shown (label → column) |
+|---|---|
+| `check` | Check number → `funding_check_number` |
+| `wire` | Wire reference → `funding_wire_reference_number` |
+| `ach` | **ACH reference** → `funding_wire_reference_number` (shared electronic-reference column) |
+| `other` | Other (describe) → `funding_other_type_description` |
+| *(none)* | dropdown only, no detail field |
+
 ## Autosave mechanics
 
 - The form becomes **controlled**: a single `values` state object holds all fields (booleans, dates, type, text). This replaces the uncontrolled `defaultValue` + `<form action>` + remount-on-save approach (the `key={formKey}` remount hack is **removed** — local state is the source of truth, so nothing remounts mid-typing and the cursor never jumps).

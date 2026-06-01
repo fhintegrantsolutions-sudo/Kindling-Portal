@@ -99,23 +99,34 @@ export function FundingForm({
             <option value="other">Other</option>
           </select>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        {values.funding_type === "check" ? (
           <TextField
             label="Check number"
             value={values.funding_check_number}
             onChange={(v) => change({ funding_check_number: v })}
           />
+        ) : null}
+        {values.funding_type === "wire" ? (
           <TextField
             label="Wire reference"
             value={values.funding_wire_reference_number}
             onChange={(v) => change({ funding_wire_reference_number: v })}
           />
-        </div>
-        <TextField
-          label="Other (describe)"
-          value={values.funding_other_type_description}
-          onChange={(v) => change({ funding_other_type_description: v })}
-        />
+        ) : null}
+        {values.funding_type === "ach" ? (
+          <TextField
+            label="ACH reference"
+            value={values.funding_wire_reference_number}
+            onChange={(v) => change({ funding_wire_reference_number: v })}
+          />
+        ) : null}
+        {values.funding_type === "other" ? (
+          <TextField
+            label="Other (describe)"
+            value={values.funding_other_type_description}
+            onChange={(v) => change({ funding_other_type_description: v })}
+          />
+        ) : null}
       </fieldset>
 
       <fieldset className="flex flex-col gap-4 rounded-lg border bg-card p-6">
