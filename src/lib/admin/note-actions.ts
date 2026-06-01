@@ -81,7 +81,11 @@ export async function updateNote(
   await syncVisibility(supabase, noteUuid, fields);
 
   revalidatePath("/admin/notes");
-  revalidatePath(`/admin/notes/${noteUuid}`);
+  // Revalidate the whole note layout subtree (Overview + Settings/Schedule/
+  // Bonuses tabs), not just the base page — otherwise the Settings form, which
+  // lives at /admin/notes/[id]/settings, keeps serving a stale Router-Cache
+  // snapshot after a save (e.g. an edited borrower appears to revert on nav).
+  revalidatePath("/admin/notes/[id]", "layout");
   revalidatePath("/admin");
   return {};
 }
