@@ -1169,6 +1169,8 @@ export type AdminNoteDetail = {
   target_raise: string | null;
   min_investment: string | null;
   created_at: string;
+  funding_archived_at: string | null;
+  funding_archived_by: string | null;
   updated_at: string;
 };
 
