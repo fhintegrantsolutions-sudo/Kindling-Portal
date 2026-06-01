@@ -100,22 +100,26 @@ export async function getAdminStats(): Promise<AdminStats> {
     // Participations by funding stage
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
-      .eq("funding_received", false),
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
+      .eq("funding_received", false)
+      .is("notes.funding_archived_at", null),
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
       .eq("funding_received", true)
-      .eq("funding_deposited", false),
+      .eq("funding_deposited", false)
+      .is("notes.funding_archived_at", null),
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
       .eq("funding_deposited", true)
-      .eq("funding_cleared", false),
+      .eq("funding_cleared", false)
+      .is("notes.funding_archived_at", null),
     supabase
       .from("participations")
-      .select("*", { count: "exact", head: true })
-      .eq("funding_cleared", true),
+      .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
+      .eq("funding_cleared", true)
+      .is("notes.funding_archived_at", null),
     // Portfolio
     supabase
       .from("profiles")
