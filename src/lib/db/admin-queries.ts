@@ -235,7 +235,11 @@ export type AdminParticipationListItem = {
   funding_cleared: boolean;
   funding_type: string | null;
   created_at: string;
-  note: { note_id: string; title: string } | null;
+  note: {
+    note_id: string;
+    title: string;
+    funding_archived_at: string | null;
+  } | null;
   lender_name: string | null;
   lender_email: string | null;
   business_name: string | null;
@@ -253,7 +257,7 @@ export async function getParticipations(filter?: {
       id, user_id, access_request_id, invested_amount, status,
       funding_received, funding_deposited, funding_cleared,
       funding_type, created_at,
-      note:notes ( note_id, title )
+      note:notes ( note_id, title, funding_archived_at )
       `,
     )
     .order("created_at", { ascending: false });
