@@ -1835,3 +1835,36 @@ export async function getNotePayments(
     };
   });
 }
+
+/**
+ * Prev/next note neighbors for the admin note detail header, ordered by note_id
+ * ascending so they read left-to-right by number. prev is the next-LOWER note_id
+ * (the ‹ control), next is the next-HIGHER note_id (the › control). Either side
+ * is null at the ends of the range.
+ */
+export async function getAdminNoteNeighbors(currentNoteId: string): Promise<{
+  prev: { id: string; note_id: string } | null;
+  next: { id: string; note_id: string } | null;
+}> {
+  const supabase = await createClient();
+  const [prev, next] = await Promise.all([
+    supabase
+      .from("notes")
+      .select("id, note_id")
+      .lt("note_id", currentNoteId)
+      .order("note_id", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("notes")
+      .select("id, note_id")
+      .gt("note_id", currentNoteId)
+      .order("note_id", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  return {
+    prev: (prev.data as { id: string; note_id: string } | null) ?? null,
+    next: (next.data as { id: string; note_id: string } | null) ?? null,
+  };
+}
