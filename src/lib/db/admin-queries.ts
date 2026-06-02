@@ -385,6 +385,7 @@ export type AdminParticipationDetail = {
   user_id: string | null;
   access_request_id: string | null;
   invested_amount: string;
+  submitted_amount: string | null;
   status: string;
   user_notes: string | null;
   funding_received: boolean;
