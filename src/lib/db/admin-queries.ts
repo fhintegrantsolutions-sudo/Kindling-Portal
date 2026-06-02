@@ -108,6 +108,7 @@ export async function getAdminStats(): Promise<AdminStats> {
       .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
       .eq("funding_received", true)
       .eq("funding_deposited", false)
+      .eq("funding_cleared", false)
       .is("notes.funding_archived_at", null),
     supabase
       .from("participations")
