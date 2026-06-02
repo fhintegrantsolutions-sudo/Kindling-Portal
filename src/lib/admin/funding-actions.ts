@@ -3,81 +3,68 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireParticipationsAccess } from "@/lib/dal";
+import {
+  clearUnusedMethodFields,
+  FUNDING_TYPES,
+  requiresDeposit,
+  validateFundingValues,
+  type FundingValues,
+} from "@/lib/admin/funding-stages";
 
-export type FundingFormState = {
-  error?: string;
-  message?: string;
-};
+// Empty string -> null for nullable text/date columns.
+function nn(s: string | null): string | null {
+  if (s === null) return null;
+  const t = s.trim();
+  return t.length > 0 ? t : null;
+}
 
-const FUNDING_TYPES = ["wire", "check", "ach", "other"] as const;
-
-export async function updateFundingStatus(
+export async function saveFundingStatus(
   participationId: string,
-  _prev: FundingFormState | undefined,
-  formData: FormData,
-): Promise<FundingFormState> {
+  values: FundingValues,
+): Promise<{ error?: string }> {
   await requireParticipationsAccess();
   const supabase = await createClient();
 
-  const fundingType = String(formData.get("funding_type") ?? "");
-  const validatedFundingType = (FUNDING_TYPES as readonly string[]).includes(
-    fundingType,
+  const type = (FUNDING_TYPES as readonly string[]).includes(
+    values.funding_type ?? "",
   )
-    ? (fundingType as (typeof FUNDING_TYPES)[number])
+    ? values.funding_type
     : null;
 
-  const update = {
-    funding_received: formData.get("funding_received") === "on",
-    funding_deposited: formData.get("funding_deposited") === "on",
-    funding_cleared: formData.get("funding_cleared") === "on",
-    funding_type: validatedFundingType,
-    funding_received_date: dateOrNull(formData, "funding_received_date"),
-    funding_deposited_date: dateOrNull(formData, "funding_deposited_date"),
-    funding_cleared_date: dateOrNull(formData, "funding_cleared_date"),
-    funding_check_number: textOrNull(formData, "funding_check_number"),
-    funding_wire_reference_number: textOrNull(
-      formData,
-      "funding_wire_reference_number",
-    ),
-    funding_other_type_description: textOrNull(
-      formData,
-      "funding_other_type_description",
-    ),
-    funding_notes: textOrNull(formData, "funding_notes"),
+  const v: FundingValues = {
+    funding_type: type,
+    funding_received: values.funding_received,
+    funding_deposited: values.funding_deposited,
+    funding_cleared: values.funding_cleared,
+    funding_received_date: nn(values.funding_received_date),
+    funding_deposited_date: nn(values.funding_deposited_date),
+    funding_cleared_date: nn(values.funding_cleared_date),
+    funding_check_number: nn(values.funding_check_number),
+    funding_wire_reference_number: nn(values.funding_wire_reference_number),
+    funding_other_type_description: nn(values.funding_other_type_description),
+    funding_notes: nn(values.funding_notes),
   };
 
-  // Light validation: cleared implies deposited implies received.
-  if (update.funding_cleared && !update.funding_deposited) {
-    return {
-      error: "Cannot mark cleared without first marking deposited.",
-    };
+  // Wire/ACH have no deposit step — force it off regardless of input.
+  if (!requiresDeposit(v.funding_type)) {
+    v.funding_deposited = false;
+    v.funding_deposited_date = null;
   }
-  if (update.funding_deposited && !update.funding_received) {
-    return {
-      error: "Cannot mark deposited without first marking received.",
-    };
-  }
+
+  // Drop method fields that don't belong to the chosen type.
+  const cleaned = clearUnusedMethodFields(v);
+
+  const err = validateFundingValues(cleaned);
+  if (err) return { error: err };
 
   const { error } = await supabase
     .from("participations")
-    .update(update)
+    .update(cleaned)
     .eq("id", participationId);
-
-  if (error) {
-    return { error: error.message };
-  }
+  if (error) return { error: error.message };
 
   revalidatePath(`/admin/participations/${participationId}`);
   revalidatePath("/admin/participations");
   revalidatePath("/notes");
-  return { message: "Funding status saved." };
-}
-
-function dateOrNull(formData: FormData, key: string): string | null {
-  const v = String(formData.get(key) ?? "").trim();
-  return v.length > 0 ? v : null;
-}
-function textOrNull(formData: FormData, key: string): string | null {
-  const v = String(formData.get(key) ?? "").trim();
-  return v.length > 0 ? v : null;
+  return {};
 }
