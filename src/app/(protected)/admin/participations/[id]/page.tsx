@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { FundingForm } from "./funding-form";
 import { InviteButton } from "./invite-button";
+import { AmountReceivedEditor } from "./amount-received-editor";
 
 export default async function AdminParticipationDetailPage({
   params,
@@ -111,6 +112,12 @@ export default async function AdminParticipationDetailPage({
           </CardContent>
         </Card>
       ) : null}
+
+      <AmountReceivedEditor
+        participationId={p.id}
+        investedAmount={p.invested_amount}
+        submittedAmount={p.submitted_amount}
+      />
 
       <FundingForm
         participationId={p.id}
