@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 export default function AccountSetupPage() {
@@ -33,10 +33,9 @@ export default function AccountSetupPage() {
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="password">Password</Label>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               minLength={8}
               required
@@ -44,10 +43,9 @@ export default function AccountSetupPage() {
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="confirm">Confirm password</Label>
-            <Input
+            <PasswordInput
               id="confirm"
               name="confirm"
-              type="password"
               autoComplete="new-password"
               minLength={8}
               required
