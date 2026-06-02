@@ -68,7 +68,10 @@ export async function updateMyInvestmentAmount(
 
   const { data: updated, error } = await supabase
     .from("participations")
-    .update({ invested_amount: amount.toFixed(2) })
+    .update({
+      invested_amount: amount.toFixed(2),
+      submitted_amount: amount.toFixed(2),
+    })
     .eq("id", participationId)
     .select("id")
     .maybeSingle();
@@ -198,6 +201,7 @@ export async function submitRegistration(
     user_id: user.id,
     note_id: noteUuid,
     invested_amount: investment_amount,
+    submitted_amount: investment_amount,
     status: "Active",
   });
   if (partErr) {
