@@ -54,7 +54,9 @@ export default async function AdminParticipationsPage({
       case "awaiting_funding":
         return !p.funding_received;
       case "received":
-        return p.funding_received && !p.funding_deposited;
+        return (
+          p.funding_received && !p.funding_deposited && !p.funding_cleared
+        );
       case "deposited":
         return p.funding_deposited && !p.funding_cleared;
       case "cleared":
@@ -94,7 +96,7 @@ export default async function AdminParticipationsPage({
     all: active.length,
     awaiting_funding: active.filter((p) => !p.funding_received).length,
     received: active.filter(
-      (p) => p.funding_received && !p.funding_deposited,
+      (p) => p.funding_received && !p.funding_deposited && !p.funding_cleared,
     ).length,
     deposited: active.filter(
       (p) => p.funding_deposited && !p.funding_cleared,
