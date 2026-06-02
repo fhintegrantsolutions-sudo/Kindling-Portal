@@ -153,6 +153,7 @@ export async function submitLeadParticipationForm(
     note_id: ar.note_id,
     access_request_id: ar.id,
     invested_amount: amountStr,
+    submitted_amount: amountStr,
     status: "Active",
   });
   if (partErr) {

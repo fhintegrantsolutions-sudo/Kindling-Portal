@@ -68,3 +68,30 @@ export async function saveFundingStatus(
   revalidatePath("/notes");
   return {};
 }
+
+// Admin correction of the actual amount received. Updates ONLY invested_amount
+// (the effective amount everything uses); leaves submitted_amount and the
+// note_registrations row as the original-stated record.
+export async function setParticipationInvestedAmount(
+  participationId: string,
+  amount: string,
+): Promise<{ error?: string }> {
+  await requireParticipationsAccess();
+  const supabase = await createClient();
+
+  const n = Number(String(amount).trim());
+  if (!Number.isFinite(n) || n <= 0) {
+    return { error: "Enter an amount greater than zero." };
+  }
+
+  const { error } = await supabase
+    .from("participations")
+    .update({ invested_amount: n.toFixed(2) })
+    .eq("id", participationId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/admin/participations/${participationId}`);
+  revalidatePath("/admin/participations");
+  revalidatePath("/notes");
+  return {};
+}
