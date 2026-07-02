@@ -6,7 +6,7 @@ import {
   getMyBonusPayoutsForParticipation,
   getMyScheduleForNote,
 } from "@/lib/db/queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -179,7 +179,7 @@ export default async function MyNoteDetailPage({
                           {r.payment_number}
                         </td>
                         <td className="py-2 pr-2">
-                          {r.received_date ?? r.due_date}
+                          {formatDate(r.received_date ?? r.due_date)}
                         </td>
                         <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(r.my_principal)}
@@ -231,7 +231,7 @@ export default async function MyNoteDetailPage({
                     className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm"
                   >
                     <div>
-                      <p className="font-medium">{b.paid_date}</p>
+                      <p className="font-medium">{formatDate(b.paid_date)}</p>
                       {b.notes ? (
                         <p className="text-xs text-muted-foreground">
                           {b.notes}

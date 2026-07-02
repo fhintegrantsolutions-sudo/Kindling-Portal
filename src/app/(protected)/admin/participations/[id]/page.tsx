@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getParticipationById } from "@/lib/db/admin-queries";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -41,8 +41,7 @@ export default async function AdminParticipationDetailPage({
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            {p.note?.note_id} · created{" "}
-            {new Date(p.created_at).toLocaleDateString()}
+            {p.note?.note_id} · created {formatDate(p.created_at)}
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">
             {p.note?.title}

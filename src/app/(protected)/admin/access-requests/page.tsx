@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAccessRequests } from "@/lib/db/admin-queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -72,7 +72,7 @@ export default async function AdminAccessRequestsPage({
                         {r.email} · {r.phone}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Submitted {new Date(r.created_at).toLocaleDateString()}
+                        Submitted {formatDate(r.created_at)}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1 text-xs">

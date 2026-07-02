@@ -9,7 +9,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { getParticipations } from "@/lib/db/admin-queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -197,12 +197,11 @@ export default async function AdminParticipationsPage({
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                        {p.note?.note_id} ·{" "}
-                        {new Date(p.created_at).toLocaleDateString()}
+                        {p.note?.note_id} · {formatDate(p.created_at)}
                         {p.note?.funding_archived_at
-                          ? ` · Archived ${new Date(
+                          ? ` · Archived ${formatDate(
                               p.note.funding_archived_at,
-                            ).toLocaleDateString()}`
+                            )}`
                           : ""}
                       </p>
                       <CardTitle>{p.note?.title}</CardTitle>

@@ -3,7 +3,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import { computeMonthlyPayment, type ScheduleRow } from "@/lib/notes/schedule";
 
 // Same PDF layout as the lender-facing schedule, but uses the note's full
@@ -62,12 +62,6 @@ export function DownloadNoteScheduleButton({
       termMonths,
       interestType,
     });
-    const formatDate = (iso: string | null) => {
-      if (!iso) return "—";
-      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-      return m ? `${m[2]}/${m[3]}/${m[1]}` : iso;
-    };
-
     const leftRows: Array<[string, string]> = [
       ["Loan amount", formatCurrency(principal)],
       ["Annual interest rate", formatPercent(annualRatePct)],
@@ -149,7 +143,7 @@ export function DownloadNoteScheduleButton({
       doc.text(noteTitle, margin, afterSummaryY);
     }
     doc.text(
-      `Generated ${new Date().toLocaleDateString()}`,
+      `Generated ${formatDate(new Date().toISOString())}`,
       pageWidth - margin,
       afterSummaryY,
       { align: "right" },

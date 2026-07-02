@@ -7,6 +7,7 @@ import {
   type NoteFormState,
 } from "@/lib/admin/note-actions";
 import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
+import { formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -504,7 +505,7 @@ export function NoteForm({
             <Label>Maturity date</Label>
             <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
               {maturityDate ? (
-                <span className="font-medium">{formatMMDDYYYY(maturityDate)}</span>
+                <span className="font-medium">{formatDate(maturityDate)}</span>
               ) : (
                 <span className="text-muted-foreground">
                   Set first payment date and term to compute
@@ -627,11 +628,6 @@ function Field({
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
-}
-
-function formatMMDDYYYY(isoDate: string): string {
-  const [y, m, d] = isoDate.split("-");
-  return `${m}/${d}/${y}`;
 }
 
 // Format a numeric string as "1,234,567.89" (thousands separators, two

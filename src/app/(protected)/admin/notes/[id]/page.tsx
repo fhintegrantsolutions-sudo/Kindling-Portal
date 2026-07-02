@@ -7,7 +7,7 @@ import {
   getNotePayments,
 } from "@/lib/db/admin-queries";
 import { computeMonthlyPayment, generateSchedule } from "@/lib/notes/schedule";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -108,7 +108,7 @@ export default async function NoteOverviewPage({
           />
           <Stat
             label="Next payment"
-            value={nextDue ? `#${nextDue.number} · ${nextDue.date}` : "—"}
+            value={nextDue ? `#${nextDue.number} · ${formatDate(nextDue.date)}` : "—"}
           />
         </CardContent>
       </Card>

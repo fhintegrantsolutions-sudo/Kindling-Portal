@@ -6,7 +6,7 @@ import {
   getReferralCodeByUserId,
 } from "@/lib/db/admin-queries";
 import { verifySession } from "@/lib/dal";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -122,7 +122,7 @@ export default async function AdminUserDetailPage({
           />
           <Field
             label="Joined"
-            value={new Date(p.created_at).toLocaleDateString()}
+            value={formatDate(p.created_at)}
           />
         </CardContent>
       </Card>

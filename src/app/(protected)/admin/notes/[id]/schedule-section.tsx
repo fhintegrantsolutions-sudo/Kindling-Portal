@@ -5,7 +5,7 @@ import {
   recordScheduledPayment,
   unrecordScheduledPayment,
 } from "@/lib/admin/payment-actions";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -130,7 +130,7 @@ function ScheduleRowItem({
       }`}
     >
       <td className="py-2 pr-2 text-muted-foreground">{row.payment_number}</td>
-      <td className="py-2 pr-2">{row.due_date}</td>
+      <td className="py-2 pr-2">{formatDate(row.due_date)}</td>
       <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(row.principal_amount)}
       </td>
@@ -151,7 +151,7 @@ function ScheduleRowItem({
               className="size-4 rounded border-muted-foreground/40"
             />
             <span className="text-xs text-muted-foreground tabular-nums">
-              {isReceived ? received?.recorded_date : ""}
+              {isReceived && received ? formatDate(received.recorded_date) : ""}
             </span>
           </label>
           <div className="w-24 text-right">
