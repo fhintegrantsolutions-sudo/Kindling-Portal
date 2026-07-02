@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getMyReferralCode, getMyReferrals } from "@/lib/db/queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -63,7 +63,7 @@ export default async function MyReferralsPage() {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {r.referred_email ?? "no email"} · referred{" "}
-                    {new Date(r.created_at).toLocaleDateString()}
+                    {formatDate(r.created_at)}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-xs">

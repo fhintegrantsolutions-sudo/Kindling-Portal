@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { archiveNoteFunding } from "@/lib/admin/note-actions";
+import { formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -22,7 +23,7 @@ export function ArchiveFundingButton({
       <div className="flex flex-col gap-1 rounded-lg border border-muted bg-muted/30 p-6">
         <p className="text-sm font-medium">Funding archived</p>
         <p className="text-xs text-muted-foreground">
-          ✓ Archived {new Date(archivedAt).toLocaleDateString()}. This note no
+          ✓ Archived {formatDate(archivedAt)}. This note no
           longer appears in the active funding workflow. Its records remain in
           the &ldquo;Archived&rdquo; filter and on this page.
         </p>

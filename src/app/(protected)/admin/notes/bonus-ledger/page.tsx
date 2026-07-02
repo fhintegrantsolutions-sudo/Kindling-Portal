@@ -3,7 +3,7 @@ import {
   getBonusLedgerForMonth,
   getBorrowersForPicker,
 } from "@/lib/db/admin-queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -128,7 +128,7 @@ export default async function BonusLedgerPage({
                         key={r.id}
                         className="border-b last:border-b-0"
                       >
-                        <td className="py-2 pr-2">{r.paid_date}</td>
+                        <td className="py-2 pr-2">{formatDate(r.paid_date)}</td>
                         <td className="py-2 pr-2">
                           {r.borrower_name ?? "—"}
                         </td>
@@ -166,7 +166,7 @@ export default async function BonusLedgerPage({
                             bonus={{
                               bonus_id: r.id,
                               note_uuid: r.note_uuid,
-                              note_label: `${r.note_id} · bonus on ${r.paid_date}`,
+                              note_label: `${r.note_id} · bonus on ${formatDate(r.paid_date)}`,
                               payment_method: r.payment_method,
                               check_number: r.check_number,
                               wire_reference: r.wire_reference,

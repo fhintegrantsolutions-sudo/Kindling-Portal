@@ -6,7 +6,7 @@ import {
   recordScheduledPayment,
   unrecordScheduledPayment,
 } from "@/lib/admin/payment-actions";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { PaymentDetailsButton } from "@/components/admin/payment-details-sheet";
 import type { LedgerRow } from "@/lib/db/admin-queries";
@@ -158,7 +158,7 @@ function Row({
           aria-label={`Select ${row.note_id} payment #${row.payment_number}`}
         />
       </td>
-      <td className="py-2 pr-2">{row.due_date}</td>
+      <td className="py-2 pr-2">{formatDate(row.due_date)}</td>
       <td className="py-2 pr-2">{row.borrower_name ?? "—"}</td>
       <td className="py-2 pr-2">
         <Link
@@ -203,7 +203,7 @@ function Row({
               className="size-4 rounded border-muted-foreground/40"
             />
             <span className="text-xs text-muted-foreground">
-              {isReceived ? row.received_date : ""}
+              {isReceived ? formatDate(row.received_date) : ""}
             </span>
           </label>
           {isReceived && row.payment_id ? (

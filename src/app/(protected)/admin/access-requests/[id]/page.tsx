@@ -5,7 +5,7 @@ import {
   getAccessRequestById,
   getNotesForPicker,
 } from "@/lib/db/admin-queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -63,7 +63,7 @@ export default async function AdminAccessRequestDetailPage({
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Submitted {new Date(r.created_at).toLocaleString()}
+            Submitted {formatDate(r.created_at)}
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">
             {r.first_name} {r.last_name}
@@ -138,7 +138,7 @@ export default async function AdminAccessRequestDetailPage({
             {r.setup_token_expires_at ? (
               <p className="text-xs text-muted-foreground">
                 Link expires{" "}
-                {new Date(r.setup_token_expires_at).toLocaleDateString()}.
+                {formatDate(r.setup_token_expires_at)}.
               </p>
             ) : null}
           </CardContent>

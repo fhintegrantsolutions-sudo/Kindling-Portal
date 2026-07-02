@@ -7,7 +7,7 @@ import {
   markBonusReceived,
   type BonusFormState,
 } from "@/lib/admin/bonus-actions";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -222,7 +222,7 @@ function BonusRow({
           <div className="flex items-center gap-2">
             <p className="text-sm font-medium">
               {formatCurrency(gross)} ·{" "}
-              <span className="text-muted-foreground">{bonus.paid_date}</span>
+              <span className="text-muted-foreground">{formatDate(bonus.paid_date)}</span>
             </p>
             <span
               className={
@@ -264,7 +264,7 @@ function BonusRow({
               bonus={{
                 bonus_id: bonus.id,
                 note_uuid: noteUuid,
-                note_label: `Bonus on ${bonus.paid_date}`,
+                note_label: `Bonus on ${formatDate(bonus.paid_date)}`,
                 payment_method: bonus.payment_method,
                 check_number: bonus.check_number,
                 wire_reference: bonus.wire_reference,
