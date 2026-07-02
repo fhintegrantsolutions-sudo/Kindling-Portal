@@ -79,7 +79,7 @@ export function NoteForm({
   // numbers depending on the driver — coerce to string so .replace() and
   // friends are safe.
   const [principalStr, setPrincipalStr] = useState(
-    defaults.principal == null ? "" : String(defaults.principal),
+    defaults.principal == null ? "" : formatMoney(String(defaults.principal)),
   );
   const [rateStr, setRateStr] = useState(
     defaults.rate == null ? "" : String(defaults.rate),
@@ -378,19 +378,26 @@ export function NoteForm({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="principal">Principal (USD)</Label>
-            <Input
-              id="principal"
-              name="principal"
-              type="text"
-              inputMode="decimal"
-              value={principalStr}
-              onChange={(e) => {
-                // Allow digits, comma, and one decimal point.
-                const next = e.target.value.replace(/[^0-9.,]/g, "");
-                setPrincipalStr(next);
-              }}
-              aria-invalid={Boolean(fe.principal) || undefined}
-            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="principal"
+                name="principal"
+                type="text"
+                inputMode="decimal"
+                value={principalStr}
+                onChange={(e) => {
+                  // Allow digits, comma, and one decimal point.
+                  const next = e.target.value.replace(/[^0-9.,]/g, "");
+                  setPrincipalStr(next);
+                }}
+                onBlur={() => setPrincipalStr((s) => formatMoney(s))}
+                className="pl-7"
+                aria-invalid={Boolean(fe.principal) || undefined}
+              />
+            </div>
             {fe.principal ? (
               <p className="text-xs text-destructive">{fe.principal}</p>
             ) : null}
@@ -625,4 +632,18 @@ function Field({
 function formatMMDDYYYY(isoDate: string): string {
   const [y, m, d] = isoDate.split("-");
   return `${m}/${d}/${y}`;
+}
+
+// Format a numeric string as "1,234,567.89" (thousands separators, two
+// decimals). Leaves an empty or non-numeric value untouched so the field can
+// still be cleared or edited freely; commas are stripped again on submit.
+function formatMoney(value: string): string {
+  const cleaned = value.replace(/,/g, "").trim();
+  if (cleaned === "") return "";
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) return value;
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
