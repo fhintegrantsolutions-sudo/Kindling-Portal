@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { formatCurrency } from "@/lib/format";
+import { notifyRegistrationSubmitted } from "@/lib/ghl/notify-registration";
 
 export type RegistrationFormState = {
   error?: string;
@@ -209,6 +211,17 @@ export async function submitRegistration(
       error: `Registration saved but failed to create participation: ${partErr.message}`,
     };
   }
+
+  // Best-effort CRM notification (never blocks/fails the registration).
+  await notifyRegistrationSubmitted({
+    email,
+    first_name: fn,
+    last_name: ln,
+    phone,
+    note_id: noteHumanId,
+    amount: Number(investment_amount),
+    amount_formatted: formatCurrency(investment_amount),
+  });
 
   revalidatePath(`/opportunities/${noteHumanId}`);
   revalidatePath("/notes");
