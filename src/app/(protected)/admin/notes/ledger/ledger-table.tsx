@@ -247,7 +247,7 @@ function downloadCsv(rows: LedgerRow[], monthLabel: string) {
     const total = r.principal_amount + r.interest_amount;
     const status = r.received_date ? "Received" : "Scheduled";
     return [
-      r.due_date,
+      formatDate(r.due_date),
       r.borrower_name ?? "",
       r.note_id,
       r.note_title,
@@ -256,7 +256,7 @@ function downloadCsv(rows: LedgerRow[], monthLabel: string) {
       r.interest_amount.toFixed(2),
       total.toFixed(2),
       status,
-      r.received_date ?? "",
+      r.received_date ? formatDate(r.received_date) : "",
       r.payment_method ?? "",
       r.check_number ?? "",
       r.wire_reference ?? "",
