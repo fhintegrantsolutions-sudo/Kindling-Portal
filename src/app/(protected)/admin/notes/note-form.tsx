@@ -378,20 +378,26 @@ export function NoteForm({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="principal">Principal (USD)</Label>
-            <Input
-              id="principal"
-              name="principal"
-              type="text"
-              inputMode="decimal"
-              value={principalStr}
-              onChange={(e) => {
-                // Allow digits, comma, and one decimal point.
-                const next = e.target.value.replace(/[^0-9.,]/g, "");
-                setPrincipalStr(next);
-              }}
-              onBlur={() => setPrincipalStr((s) => formatMoney(s))}
-              aria-invalid={Boolean(fe.principal) || undefined}
-            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="principal"
+                name="principal"
+                type="text"
+                inputMode="decimal"
+                value={principalStr}
+                onChange={(e) => {
+                  // Allow digits, comma, and one decimal point.
+                  const next = e.target.value.replace(/[^0-9.,]/g, "");
+                  setPrincipalStr(next);
+                }}
+                onBlur={() => setPrincipalStr((s) => formatMoney(s))}
+                className="pl-7"
+                aria-invalid={Boolean(fe.principal) || undefined}
+              />
+            </div>
             {fe.principal ? (
               <p className="text-xs text-destructive">{fe.principal}</p>
             ) : null}
