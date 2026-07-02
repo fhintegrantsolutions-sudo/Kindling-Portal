@@ -1,8 +1,7 @@
 import "server-only";
 
-// Payload POSTed to the GoHighLevel Inbound-Webhook workflow when a lender
-// submits a note registration. Field names are the keys the GHL workflow
-// references as {{inboundWebhookRequest.<field>}} in the email template.
+import { ghlSendEmail, ghlUpsertContact } from "./client";
+
 export type RegistrationNotification = {
   email: string;
   first_name: string;
@@ -13,28 +12,40 @@ export type RegistrationNotification = {
   amount_formatted: string; // "$2,500.00"
 };
 
-// Best-effort notification to GoHighLevel. Fire-and-forget from the caller's
-// perspective: it NEVER throws, so a CRM hiccup can't fail a registration that
-// already succeeded. No-ops until GHL_REGISTRATION_WEBHOOK_URL is configured.
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Best-effort GoHighLevel notification when a lender submits a note
+// registration: upsert the contact, then email them a confirmation with the
+// amount. NEVER throws — a CRM/email hiccup must not fail a registration that
+// already succeeded. No-ops when the PIT/location env vars aren't set.
 export async function notifyRegistrationSubmitted(
   payload: RegistrationNotification,
 ): Promise<void> {
-  const url = process.env.GHL_REGISTRATION_WEBHOOK_URL;
-  if (!url) return;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const contactId = await ghlUpsertContact({
+      email: payload.email,
+      firstName: payload.first_name,
+      lastName: payload.last_name,
+      phone: payload.phone,
     });
-    if (!res.ok) {
-      console.warn(
-        `[ghl] registration webhook returned HTTP ${res.status} for note ${payload.note_id}`,
-      );
-    }
+    if (!contactId) return;
+
+    const firstName = payload.first_name.trim() || "there";
+    const subject = `Your registration for ${payload.note_id} has been submitted`;
+    const html = `<p>Hi ${esc(firstName)},</p>
+<p>We&rsquo;ve received your registration for note <strong>${esc(payload.note_id)}</strong> in the amount of <strong>${esc(payload.amount_formatted)}</strong>.</p>
+<p>We&rsquo;ll follow up with the next steps for funding. Thank you for participating!</p>
+<p>&mdash; Kindling</p>`;
+
+    await ghlSendEmail({ contactId, subject, html });
   } catch (e) {
     console.warn(
-      "[ghl] registration webhook failed:",
+      "[ghl] notifyRegistrationSubmitted failed:",
       e instanceof Error ? e.message : e,
     );
   }
