@@ -1,0 +1,52 @@
+import "server-only";
+
+import { ghlSendEmail, ghlUpsertContact } from "./client";
+
+export type RegistrationNotification = {
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  note_id: string; // human note id, e.g. "K26003A"
+  amount: number; // 2500
+  amount_formatted: string; // "$2,500.00"
+};
+
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Best-effort GoHighLevel notification when a lender submits a note
+// registration: upsert the contact, then email them a confirmation with the
+// amount. NEVER throws — a CRM/email hiccup must not fail a registration that
+// already succeeded. No-ops when the PIT/location env vars aren't set.
+export async function notifyRegistrationSubmitted(
+  payload: RegistrationNotification,
+): Promise<void> {
+  try {
+    const contactId = await ghlUpsertContact({
+      email: payload.email,
+      firstName: payload.first_name,
+      lastName: payload.last_name,
+      phone: payload.phone,
+    });
+    if (!contactId) return;
+
+    const firstName = payload.first_name.trim() || "there";
+    const subject = `Your registration for ${payload.note_id} has been submitted`;
+    const html = `<p>Hi ${esc(firstName)},</p>
+<p>We&rsquo;ve received your registration for note <strong>${esc(payload.note_id)}</strong> in the amount of <strong>${esc(payload.amount_formatted)}</strong>.</p>
+<p>We&rsquo;ll follow up with the next steps for funding. Thank you for participating!</p>
+<p>&mdash; Kindling</p>`;
+
+    await ghlSendEmail({ contactId, subject, html });
+  } catch (e) {
+    console.warn(
+      "[ghl] notifyRegistrationSubmitted failed:",
+      e instanceof Error ? e.message : e,
+    );
+  }
+}
