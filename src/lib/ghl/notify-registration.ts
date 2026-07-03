@@ -31,11 +31,15 @@ export async function notifyRegistrationSubmitted(
   payload: RegistrationNotification,
 ): Promise<void> {
   try {
+    // Tag the lender by note, e.g. "K26003A" -> "lead k26003" (lowercase, drop
+    // the trailing tranche letter so all tranches of a note share one tag).
+    const noteTag = `lead ${payload.note_id.toLowerCase().replace(/[a-z]+$/, "")}`;
     const contactId = await ghlUpsertContact({
       email: payload.email,
       firstName: payload.first_name,
       lastName: payload.last_name,
       phone: payload.phone,
+      tags: [noteTag],
     });
     if (!contactId) return;
 
