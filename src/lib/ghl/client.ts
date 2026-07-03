@@ -113,3 +113,50 @@ export async function ghlCreateOpportunity(input: {
   const json = (await res.json()) as { opportunity?: { id?: string } };
   return json.opportunity?.id ?? null;
 }
+
+// Remove tags from a contact by contact id. Uses contacts.write (same scope as
+// upsert). Returns true on success; no-ops if no contact/tags given.
+export async function ghlRemoveContactTags(
+  contactId: string,
+  tags: string[],
+): Promise<boolean> {
+  const cfg = ghlConfig();
+  if (!cfg) return false;
+  if (!contactId || tags.length === 0) return false;
+  const res = await fetch(`${BASE}/contacts/${contactId}/tags`, {
+    method: "DELETE",
+    headers: ghlHeaders(cfg.token),
+    body: JSON.stringify({ tags }),
+  });
+  if (!res.ok) {
+    console.warn(`[ghl] removeContactTags HTTP ${res.status}`);
+    return false;
+  }
+  return true;
+}
+
+// Create a tag in the location's tag library. Idempotent from the caller's view:
+// treats a duplicate (400/422 "already exists") as success, since the goal is
+// only to guarantee the tag exists. Requires the PIT to hold the location tags
+// write scope. Returns true when the tag exists after the call.
+export async function ghlCreateTag(name: string): Promise<boolean> {
+  const cfg = ghlConfig();
+  if (!cfg) return false;
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  const res = await fetch(`${BASE}/locations/${cfg.locationId}/tags`, {
+    method: "POST",
+    headers: ghlHeaders(cfg.token),
+    body: JSON.stringify({ name: trimmed }),
+  });
+  if (res.ok) return true;
+  // A tag that already exists is a success for our purposes.
+  if (res.status === 400 || res.status === 422) {
+    const body = await res.text();
+    if (/exist/i.test(body)) return true;
+    console.warn(`[ghl] createTag HTTP ${res.status}: ${body}`);
+    return false;
+  }
+  console.warn(`[ghl] createTag HTTP ${res.status}`);
+  return false;
+}

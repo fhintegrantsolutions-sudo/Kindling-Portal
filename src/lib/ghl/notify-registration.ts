@@ -5,6 +5,7 @@ import {
   ghlSendEmail,
   ghlUpsertContact,
 } from "./client";
+import { noteLeadTag } from "./note-tags";
 
 export type RegistrationNotification = {
   email: string;
@@ -31,9 +32,9 @@ export async function notifyRegistrationSubmitted(
   payload: RegistrationNotification,
 ): Promise<void> {
   try {
-    // Tag the lender by note, e.g. "K26003" -> "lead k26003". Each note id is a
-    // distinct note, so the full id is kept (K26003A and K26003B tag separately).
-    const noteTag = `lead ${payload.note_id.toLowerCase()}`;
+    // Tag the lender as a lead for this note, e.g. "K26003" -> "lead k26003".
+    // Each note id is distinct, so K26003A and K26003B tag separately.
+    const noteTag = noteLeadTag(payload.note_id);
     const contactId = await ghlUpsertContact({
       email: payload.email,
       firstName: payload.first_name,

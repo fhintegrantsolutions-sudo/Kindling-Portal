@@ -10,6 +10,8 @@ import {
   validateFundingValues,
   type FundingValues,
 } from "@/lib/admin/funding-stages";
+import { getParticipationById } from "@/lib/db/admin-queries";
+import { tagParticipantFundsReceived } from "@/lib/ghl/notify-funding";
 
 // Empty string -> null for nullable text/date columns.
 function nn(s: string | null): string | null {
@@ -57,11 +59,33 @@ export async function saveFundingStatus(
   const err = validateFundingValues(cleaned);
   if (err) return { error: err };
 
+  // Read the prior received flag so we can fire the lead->participant tag swap
+  // only on the false->true edge (this action re-saves the whole sub-object on
+  // every autosave, so without this it would re-fire on unrelated edits).
+  const { data: prior } = await supabase
+    .from("participations")
+    .select("funding_received")
+    .eq("id", participationId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("participations")
     .update(cleaned)
     .eq("id", participationId);
   if (error) return { error: error.message };
+
+  // Funds just became received: swap the lender's GHL tags (add "k26003",
+  // remove "lead k26003"). Best-effort — never blocks the save.
+  if (cleaned.funding_received && !prior?.funding_received) {
+    const detail = await getParticipationById(participationId);
+    const email = detail?.lender?.email ?? null;
+    const noteId =
+      (detail as { note?: { note_id?: string | null } } | null)?.note
+        ?.note_id ?? null;
+    if (email && noteId) {
+      await tagParticipantFundsReceived({ email, note_id: noteId });
+    }
+  }
 
   revalidatePath(`/admin/participations/${participationId}`);
   revalidatePath("/admin/participations");
