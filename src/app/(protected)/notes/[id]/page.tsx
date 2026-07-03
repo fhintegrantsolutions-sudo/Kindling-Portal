@@ -209,6 +209,7 @@ export default async function MyNoteDetailPage({
         </CardContent>
       </Card>
 
+      {note.has_profit_bonus ? (
       <Card>
         <CardHeader>
           <CardTitle>Profit bonuses</CardTitle>
@@ -248,6 +249,7 @@ export default async function MyNoteDetailPage({
           )}
         </CardContent>
       </Card>
+      ) : null}
 
       <NoteDetailCard note={note} />
     </div>

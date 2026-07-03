@@ -35,6 +35,7 @@ export default async function NewNotePage() {
           type: "note",
           interest_type: "Amortized",
           is_private: false,
+          has_profit_bonus: false,
           principal: "",
           rate: "",
           term_months: "",

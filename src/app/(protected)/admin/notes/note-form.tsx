@@ -21,6 +21,7 @@ export type NoteDefaults = {
   type: string;
   interest_type: string;
   is_private: boolean;
+  has_profit_bonus: boolean;
   principal: string | null;
   rate: string;
   term_months: string;
@@ -344,6 +345,22 @@ export function NoteForm({
             </>
           )}
         </div>
+      </Section>
+
+      <Section title="Profit bonus">
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            name="has_profit_bonus"
+            defaultChecked={defaults.has_profit_bonus}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-medium">This note has a profit bonus.</span>{" "}
+            When unchecked, the &ldquo;Profit bonuses&rdquo; section is hidden
+            from lenders on their note page. Turn this on to show it.
+          </span>
+        </label>
       </Section>
       </TabPanel>
 

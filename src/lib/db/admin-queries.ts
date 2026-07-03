@@ -1174,6 +1174,7 @@ export type AdminNoteDetail = {
   type: string;
   interest_type: string;
   is_private: boolean;
+  has_profit_bonus: boolean;
   description: string | null;
   admin_notes: string | null;
   target_raise: string | null;

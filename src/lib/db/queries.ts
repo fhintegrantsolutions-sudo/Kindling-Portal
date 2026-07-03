@@ -328,6 +328,7 @@ export type NoteDetail = {
   target_raise: string | null;
   min_investment: string | null;
   description: string | null;
+  has_profit_bonus: boolean;
   borrower: { business_name: string } | null;
 };
 
@@ -342,7 +343,7 @@ export async function getNoteByNoteId(noteId: string) {
       loan_payment_status, contract_date, payment_start_date,
       maturity_date, funding_start_date, funding_end_date,
       first_payment_date, monthly_payment, target_raise, min_investment,
-      description,
+      description, has_profit_bonus,
       borrower:borrowers ( business_name )
       `,
     )

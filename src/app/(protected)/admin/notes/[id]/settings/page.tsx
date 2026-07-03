@@ -59,6 +59,7 @@ export default async function NoteSettingsPage({
           type: note.type,
           interest_type: note.interest_type,
           is_private: note.is_private,
+          has_profit_bonus: note.has_profit_bonus,
           principal: note.principal,
           rate: note.rate,
           term_months: String(note.term_months),
