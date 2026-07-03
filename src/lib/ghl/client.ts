@@ -25,11 +25,13 @@ function ghlHeaders(token: string): Record<string, string> {
 }
 
 // Create or update a contact by email; returns the GHL contact id (or null).
+// Any tags provided are added to the contact (upsert merges, never removes).
 export async function ghlUpsertContact(input: {
   email: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
+  tags?: string[];
 }): Promise<string | null> {
   const cfg = ghlConfig();
   if (!cfg) return null;
@@ -42,6 +44,7 @@ export async function ghlUpsertContact(input: {
       firstName: input.firstName || undefined,
       lastName: input.lastName || undefined,
       phone: input.phone || undefined,
+      tags: input.tags && input.tags.length > 0 ? input.tags : undefined,
     }),
   });
   if (!res.ok) {

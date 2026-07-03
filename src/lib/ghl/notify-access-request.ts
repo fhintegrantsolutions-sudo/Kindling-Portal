@@ -23,6 +23,7 @@ export async function notifyAccessRequestSubmitted(
       firstName: payload.first_name,
       lastName: payload.last_name,
       phone: payload.phone,
+      tags: ["kindling lead"],
     });
     if (!contactId) return;
 
