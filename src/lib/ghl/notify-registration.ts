@@ -1,6 +1,10 @@
 import "server-only";
 
-import { ghlSendEmail, ghlUpsertContact } from "./client";
+import {
+  ghlCreateOpportunity,
+  ghlSendEmail,
+  ghlUpsertContact,
+} from "./client";
 
 export type RegistrationNotification = {
   email: string;
@@ -34,6 +38,23 @@ export async function notifyRegistrationSubmitted(
       phone: payload.phone,
     });
     if (!contactId) return;
+
+    // Track the registration as an opportunity in the pipeline (independent
+    // best-effort — a failure here must not skip the confirmation email).
+    try {
+      const lender =
+        `${payload.first_name} ${payload.last_name}`.trim() || payload.email;
+      await ghlCreateOpportunity({
+        contactId,
+        name: `${lender} — ${payload.note_id}`,
+        monetaryValue: payload.amount,
+      });
+    } catch (e) {
+      console.warn(
+        "[ghl] createOpportunity failed:",
+        e instanceof Error ? e.message : e,
+      );
+    }
 
     const firstName = payload.first_name.trim() || "there";
     const subject = `Your registration for ${payload.note_id} has been submitted`;
