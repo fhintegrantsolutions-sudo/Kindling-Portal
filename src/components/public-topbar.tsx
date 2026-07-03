@@ -27,11 +27,10 @@ export function PublicTopbar({
           <Image
             src="/logo.png"
             alt="Kindling logo"
-            width={28}
-            height={28}
+            width={84}
+            height={36}
             priority
           />
-          Kindling
         </Link>
 
         <nav className="hidden items-center gap-6 md:flex">

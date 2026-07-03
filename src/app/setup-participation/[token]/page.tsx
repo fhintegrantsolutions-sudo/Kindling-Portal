@@ -62,10 +62,7 @@ export default async function SetupParticipationPage({
     <div className="min-h-svh bg-background">
       <header className="border-b bg-sidebar py-6 text-sidebar-foreground">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 md:px-8">
-          <Image src="/logo.png" alt="Kindling logo" width={32} height={32} priority />
-          <span className="font-serif text-2xl font-bold tracking-tight text-sidebar-primary">
-            Kindling
-          </span>
+          <Image src="/logo.png" alt="Kindling logo" width={84} height={36} priority />
         </div>
       </header>
 

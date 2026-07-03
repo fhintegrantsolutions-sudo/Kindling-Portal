@@ -75,16 +75,10 @@ export function AppSidebar({
         <Image
           src="/logo.png"
           alt="Kindling logo"
-          width={36}
+          width={84}
           height={36}
           priority
         />
-        <span
-          className="font-serif text-2xl font-bold tracking-tight"
-          style={{ color: "hsl(var(--sidebar-primary))" }}
-        >
-          Kindling
-        </span>
       </div>
       <Separator className="bg-sidebar-border" />
       <nav className="flex flex-1 flex-col gap-1 p-4">
