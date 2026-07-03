@@ -14,5 +14,11 @@ export default async function NoteBonusesPage({
   ]);
   if (!note) notFound();
 
-  return <BonusesSection noteUuid={note.id} bonuses={bonuses} />;
+  return (
+    <BonusesSection
+      noteUuid={note.id}
+      bonuses={bonuses}
+      hasProfitBonus={note.has_profit_bonus}
+    />
+  );
 }
