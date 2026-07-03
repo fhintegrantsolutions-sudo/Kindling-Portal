@@ -18,6 +18,7 @@ export type ParticipationWithNote = {
     principal: string;
     rate: string;
     term_months: number;
+    interest_type: string;
     project_type: string;
     status: string;
     maturity_date: string | null;
@@ -65,6 +66,7 @@ export async function getMyParticipations() {
         principal,
         rate,
         term_months,
+        interest_type,
         project_type,
         status,
         maturity_date
@@ -75,6 +77,104 @@ export async function getMyParticipations() {
     .order("created_at", { ascending: false });
 
   return (data ?? []) as unknown as ParticipationWithNote[];
+}
+
+export type MonthlyCashflowPoint = {
+  month: string; // "YYYY-MM"
+  principal: number;
+  interest: number;
+};
+
+// Aggregate the lender's projected monthly payments (principal + interest,
+// pro-rated to their share) across all funded notes, keyed by calendar month.
+// Returns a continuous month-by-month timeline from the first scheduled payment
+// to the last, so bars rise when a new note begins paying and fall as notes
+// mature. Notes missing schedule inputs (principal / dates) are skipped.
+export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("participations")
+    .select(
+      `
+      invested_amount, funding_cleared,
+      note:notes ( principal, rate, term_months, interest_type, first_payment_date )
+      `,
+    )
+    .eq("user_id", user.id)
+    .eq("funding_cleared", true);
+
+  const rows = (data ?? []) as unknown as Array<{
+    invested_amount: string;
+    funding_cleared: boolean;
+    note: {
+      principal: string | null;
+      rate: string | null;
+      term_months: number | null;
+      interest_type: string;
+      first_payment_date: string | null;
+    } | null;
+  }>;
+
+  const { generateSchedule, addMonths } = await import("@/lib/notes/schedule");
+  const byMonth = new Map<string, { principal: number; interest: number }>();
+
+  for (const r of rows) {
+    const n = r.note;
+    if (
+      !n ||
+      n.principal === null ||
+      n.rate === null ||
+      !n.term_months ||
+      !n.first_payment_date
+    ) {
+      continue;
+    }
+    const notePrincipal = Number(n.principal);
+    if (!(notePrincipal > 0)) continue;
+    const myShare = Number(r.invested_amount) / notePrincipal;
+    const sched = generateSchedule({
+      principal: notePrincipal,
+      annualRatePct: Number(n.rate),
+      termMonths: Number(n.term_months),
+      interestType: String(n.interest_type),
+      firstPaymentDate: String(n.first_payment_date),
+    });
+    if (!sched.ok) continue;
+    for (const row of sched.rows) {
+      const month = row.due_date.slice(0, 7);
+      const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
+      cur.principal += row.principal_amount * myShare;
+      cur.interest += row.interest_amount * myShare;
+      byMonth.set(month, cur);
+    }
+  }
+
+  if (byMonth.size === 0) return [];
+
+  const sortedMonths = Array.from(byMonth.keys()).sort();
+  const firstMonth = sortedMonths[0];
+  const lastMonth = sortedMonths[sortedMonths.length - 1];
+
+  // Fill every month from first to last so the timeline is continuous.
+  const out: MonthlyCashflowPoint[] = [];
+  let cursor = `${firstMonth}-01`;
+  const stop = `${lastMonth}-01`;
+  while (cursor <= stop) {
+    const m = cursor.slice(0, 7);
+    const v = byMonth.get(m) ?? { principal: 0, interest: 0 };
+    out.push({
+      month: m,
+      principal: Math.round(v.principal * 100) / 100,
+      interest: Math.round(v.interest * 100) / 100,
+    });
+    cursor = addMonths(cursor, 1);
+  }
+  return out;
 }
 
 // Total monthly payment the signed-in lender is expected to receive across

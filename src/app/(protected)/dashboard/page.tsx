@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { CalendarClock, DollarSign, PieChart, TrendingUp } from "lucide-react";
 import { getCurrentProfile } from "@/lib/dal";
 import {
+  getMyMonthlyCashflow,
   getMyParticipations,
   getMyTotalMonthlyPayment,
 } from "@/lib/db/queries";
@@ -11,13 +13,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { MonthlyCashflowChart } from "./monthly-cashflow-chart";
 
 export default async function DashboardPage() {
-  const [profile, participations, totalMonthly] = await Promise.all([
-    getCurrentProfile(),
-    getMyParticipations(),
-    getMyTotalMonthlyPayment(),
-  ]);
+  const [profile, participations, totalMonthly, monthlyCashflow] =
+    await Promise.all([
+      getCurrentProfile(),
+      getMyParticipations(),
+      getMyTotalMonthlyPayment(),
+      getMyMonthlyCashflow(),
+    ]);
 
   // "Active" = the row is Active AND the funding has cleared — un-cleared
   // participations are still pending and shouldn't count as deployed capital.
@@ -70,13 +75,15 @@ export default async function DashboardPage() {
         <section className="rounded-lg border bg-card p-8 text-center">
           <p className="text-sm text-muted-foreground">
             You don&apos;t have any participations yet. Browse{" "}
-            <a href="/opportunities" className="font-medium underline">
+            <Link href="/opportunities" className="font-medium underline">
               opportunities
-            </a>{" "}
+            </Link>{" "}
             to get started.
           </p>
         </section>
-      ) : null}
+      ) : (
+        <MonthlyCashflowChart data={monthlyCashflow} />
+      )}
     </div>
   );
 }
