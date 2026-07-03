@@ -76,3 +76,37 @@ export async function ghlSendEmail(input: {
   }
   return true;
 }
+
+// Create an opportunity in a pipeline for a contact. Pipeline + stage come from
+// GHL_REGISTRATION_PIPELINE_ID / GHL_REGISTRATION_STAGE_ID; no-ops (returns
+// null) if either isn't configured. Returns the new opportunity id.
+export async function ghlCreateOpportunity(input: {
+  contactId: string;
+  name: string;
+  monetaryValue?: number;
+}): Promise<string | null> {
+  const cfg = ghlConfig();
+  if (!cfg) return null;
+  const pipelineId = process.env.GHL_REGISTRATION_PIPELINE_ID;
+  const pipelineStageId = process.env.GHL_REGISTRATION_STAGE_ID;
+  if (!pipelineId || !pipelineStageId) return null;
+  const res = await fetch(`${BASE}/opportunities/`, {
+    method: "POST",
+    headers: ghlHeaders(cfg.token),
+    body: JSON.stringify({
+      pipelineId,
+      pipelineStageId,
+      locationId: cfg.locationId,
+      name: input.name,
+      status: "open",
+      contactId: input.contactId,
+      monetaryValue: input.monetaryValue,
+    }),
+  });
+  if (!res.ok) {
+    console.warn(`[ghl] createOpportunity HTTP ${res.status}`);
+    return null;
+  }
+  const json = (await res.json()) as { opportunity?: { id?: string } };
+  return json.opportunity?.id ?? null;
+}
