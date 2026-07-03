@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { normalizeEmail, toProperCase } from "@/lib/text";
+import { notifyAccessRequestSubmitted } from "@/lib/ghl/notify-access-request";
 
 export type AccessRequestFormState = {
   error?: string;
@@ -42,6 +43,15 @@ export async function submitAccessRequest(
   if (error) {
     return { error: "We couldn't submit your request. Please try again." };
   }
+
+  // Best-effort: sync the lead into GHL (contact + opportunity in the
+  // "Request Access" pipeline). Never blocks/fails the request.
+  await notifyAccessRequestSubmitted({
+    email: fields.email,
+    first_name: fields.first_name,
+    last_name: fields.last_name,
+    phone: fields.phone,
+  });
 
   return { success: true };
 }
