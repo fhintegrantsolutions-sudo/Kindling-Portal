@@ -25,11 +25,13 @@ function ghlHeaders(token: string): Record<string, string> {
 }
 
 // Create or update a contact by email; returns the GHL contact id (or null).
+// Any tags provided are added to the contact (upsert merges, never removes).
 export async function ghlUpsertContact(input: {
   email: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
+  tags?: string[];
 }): Promise<string | null> {
   const cfg = ghlConfig();
   if (!cfg) return null;
@@ -42,6 +44,7 @@ export async function ghlUpsertContact(input: {
       firstName: input.firstName || undefined,
       lastName: input.lastName || undefined,
       phone: input.phone || undefined,
+      tags: input.tags && input.tags.length > 0 ? input.tags : undefined,
     }),
   });
   if (!res.ok) {
@@ -77,25 +80,25 @@ export async function ghlSendEmail(input: {
   return true;
 }
 
-// Create an opportunity in a pipeline for a contact. Pipeline + stage come from
-// GHL_REGISTRATION_PIPELINE_ID / GHL_REGISTRATION_STAGE_ID; no-ops (returns
-// null) if either isn't configured. Returns the new opportunity id.
+// Create an opportunity in a given pipeline/stage for a contact. No-ops
+// (returns null) if pipelineId or pipelineStageId is empty, so callers can pass
+// env-driven ids that may be unset. Returns the new opportunity id.
 export async function ghlCreateOpportunity(input: {
+  pipelineId: string;
+  pipelineStageId: string;
   contactId: string;
   name: string;
   monetaryValue?: number;
 }): Promise<string | null> {
   const cfg = ghlConfig();
   if (!cfg) return null;
-  const pipelineId = process.env.GHL_REGISTRATION_PIPELINE_ID;
-  const pipelineStageId = process.env.GHL_REGISTRATION_STAGE_ID;
-  if (!pipelineId || !pipelineStageId) return null;
+  if (!input.pipelineId || !input.pipelineStageId) return null;
   const res = await fetch(`${BASE}/opportunities/`, {
     method: "POST",
     headers: ghlHeaders(cfg.token),
     body: JSON.stringify({
-      pipelineId,
-      pipelineStageId,
+      pipelineId: input.pipelineId,
+      pipelineStageId: input.pipelineStageId,
       locationId: cfg.locationId,
       name: input.name,
       status: "open",

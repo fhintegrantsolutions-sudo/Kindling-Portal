@@ -108,10 +108,22 @@ export function RequestAccessForm() {
         />
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input type="checkbox" name="is_tcc_member" />
-        I&apos;m a TCC member
-      </label>
+      <div className="flex flex-col gap-2">
+        <Label>Are you a TCC member? *</Label>
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="is_tcc_member" value="yes" required />
+            Yes
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="radio" name="is_tcc_member" value="no" required />
+            No
+          </label>
+        </div>
+        {fe.is_tcc_member ? (
+          <p className="text-xs text-destructive">{fe.is_tcc_member}</p>
+        ) : null}
+      </div>
 
       {referralCode ? (
         <p className="text-xs text-muted-foreground">

@@ -45,6 +45,8 @@ export async function notifyRegistrationSubmitted(
       const lender =
         `${payload.first_name} ${payload.last_name}`.trim() || payload.email;
       await ghlCreateOpportunity({
+        pipelineId: process.env.GHL_REGISTRATION_PIPELINE_ID ?? "",
+        pipelineStageId: process.env.GHL_REGISTRATION_STAGE_ID ?? "",
         contactId,
         name: `${lender} — ${payload.note_id}`,
         monetaryValue: payload.amount,
