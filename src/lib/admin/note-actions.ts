@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
 import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
+import { ensureNoteTags } from "@/lib/ghl/note-tags";
 
 export type NoteFormState = {
   error?: string;
@@ -45,6 +46,10 @@ export async function createNote(
   }
 
   await syncVisibility(supabase, data.id as string, fields);
+
+  // Best-effort: provision the note's GHL tags ("k26003" + "lead k26003") so
+  // they exist in the tag library from the moment the note is created.
+  await ensureNoteTags(fields.note_id);
 
   revalidatePath("/admin/notes");
   revalidatePath("/admin");
