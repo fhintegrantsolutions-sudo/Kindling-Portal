@@ -101,6 +101,9 @@ export function NoteForm({
   const [contractDate, setContractDate] = useState(
     defaults.contract_date ?? "",
   );
+  const [hasProfitBonus, setHasProfitBonus] = useState(
+    defaults.has_profit_bonus,
+  );
   const [subTab, setSubTab] = useState<SubTab>("basics");
 
   const maturityDate = useMemo(() => {
@@ -270,7 +273,7 @@ export function NoteForm({
           <input
             type="checkbox"
             name="is_private"
-            defaultChecked={defaults.is_private}
+            checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
             className="mt-0.5"
           />
@@ -352,7 +355,8 @@ export function NoteForm({
           <input
             type="checkbox"
             name="has_profit_bonus"
-            defaultChecked={defaults.has_profit_bonus}
+            checked={hasProfitBonus}
+            onChange={(e) => setHasProfitBonus(e.target.checked)}
             className="mt-0.5"
           />
           <span>
