@@ -19,6 +19,15 @@ export default async function BeneficiariesPage({
   const { saved } = await searchParams;
   const beneficiaries = await getMyBeneficiaries();
 
+  // Primary group first, then Contingent (which may be empty). Within each
+  // group, highest percentage first, then alphabetical by name.
+  const sorted = [...beneficiaries].sort(
+    (a, b) =>
+      (a.type === "Primary" ? 0 : 1) - (b.type === "Primary" ? 0 : 1) ||
+      b.percentage - a.percentage ||
+      a.name.localeCompare(b.name),
+  );
+
   const primaryTotal = beneficiaries
     .filter((b) => b.type === "Primary")
     .reduce((sum, b) => sum + b.percentage, 0);
@@ -70,7 +79,7 @@ export default async function BeneficiariesPage({
         </Card>
       ) : (
         <div className="grid gap-4">
-          {beneficiaries.map((b) => (
+          {sorted.map((b) => (
             <Card key={b.id}>
               <CardHeader>
                 <div className="flex items-start justify-between gap-4">
