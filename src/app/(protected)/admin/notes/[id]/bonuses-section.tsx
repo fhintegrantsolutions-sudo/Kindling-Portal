@@ -24,9 +24,11 @@ import type { AdminBonusRow } from "@/lib/db/admin-queries";
 export function BonusesSection({
   noteUuid,
   bonuses,
+  hasProfitBonus,
 }: {
   noteUuid: string;
   bonuses: AdminBonusRow[];
+  hasProfitBonus: boolean;
 }) {
   const action = createBonus.bind(null, noteUuid);
   const [state, formAction, pending] = useActionState<
@@ -57,6 +59,17 @@ export function BonusesSection({
         </p>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
+        {!hasProfitBonus ? (
+          <Alert>
+            <AlertDescription>
+              Profit bonus is turned <span className="font-medium">off</span>{" "}
+              for this note, so lenders won&apos;t see any bonuses here on their
+              note page. Turn it on in{" "}
+              <span className="font-medium">Settings → Profit bonus</span> to
+              make this visible to them.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <form
           action={formAction}
           key={state?.message ?? "form"}

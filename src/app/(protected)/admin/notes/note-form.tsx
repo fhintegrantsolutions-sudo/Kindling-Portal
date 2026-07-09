@@ -21,6 +21,7 @@ export type NoteDefaults = {
   type: string;
   interest_type: string;
   is_private: boolean;
+  has_profit_bonus: boolean;
   principal: string | null;
   rate: string;
   term_months: string;
@@ -99,6 +100,9 @@ export function NoteForm({
   );
   const [contractDate, setContractDate] = useState(
     defaults.contract_date ?? "",
+  );
+  const [hasProfitBonus, setHasProfitBonus] = useState(
+    defaults.has_profit_bonus,
   );
   const [subTab, setSubTab] = useState<SubTab>("basics");
 
@@ -269,7 +273,7 @@ export function NoteForm({
           <input
             type="checkbox"
             name="is_private"
-            defaultChecked={defaults.is_private}
+            checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
             className="mt-0.5"
           />
@@ -344,6 +348,23 @@ export function NoteForm({
             </>
           )}
         </div>
+      </Section>
+
+      <Section title="Profit bonus">
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            name="has_profit_bonus"
+            checked={hasProfitBonus}
+            onChange={(e) => setHasProfitBonus(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="font-medium">This note has a profit bonus.</span>{" "}
+            When unchecked, the &ldquo;Profit bonuses&rdquo; section is hidden
+            from lenders on their note page. Turn this on to show it.
+          </span>
+        </label>
       </Section>
       </TabPanel>
 
