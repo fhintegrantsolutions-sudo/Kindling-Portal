@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getMyBeneficiaries } from "@/lib/db/queries";
+import { formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -89,7 +90,7 @@ export default async function BeneficiariesPage({
               </CardHeader>
               <CardContent className="flex items-center justify-between gap-4">
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                  {b.dob ? <span>DOB {b.dob}</span> : null}
+                  {b.dob ? <span>DOB {formatDate(b.dob)}</span> : null}
                   {b.phone ? <span>{b.phone}</span> : null}
                   {b.address ? <span>{b.address}</span> : null}
                 </div>
