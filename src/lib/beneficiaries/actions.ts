@@ -23,6 +23,9 @@ export async function createBeneficiary(
   const fieldErrors = validate(fields);
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
+  const overAllocated = await checkTotal(supabase, user.id, fields, null);
+  if (overAllocated) return { fieldErrors: { percentage: overAllocated } };
+
   const { error } = await supabase.from("beneficiaries").insert({
     user_id: user.id,
     name: fields.name,
@@ -53,6 +56,14 @@ export async function updateBeneficiary(
   const fields = parseFields(formData);
   const fieldErrors = validate(fields);
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
+
+  const overAllocated = await checkTotal(
+    supabase,
+    user.id,
+    fields,
+    beneficiaryId,
+  );
+  if (overAllocated) return { fieldErrors: { percentage: overAllocated } };
 
   const { error } = await supabase
     .from("beneficiaries")
@@ -87,6 +98,34 @@ export async function deleteBeneficiary(beneficiaryId: string): Promise<void> {
   if (error) throw new Error(error.message);
 
   revalidatePath("/profile/beneficiaries");
+}
+
+// Enforce that a beneficiary type (Primary/Contingent) never exceeds 100%.
+// Sums the other beneficiaries of the same type for this user (excluding the
+// row being edited) and returns an error message if adding this one would push
+// the total over 100 — otherwise null. Under-100 is allowed (the list page
+// warns about it); this only blocks over-allocation.
+async function checkTotal(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  fields: Fields,
+  excludeId: string | null,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("beneficiaries")
+    .select("id, percentage")
+    .eq("user_id", userId)
+    .eq("type", fields.type);
+
+  const othersTotal = (data ?? [])
+    .filter((r) => r.id !== excludeId)
+    .reduce((sum, r) => sum + Number(r.percentage), 0);
+
+  const newTotal = othersTotal + fields.percentage;
+  if (newTotal > 100) {
+    return `${fields.type} beneficiaries would total ${newTotal}%, over the 100% limit. ${othersTotal}% is already allocated, so this one can be at most ${100 - othersTotal}%.`;
+  }
+  return null;
 }
 
 type Fields = {
