@@ -75,6 +75,7 @@ export async function updateBeneficiary(
       dob: fields.dob,
       phone: fields.phone,
       address: fields.address,
+      ssn_last4: fields.ssn_last4,
     })
     .eq("id", beneficiaryId);
   if (error) return { error: error.message };
@@ -137,6 +138,7 @@ type Fields = {
   dob: string | null;
   phone: string | null;
   address: string | null;
+  ssn_last4: string | null;
 };
 
 function parseFields(formData: FormData): Fields {
@@ -148,6 +150,7 @@ function parseFields(formData: FormData): Fields {
     dob: textOrNull(formData, "dob"),
     phone: textOrNull(formData, "phone"),
     address: textOrNull(formData, "address"),
+    ssn_last4: textOrNull(formData, "ssn_last4"),
   };
 }
 
@@ -162,6 +165,9 @@ function validate(fields: Fields): Record<string, string> {
   }
   if (fields.type !== "Primary" && fields.type !== "Contingent") {
     errors.type = "Must be Primary or Contingent";
+  }
+  if (fields.ssn_last4 !== null && !/^[0-9]{4}$/.test(fields.ssn_last4)) {
+    errors.ssn_last4 = "Enter the last 4 digits (numbers only)";
   }
   return errors;
 }

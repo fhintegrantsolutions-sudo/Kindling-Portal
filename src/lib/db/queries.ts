@@ -563,6 +563,7 @@ export type Beneficiary = {
   dob: string | null;
   phone: string | null;
   address: string | null;
+  ssn_last4: string | null;
   created_at: string;
   updated_at: string;
 };

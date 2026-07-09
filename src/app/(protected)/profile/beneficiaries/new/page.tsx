@@ -20,6 +20,7 @@ export default function NewBeneficiaryPage() {
           dob: null,
           phone: null,
           address: null,
+          ssn_last4: null,
         }}
       />
     </div>
