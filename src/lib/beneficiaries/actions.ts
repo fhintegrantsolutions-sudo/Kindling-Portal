@@ -123,7 +123,8 @@ async function checkTotal(
 
   const newTotal = othersTotal + fields.percentage;
   if (newTotal > 100) {
-    return `${fields.type} beneficiaries would total ${newTotal}%, over the 100% limit. ${othersTotal}% is already allocated, so this one can be at most ${100 - othersTotal}%.`;
+    const available = 100 - othersTotal;
+    return `Your ${fields.type} beneficiaries already account for ${othersTotal}%, and this ${fields.percentage}% entry would bring the total to ${newTotal}%, which exceeds the 100% limit. Please lower another ${fields.type} beneficiary's percentage before increasing this one. At most ${available}% is available here.`;
   }
   return null;
 }
