@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Dialog } from "@base-ui/react/dialog";
+import { ExternalLink } from "lucide-react";
 import {
   updateProfile,
   type ProfileFormState,
 } from "@/lib/profile/actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -44,11 +46,14 @@ export function ProfileForm({
           name="first_name"
           label="First name"
           defaultValue={defaults.first_name}
+          disabled
+          hint="Contact us to change your legal name."
         />
         <FieldInput
           name="last_name"
           label="Last name"
           defaultValue={defaults.last_name}
+          disabled
         />
         <FieldInput name="phone" label="Phone" defaultValue={defaults.phone} type="tel" />
       </section>
@@ -101,7 +106,47 @@ export function ProfileForm({
           {pending ? "Saving…" : "Save changes"}
         </Button>
       </div>
+
+      {state?.addressChanged ? <W9Prompt key={state.savedAt} /> : null}
     </form>
+  );
+}
+
+// Rendered (freshly, via key on savedAt) only after a save that changed the
+// mailing address; opens itself so the lender is prompted to review their W-9.
+function W9Prompt() {
+  const [open, setOpen] = useState(true);
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40 transition-opacity data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-card p-6 shadow-lg transition data-ending-style:opacity-0 data-starting-style:opacity-0">
+          <Dialog.Title className="font-serif text-lg font-bold tracking-tight">
+            Update your W-9?
+          </Dialog.Title>
+          <Dialog.Description className="mt-2 text-sm text-muted-foreground">
+            Your mailing address was updated. If this reflects a change of
+            address, your W-9 on file may also need to be updated so your tax
+            reporting stays accurate.
+          </Dialog.Description>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Dialog.Close className={buttonVariants({ variant: "outline" })}>
+              Not now
+            </Dialog.Close>
+            <a
+              href="https://www.kindling.network/forms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants()}
+              onClick={() => setOpen(false)}
+            >
+              Update W-9
+              <ExternalLink className="ml-2 size-4" />
+            </a>
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -112,6 +157,8 @@ function FieldInput({
   type = "text",
   placeholder,
   className,
+  disabled,
+  hint,
 }: {
   name: string;
   label: string;
@@ -119,6 +166,8 @@ function FieldInput({
   type?: string;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
+  hint?: string;
 }) {
   return (
     <div className={`flex flex-col gap-2 ${className ?? ""}`}>
@@ -129,7 +178,12 @@ function FieldInput({
         type={type}
         defaultValue={defaultValue ?? undefined}
         placeholder={placeholder}
+        disabled={disabled}
+        className={
+          disabled ? "cursor-not-allowed bg-muted/40 text-muted-foreground" : undefined
+        }
       />
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
