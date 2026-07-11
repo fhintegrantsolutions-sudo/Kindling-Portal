@@ -109,7 +109,7 @@ export function RequestAccessForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Are you a TCC member? *</Label>
+        <Label>Are you a CoSpark member? *</Label>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="is_tcc_member" value="yes" required />

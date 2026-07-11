@@ -31,6 +31,7 @@ export default async function EditBeneficiaryPage({
           dob: b.dob,
           phone: b.phone,
           address: b.address,
+          ssn_last4: b.ssn_last4,
         }}
       />
     </div>

@@ -101,6 +101,7 @@ export default async function BeneficiariesPage({
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
                   {b.dob ? <span>DOB {formatDate(b.dob)}</span> : null}
                   {b.phone ? <span>{b.phone}</span> : null}
+                  {b.ssn_last4 ? <span>SSN ••••{b.ssn_last4}</span> : null}
                   {b.address ? <span>{b.address}</span> : null}
                 </div>
                 <div className="flex gap-2">

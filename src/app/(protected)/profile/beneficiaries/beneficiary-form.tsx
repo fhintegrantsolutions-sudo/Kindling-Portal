@@ -19,6 +19,7 @@ export type BeneficiaryDefaults = {
   dob: string | null;
   phone: string | null;
   address: string | null;
+  ssn_last4: string | null;
 };
 
 export function BeneficiaryForm({
@@ -83,7 +84,13 @@ export function BeneficiaryForm({
         />
       </div>
 
-      <h2 className="text-sm font-semibold">Optional details</h2>
+      <div className="flex flex-col gap-1">
+        <h2 className="text-sm font-semibold">Optional details</h2>
+        <p className="text-xs text-muted-foreground">
+          Used only to help us verify and reach this person in the event we need
+          to contact your beneficiary.
+        </p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldInput
           name="dob"
@@ -98,10 +105,18 @@ export function BeneficiaryForm({
           defaultValue={defaults.phone}
         />
         <FieldInput
+          name="ssn_last4"
+          label="Last 4 of SSN"
+          inputMode="numeric"
+          maxLength={4}
+          placeholder="1234"
+          defaultValue={defaults.ssn_last4}
+          error={fe.ssn_last4}
+        />
+        <FieldInput
           name="address"
           label="Address"
           defaultValue={defaults.address}
-          className="sm:col-span-2"
         />
       </div>
 
@@ -134,6 +149,8 @@ function FieldInput({
   className,
   min,
   max,
+  inputMode,
+  maxLength,
 }: {
   name: string;
   label: string;
@@ -144,6 +161,8 @@ function FieldInput({
   className?: string;
   min?: string;
   max?: string;
+  inputMode?: "numeric";
+  maxLength?: number;
 }) {
   return (
     <div className={`flex flex-col gap-2 ${className ?? ""}`}>
@@ -156,6 +175,8 @@ function FieldInput({
         placeholder={placeholder}
         min={min}
         max={max}
+        inputMode={inputMode}
+        maxLength={maxLength}
         aria-invalid={Boolean(error) || undefined}
       />
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
