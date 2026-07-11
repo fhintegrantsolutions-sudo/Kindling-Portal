@@ -18,9 +18,6 @@ type ProfileDefaults = {
   address_city: string | null;
   address_state: string | null;
   address_zip: string | null;
-  entity_type: string | null;
-  business_name: string | null;
-  loan_agreement_title: string | null;
 };
 
 export function ProfileForm({
@@ -88,37 +85,6 @@ export function ProfileForm({
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">Loan agreement details</h2>
-        <p className="text-xs text-muted-foreground">
-          These appear on your loan agreements and can&apos;t be changed
-          here. To update, email{" "}
-          <a
-            href="mailto:info@kindling.network"
-            className="underline underline-offset-4"
-          >
-            info@kindling.network
-          </a>
-          .
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <ReadonlyField
-            label="Entity type"
-            value={defaults.entity_type}
-          />
-          {defaults.entity_type && defaults.entity_type !== "Individual" ? (
-            <ReadonlyField
-              label="Business / entity name"
-              value={defaults.business_name}
-            />
-          ) : null}
-          <ReadonlyField
-            label="Loan agreement title"
-            value={defaults.loan_agreement_title}
-          />
-        </div>
-      </section>
-
       {state?.message ? (
         <Alert>
           <AlertDescription>{state.message}</AlertDescription>
@@ -136,23 +102,6 @@ export function ProfileForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-function ReadonlyField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | null;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <Label>{label}</Label>
-      <div className="flex h-9 items-center rounded-md border bg-muted/40 px-3 text-sm">
-        {value ?? <span className="text-muted-foreground">—</span>}
-      </div>
-    </div>
   );
 }
 
