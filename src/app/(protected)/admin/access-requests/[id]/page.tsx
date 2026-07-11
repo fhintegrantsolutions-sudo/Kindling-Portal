@@ -151,7 +151,7 @@ export default async function AdminAccessRequestDetailPage({
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3 text-sm">
           <Field
-            label="TCC member?"
+            label="CoSpark member?"
             value={r.is_tcc_member ? "Yes" : "No"}
           />
           <Field label="Referral code" value={r.referral_code ?? "—"} />

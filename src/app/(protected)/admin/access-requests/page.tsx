@@ -81,7 +81,7 @@ export default async function AdminAccessRequestsPage({
                       </span>
                       {r.is_tcc_member ? (
                         <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
-                          TCC member
+                          CoSpark member
                         </span>
                       ) : null}
                     </div>
