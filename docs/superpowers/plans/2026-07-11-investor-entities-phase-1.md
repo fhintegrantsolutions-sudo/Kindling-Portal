@@ -10,7 +10,7 @@
 
 **Critical ordering constraint:** `profiles.entity_type / business_name / loan_agreement_title / address_*` cannot be dropped until **all** app code stops reading/writing them (Tasks 8–11). The column-drop migration is therefore the **last** DB change (Task 12), applied only after the app changes are merged and verified.
 
-**Migration application rule (every migration task):** apply the SQL to the **scratch Supabase project first** (Task 1), run the relevant verification script, and only then apply the identical SQL to the real project. Never apply an unverified migration to the real database.
+**Migration application rule (every migration task):** apply the SQL to the **staging Supabase project first** (Task 1), run the relevant verification script, and only then apply the identical SQL to the real project. Never apply an unverified migration to the real database.
 
 ---
 
@@ -24,7 +24,7 @@
 - `scripts/verify/entity-reconciliation.ts` — **kept** migration-reconciliation check.
 - `scripts/verify/entity-rls-isolation.ts` — **kept** RLS isolation harness.
 - `src/lib/entities/context.ts` — `getCurrentEntityContext()` resolver + helpers.
-- `docs/superpowers/plans/scratch-supabase-setup.md` — how to stand up the scratch DB.
+- `docs/superpowers/plans/staging-supabase-setup.md` — how to stand up the staging DB.
 
 **Modified files**
 - `src/lib/db/queries.ts` — `getMy*` read swaps to `entity_id`.
@@ -37,39 +37,39 @@
 
 ---
 
-## Task 0: Scratch Supabase project + verification harness folder
+## Task 0: Staging Supabase project + verification harness folder
 
 **Files:**
-- Create: `docs/superpowers/plans/scratch-supabase-setup.md`
+- Create: `docs/superpowers/plans/staging-supabase-setup.md`
 - Create: `scripts/verify/.gitkeep`
 
-- [ ] **Step 1: Write the scratch-setup doc**
+- [ ] **Step 1: Write the staging-setup doc**
 
-Create `docs/superpowers/plans/scratch-supabase-setup.md` with:
+Create `docs/superpowers/plans/staging-supabase-setup.md` with:
 
 ```markdown
-# Scratch Supabase project (Phase 1 testing)
+# Staging Supabase project (Phase 1 testing)
 
 Purpose: trial the entity migration + RLS on a throwaway copy before touching the
 real (pre-cutover) database. Supabase CLI is not on PATH, so we use a second
 hosted project.
 
 ## One-time setup
-1. Create a new free Supabase project ("kindling-scratch").
+1. Create a new free Supabase project ("kindling-staging").
 2. In the SQL editor, apply every file in `supabase/migrations/` **in filename
    order**, up to and including the current head, to reach today's schema.
 3. Seed a minimal dataset (2 auth users, 1–2 notes, a few participations,
    beneficiaries, documents, one private note_visibility row). Use the SQL in
-   `scripts/verify/seed-scratch.sql` if present, or create by hand.
-4. Copy the scratch project's URL + service_role key + anon key into a local
-   `.env.scratch` (gitignored) as:
-   - SCRATCH_SUPABASE_URL
-   - SCRATCH_SERVICE_ROLE_KEY
-   - SCRATCH_ANON_KEY
+   `scripts/verify/seed-staging.sql` if present, or create by hand.
+4. Copy the staging project's URL + service_role key + anon key into a local
+   `.env.staging` (gitignored) as:
+   - STAGING_SUPABASE_URL
+   - STAGING_SERVICE_ROLE_KEY
+   - STAGING_ANON_KEY
 
 ## Per-migration workflow
-- Paste the migration SQL into the scratch SQL editor.
-- Run the relevant `scripts/verify/*.ts` against `.env.scratch`.
+- Paste the migration SQL into the staging SQL editor.
+- Run the relevant `scripts/verify/*.ts` against `.env.staging`.
 - Only when green, apply the same SQL to the real project's SQL editor.
 ```
 
@@ -80,11 +80,11 @@ Create an empty `scripts/verify/.gitkeep`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add docs/superpowers/plans/scratch-supabase-setup.md scripts/verify/.gitkeep
-git commit -m "docs: scratch Supabase setup for entity migration testing"
+git add docs/superpowers/plans/staging-supabase-setup.md scripts/verify/.gitkeep
+git commit -m "docs: staging Supabase setup for entity migration testing"
 ```
 
-> **Human action (not a code step):** actually create the scratch project and seed it per the doc before running any verification script below. The plan's verification steps assume it exists.
+> **Human action (not a code step):** actually create the staging project and seed it per the doc before running any verification script below. The plan's verification steps assume it exists.
 
 ---
 
@@ -149,9 +149,9 @@ create index documents_entity_idx on public.documents(entity_id);
 create index note_visibility_entity_idx on public.note_visibility(entity_id);
 ```
 
-- [ ] **Step 2: Apply to scratch and verify the objects exist**
+- [ ] **Step 2: Apply to staging and verify the objects exist**
 
-Paste the SQL into the **scratch** SQL editor. Then run this ad-hoc check in the scratch SQL editor:
+Paste the SQL into the **staging** SQL editor. Then run this ad-hoc check in the staging SQL editor:
 
 ```sql
 select count(*) as entities from public.investor_entities;               -- expect 0
@@ -235,9 +235,9 @@ update public.note_visibility t
   where e.owner_user_id = t.user_id and e.is_primary and t.entity_id is null;
 ```
 
-- [ ] **Step 2: Apply to scratch only (do NOT apply to real yet)**
+- [ ] **Step 2: Apply to staging only (do NOT apply to real yet)**
 
-Paste into the **scratch** SQL editor. The reconciliation script (Task 3) must pass on scratch before this touches the real DB.
+Paste into the **staging** SQL editor. The reconciliation script (Task 3) must pass on staging before this touches the real DB.
 
 - [ ] **Step 3: Commit**
 
@@ -257,11 +257,11 @@ git commit -m "feat(db): backfill one investor_entity per profile + entity_id"
 
 ```ts
 import { config } from "dotenv";
-config({ path: process.env.VERIFY_ENV ?? ".env.scratch" });
+config({ path: process.env.VERIFY_ENV ?? ".env.staging" });
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.SCRATCH_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const key = process.env.SCRATCH_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const url = process.env.STAGING_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const key = process.env.STAGING_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const db = createClient(url, key);
 
 async function count(table: string, filter?: (q: any) => any): Promise<number> {
@@ -316,9 +316,9 @@ async function main() {
 main().catch((e) => { console.error(e); process.exit(1); });
 ```
 
-- [ ] **Step 2: Run against scratch (post-backfill) — expect PASS**
+- [ ] **Step 2: Run against staging (post-backfill) — expect PASS**
 
-Run: `VERIFY_ENV=.env.scratch npx tsx scripts/verify/entity-reconciliation.ts`
+Run: `VERIFY_ENV=.env.staging npx tsx scripts/verify/entity-reconciliation.ts`
 Expected: all `ok:` lines, ends with `RECONCILIATION PASS`, exit 0.
 
 - [ ] **Step 3: Now apply the Task 2 backfill SQL to the REAL project, then run reconciliation against it**
@@ -452,9 +452,9 @@ create policy "notes visible to allowed" on public.notes
 > `participations -> investor_entities` join shown above (they currently use
 > `p.user_id = auth.uid()`).
 
-- [ ] **Step 2: Apply to scratch, then run the RLS harness (Task 5) — do not touch real yet**
+- [ ] **Step 2: Apply to staging, then run the RLS harness (Task 5) — do not touch real yet**
 
-Paste into the **scratch** SQL editor. The RLS isolation harness (Task 5) must pass on scratch before this touches real.
+Paste into the **staging** SQL editor. The RLS isolation harness (Task 5) must pass on staging before this touches real.
 
 - [ ] **Step 3: Commit**
 
@@ -474,12 +474,12 @@ git commit -m "feat(db): entity-ownership RLS (auth_owns_entity) rewrite"
 
 ```ts
 import { config } from "dotenv";
-config({ path: process.env.VERIFY_ENV ?? ".env.scratch" });
+config({ path: process.env.VERIFY_ENV ?? ".env.staging" });
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.SCRATCH_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SCRATCH_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const anonKey = process.env.SCRATCH_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const url = process.env.STAGING_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceKey = process.env.STAGING_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const anonKey = process.env.STAGING_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
 let failures = 0;
@@ -498,7 +498,7 @@ async function asUser(email: string, password: string) {
 }
 
 async function main() {
-  // The seed (created via admin/service client in scratch setup) must provide:
+  // The seed (created via admin/service client in staging setup) must provide:
   //   userA (2 entities: A1 primary, A2), userB (1 entity: B1),
   //   participations under A1, A2, B1; a private note visible to A1 only.
   const A_EMAIL = "rls-a@example.com", A_PW = "Test-pass-A1!";
@@ -553,10 +553,10 @@ async function main() {
 main().catch((e) => { console.error(e); process.exit(1); });
 ```
 
-- [ ] **Step 2: Run against scratch — expect PASS**
+- [ ] **Step 2: Run against staging — expect PASS**
 
-Run: `VERIFY_ENV=.env.scratch npx tsx scripts/verify/entity-rls-isolation.ts`
-Expected: all `ok:` lines, `RLS ISOLATION PASS`, exit 0. If any `FAIL`, fix the RLS migration (Task 4) and re-apply to scratch before continuing.
+Run: `VERIFY_ENV=.env.staging npx tsx scripts/verify/entity-rls-isolation.ts`
+Expected: all `ok:` lines, `RLS ISOLATION PASS`, exit 0. If any `FAIL`, fix the RLS migration (Task 4) and re-apply to staging before continuing.
 
 - [ ] **Step 3: Commit**
 
@@ -703,9 +703,9 @@ For `getMyScheduleForNote` (:408) and `getMyBonusPayoutsForParticipation` (:523)
 Run: `npx tsc --noEmit && npx eslint src/lib/db/queries.ts`
 Expected: `tsc OK`; no eslint errors.
 
-- [ ] **Step 4: Behaviour check against scratch (single-entity == identical)**
+- [ ] **Step 4: Behaviour check against staging (single-entity == identical)**
 
-Because each login owns one entity, `entityIds = [primary]` and results must match the old `user_id` scoping. Sign in to the scratch DB via the running app (or a quick tsx read) as a seeded user and confirm `getMyParticipations` returns the same rows as before. Expected: identical row set.
+Because each login owns one entity, `entityIds = [primary]` and results must match the old `user_id` scoping. Sign in to the staging DB via the running app (or a quick tsx read) as a seeded user and confirm `getMyParticipations` returns the same rows as before. Expected: identical row set.
 
 - [ ] **Step 5: Commit**
 
@@ -866,12 +866,12 @@ git commit -m "feat(entities): admin reads lender identity from investor_entitie
 Run: `npx tsc --noEmit && npx eslint src`
 Expected: `tsc OK`; no eslint errors.
 
-- [ ] **Step 2: Re-run both verification harnesses against scratch**
+- [ ] **Step 2: Re-run both verification harnesses against staging**
 
 Run:
 ```
-VERIFY_ENV=.env.scratch npx tsx scripts/verify/entity-reconciliation.ts
-VERIFY_ENV=.env.scratch npx tsx scripts/verify/entity-rls-isolation.ts
+VERIFY_ENV=.env.staging npx tsx scripts/verify/entity-reconciliation.ts
+VERIFY_ENV=.env.staging npx tsx scripts/verify/entity-rls-isolation.ts
 ```
 Expected: `RECONCILIATION PASS` and `RLS ISOLATION PASS`.
 
@@ -899,9 +899,9 @@ alter table public.profiles
   drop column if exists address_zip;
 ```
 
-- [ ] **Step 5: Apply drop-columns to scratch, run tsc + harnesses, then apply to real**
+- [ ] **Step 5: Apply drop-columns to staging, run tsc + harnesses, then apply to real**
 
-Paste into **scratch** SQL editor. Run `npx tsc --noEmit` and both harnesses (`.env.scratch`) — expect all green. Then paste into the **real** SQL editor and re-run reconciliation (`.env.local`) + manual smoke test. Expected: all green; portal still behaves identically.
+Paste into **staging** SQL editor. Run `npx tsc --noEmit` and both harnesses (`.env.staging`) — expect all green. Then paste into the **real** SQL editor and re-run reconciliation (`.env.local`) + manual smoke test. Expected: all green; portal still behaves identically.
 
 - [ ] **Step 6: Commit**
 
@@ -933,7 +933,7 @@ git branch -d feat/investor-entities-phase1
 - [ ] **Step 3: Confirm end state**
 
 - Every login owns exactly one entity (reconciliation PASS on real).
-- RLS isolation PASS on scratch; manual lender smoke test on real shows dashboard, notes, opportunities, beneficiaries, profile, and registration all behaving **identically to before**.
+- RLS isolation PASS on staging; manual lender smoke test on real shows dashboard, notes, opportunities, beneficiaries, profile, and registration all behaving **identically to before**.
 - `profiles` no longer has the entity columns; nothing in `src` reads them (grep guard clean).
 
 ---
