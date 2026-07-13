@@ -20,16 +20,22 @@ export type RegistrationProfileSummary = {
   mailing_address: string | null;
 };
 
+export type RegistrationEntityOption = { id: string; display_name: string };
+
 export function RegistrationForm({
   noteUuid,
   noteHumanId,
   profile,
   minInvestment,
+  entities,
+  currentEntityId,
 }: {
   noteUuid: string;
   noteHumanId: string;
   profile: RegistrationProfileSummary;
   minInvestment: string | null;
+  entities: RegistrationEntityOption[];
+  currentEntityId: string | null;
 }) {
   const action = submitRegistration.bind(null, noteUuid, noteHumanId);
   const [state, formAction, pending] = useActionState<
@@ -38,8 +44,42 @@ export function RegistrationForm({
   >(action, undefined);
   const fe = state?.fieldErrors ?? {};
 
+  const multiEntity = entities.length > 1;
+  const defaultEntityId =
+    currentEntityId && entities.some((e) => e.id === currentEntityId)
+      ? currentEntityId
+      : "";
+
   return (
     <form action={formAction} className="flex flex-col gap-8">
+      {multiEntity ? (
+        <section className="flex flex-col gap-2">
+          <Label htmlFor="entity_id">Which entity is investing?</Label>
+          <select
+            id="entity_id"
+            name="entity_id"
+            required
+            defaultValue={defaultEntityId}
+            aria-invalid={Boolean(fe.entity_id) || undefined}
+            className="h-9 w-full rounded-md border bg-background px-3 text-sm sm:max-w-sm"
+          >
+            <option value="" disabled>
+              Select an entity…
+            </option>
+            {entities.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.display_name}
+              </option>
+            ))}
+          </select>
+          {fe.entity_id ? (
+            <p className="text-xs text-destructive">{fe.entity_id}</p>
+          ) : null}
+        </section>
+      ) : (
+        <input type="hidden" name="entity_id" value={entities[0]?.id ?? ""} />
+      )}
+
       <section className="flex flex-col gap-3 rounded-md border bg-muted/30 p-4">
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-sm font-semibold">Your details</h2>

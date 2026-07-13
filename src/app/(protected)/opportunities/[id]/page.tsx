@@ -7,7 +7,10 @@ import {
   type MyParticipation,
 } from "@/lib/db/queries";
 import { getCurrentProfile } from "@/lib/dal";
-import { getPrimaryEntityIdentity } from "@/lib/entities/context";
+import {
+  getCurrentEntityContext,
+  getPrimaryEntityIdentity,
+} from "@/lib/entities/context";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { NoteDetailCard } from "@/components/note-detail-card";
@@ -29,13 +32,22 @@ export default async function OpportunityDetailPage({
   // Both pieces of registration state are needed because admin can flip a
   // pending registration into a participation; either implies "already
   // signed up on this note" and should hide the form.
-  const [existingParticipation, existingRegistration, profile, entity] =
+  const [existingParticipation, existingRegistration, profile, entity, ctx] =
     await Promise.all([
       getMyParticipationByNoteId(note.id),
       getMyRegistrationByNoteId(note.id),
       getCurrentProfile(),
       getPrimaryEntityIdentity(),
+      getCurrentEntityContext(),
     ]);
+
+  // The lender chooses which of their entities is investing (hidden input when
+  // they only own one).
+  const entities = (ctx?.entities ?? []).map((e) => ({
+    id: e.id,
+    display_name: e.display_name,
+  }));
+  const currentEntityId = ctx?.currentEntityId ?? null;
 
   // Name/phone are login-level (profiles); entity type, agreement title and
   // mailing address come from the lender's primary investor entity.
@@ -109,6 +121,8 @@ export default async function OpportunityDetailPage({
           noteUuid={note.id}
           noteHumanId={note.note_id}
           minInvestment={note.min_investment}
+          entities={entities}
+          currentEntityId={currentEntityId}
           profile={{
             full_name: fullName,
             email: profile?.email ?? null,

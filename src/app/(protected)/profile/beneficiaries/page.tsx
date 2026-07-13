@@ -9,7 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DeleteBeneficiaryButton } from "./delete-button";
+import { CopyBeneficiariesFromEntity } from "./copy-from-entity";
 
 export default async function BeneficiariesPage({
   searchParams,
@@ -17,7 +19,26 @@ export default async function BeneficiariesPage({
   searchParams: Promise<{ saved?: string }>;
 }) {
   const { saved } = await searchParams;
+  const ctx = await getCurrentEntityContext();
+
+  // Beneficiaries are per-entity (the 100% rule is per-entity, and "Add" needs a
+  // concrete target), so an "all entities" list would be meaningless.
+  if (ctx?.mode === "all") {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Beneficiaries are set per entity. Choose an entity from the switcher to
+        view or edit them.
+      </p>
+    );
+  }
+
   const beneficiaries = await getMyBeneficiaries();
+  const currentEntity =
+    ctx?.entities.find((e) => e.id === ctx.currentEntityId) ?? null;
+  const otherEntities = (ctx?.entities ?? []).filter(
+    (e) => e.id !== ctx?.currentEntityId,
+  );
+  const showCopy = otherEntities.length > 0 && beneficiaries.length === 0;
 
   // Primary group first, then Contingent (which may be empty). Within each
   // group, highest percentage first, then alphabetical by name.
@@ -39,7 +60,16 @@ export default async function BeneficiariesPage({
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <p className="text-sm text-muted-foreground">
-          People who inherit your participation in the event of your passing.
+          People who inherit{" "}
+          {currentEntity ? (
+            <span className="font-medium text-foreground">
+              {currentEntity.display_name}
+            </span>
+          ) : (
+            "your"
+          )}
+          {currentEntity ? "’s" : ""} participation in the event of your
+          passing.
         </p>
         <Link href="/profile/beneficiaries/new">
           <Button>Add beneficiary</Button>
@@ -67,6 +97,10 @@ export default async function BeneficiariesPage({
             should sum to 100% (or 0% if you have none).
           </AlertDescription>
         </Alert>
+      ) : null}
+
+      {showCopy ? (
+        <CopyBeneficiariesFromEntity sources={otherEntities} />
       ) : null}
 
       {beneficiaries.length === 0 ? (

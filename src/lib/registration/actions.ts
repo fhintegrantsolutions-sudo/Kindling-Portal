@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
 import { notifyRegistrationSubmitted } from "@/lib/ghl/notify-registration";
-import { getWriteEntityId } from "@/lib/entities/context";
+import { getCurrentEntityContext } from "@/lib/entities/context";
 
 export type RegistrationFormState = {
   error?: string;
@@ -161,13 +161,21 @@ export async function submitRegistration(
 
   // Entity-level identity (entity type, name on the loan agreement, mailing
   // address) comes from the investor entity this registration is filed under.
-  const entityId = await getWriteEntityId();
-  if (!entityId) {
+  // The lender picks that entity on the form — there's no defensible default
+  // once a login owns more than one.
+  const submittedEntityId = String(formData.get("entity_id") ?? "").trim();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entities.length === 0) {
     return {
       error:
         "No investor entity is set up for your account. Contact info@kindling.network.",
     };
   }
+  // Never trust the form — must be an entity this caller actually owns.
+  if (!ctx.entities.some((e) => e.id === submittedEntityId)) {
+    return { fieldErrors: { entity_id: "Choose which entity is investing." } };
+  }
+  const entityId = submittedEntityId;
   const { data: entity } = await supabase
     .from("investor_entities")
     .select(
