@@ -250,5 +250,10 @@ export async function submitRegistration(
 
   revalidatePath(`/opportunities/${noteHumanId}`);
   revalidatePath("/notes");
+  // A new registration creates a participation that admin must action, so bust
+  // the admin funding pipeline too — otherwise it serves a cached page and the
+  // new row appears to take "a few minutes" to show up.
+  revalidatePath("/admin/participations");
+  revalidatePath("/admin");
   redirect(`/opportunities/${noteHumanId}?registered=1`);
 }
