@@ -386,9 +386,13 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
     )
     .eq("note_id", noteUuid)
     .in("entity_id", ctx.entityIds)
-    .maybeSingle();
+    // In "all" mode ctx.entityIds holds MULTIPLE entities and the same note can
+    // be held through more than one of them, so this can match >1 row.
+    // .maybeSingle() would throw; take the earliest participation instead.
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  return data as MyParticipation | null;
+  return ((data ?? [])[0] ?? null) as unknown as MyParticipation | null;
 }
 
 export type MyScheduleRow = {
@@ -639,6 +643,8 @@ export async function getBeneficiaryById(id: string) {
     .select("*")
     .eq("id", id)
     .in("entity_id", ctx.entityIds)
+    // Safe in all-mode: keyed by the beneficiary's unique id, so the entity_id
+    // filter only authorizes the row — it can never widen the match past 1.
     .maybeSingle();
   return data as Beneficiary | null;
 }
@@ -653,6 +659,9 @@ export async function getMyRegistrationByNoteId(noteUuid: string) {
     .select("id, status, investment_amount, created_at")
     .eq("note_id", noteUuid)
     .in("entity_id", ctx.entityIds)
+    // Safe in all-mode: .limit(1) caps the result at one row before
+    // .maybeSingle() runs, so multiple entities registering on the same note
+    // can't throw — the newest registration wins.
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

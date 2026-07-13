@@ -90,6 +90,29 @@ export async function getPrimaryEntityIdentity(): Promise<EntityIdentity | null>
   return (data ?? null) as EntityIdentity | null;
 }
 
+// Identity of the CURRENTLY SELECTED entity. In "all" mode there is no single
+// identity (paperwork is per-entity), so this returns null and callers must ask
+// the user to pick an entity.
+export async function getCurrentEntityIdentity(): Promise<
+  (EntityIdentity & { id: string; display_name: string }) | null
+> {
+  const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.mode === "all" || !ctx.currentEntityId) return null;
+
+  const { data } = await supabase
+    .from("investor_entities")
+    .select(
+      "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip",
+    )
+    .eq("id", ctx.currentEntityId)
+    .maybeSingle();
+
+  return (data ?? null) as
+    | (EntityIdentity & { id: string; display_name: string })
+    | null;
+}
+
 // The concrete entity to use for a WRITE (registration/paperwork). Never "all".
 export async function getWriteEntityId(): Promise<string | null> {
   const ctx = await getCurrentEntityContext();

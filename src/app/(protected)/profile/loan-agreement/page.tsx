@@ -1,28 +1,28 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentEntityIdentity } from "@/lib/entities/context";
 import { Label } from "@/components/ui/label";
 
 export default async function LoanAgreementPage() {
-  // These details live on the investor entity (admin-managed). Phase 1: exactly
-  // one primary entity per login.
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const { data: entity } = user
-    ? await supabase
-        .from("investor_entities")
-        .select("entity_type, business_name, loan_agreement_title")
-        .eq("owner_user_id", user.id)
-        .eq("is_primary", true)
-        .maybeSingle()
-    : { data: null };
+  // These details live on the investor entity (admin-managed) and are specific
+  // to ONE entity, so this tab follows the entity switcher. In "all" mode there
+  // is no single set of paperwork to show.
+  const entity = await getCurrentEntityIdentity();
 
-  const entityType = entity?.entity_type ?? null;
-  const businessName = (entity?.business_name as string | null) ?? null;
-  const loanAgreementTitle = entity?.loan_agreement_title ?? null;
+  if (!entity) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Loan agreement details are specific to one entity. Choose an entity from
+        the switcher to see its details.
+      </p>
+    );
+  }
+
+  const entityType = entity.entity_type;
+  const businessName = entity.business_name;
+  const loanAgreementTitle = entity.loan_agreement_title;
 
   return (
     <div className="flex flex-col gap-4">
+      <h2 className="text-base font-semibold">{entity.display_name}</h2>
       <p className="text-sm text-muted-foreground">
         These details appear on your loan agreements and can&apos;t be changed
         here. To update them, email{" "}
