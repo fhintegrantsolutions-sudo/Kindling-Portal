@@ -1,11 +1,25 @@
-import { getCurrentProfile } from "@/lib/dal";
+import { createClient } from "@/lib/supabase/server";
 import { Label } from "@/components/ui/label";
 
 export default async function LoanAgreementPage() {
-  const profile = await getCurrentProfile();
-  const entityType = profile?.entity_type ?? null;
-  const businessName = (profile?.business_name as string | null) ?? null;
-  const loanAgreementTitle = profile?.loan_agreement_title ?? null;
+  // These details live on the investor entity (admin-managed). Phase 1: exactly
+  // one primary entity per login.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: entity } = user
+    ? await supabase
+        .from("investor_entities")
+        .select("entity_type, business_name, loan_agreement_title")
+        .eq("owner_user_id", user.id)
+        .eq("is_primary", true)
+        .maybeSingle()
+    : { data: null };
+
+  const entityType = entity?.entity_type ?? null;
+  const businessName = (entity?.business_name as string | null) ?? null;
+  const loanAgreementTitle = entity?.loan_agreement_title ?? null;
 
   return (
     <div className="flex flex-col gap-4">
