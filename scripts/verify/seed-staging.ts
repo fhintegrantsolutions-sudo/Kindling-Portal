@@ -1,12 +1,13 @@
 /**
- * Seed the STAGING database with realistic PRE-migration (flat-profile) data.
+ * Seed the STAGING database with realistic POST-migration data.
  *
- * Shape produced here deliberately mirrors the world BEFORE investor_entities
- * exists: entity identity lives in flat columns on `profiles`, and every
- * entity-scoped row carries `user_id` with `entity_id` left NULL. The backfill
- * migration (20260712000001_investor_entities_backfill.sql) is what fills
- * `entity_id` in — so re-running this seed puts you back to the pre-backfill
- * state for those rows.
+ * `profiles` now holds only login-level fields; the entity identity lives on
+ * `investor_entities`. This seed therefore creates one primary entity per user
+ * directly (mirroring exactly what the backfill migration used to produce,
+ * including its display_name rule) and populates `entity_id` on every
+ * entity-scoped row. The backfill migration is no longer runnable — the flat
+ * `profiles` columns it read were dropped in
+ * 20260712000003_profiles_drop_entity_cols.sql.
  *
  * Idempotent: it deletes and recreates its own auth users (cascade removes
  * their profiles/participations/beneficiaries/documents/visibility/entities)
@@ -51,11 +52,15 @@ const SEED_USERS = [
   {
     email: "rls-a@example.com",
     password: "Test-pass-A1!",
+    // login-level fields — these still live on `profiles`
     profile: {
       first_name: "Ada",
       last_name: "Alpha",
       phone: "512-555-0100",
-      entity_type: "Individual",
+    },
+    // entity identity — now lives on `investor_entities`
+    entity: {
+      entity_type: "Individual" as string | null,
       business_name: null as string | null,
       loan_agreement_title: "Ada Alpha",
       address_street: "100 A St",
@@ -71,7 +76,9 @@ const SEED_USERS = [
       first_name: "Ben",
       last_name: "Beta",
       phone: "617-555-0200",
-      entity_type: "LLC",
+    },
+    entity: {
+      entity_type: "LLC" as string | null,
       business_name: "Beta Holdings LLC" as string | null,
       loan_agreement_title: "Beta Holdings LLC",
       address_street: "200 B Ave",
@@ -81,6 +88,18 @@ const SEED_USERS = [
     },
   },
 ];
+
+/**
+ * The backfill migration's display_name rule, reproduced verbatim:
+ * business_name if non-empty, else "Personal" for Individual/null entity_type,
+ * else the entity_type label.
+ */
+function displayName(e: (typeof SEED_USERS)[number]["entity"]): string {
+  const business = (e.business_name ?? "").trim();
+  if (business) return business;
+  if (e.entity_type === null || e.entity_type === "Individual") return "Personal";
+  return e.entity_type;
+}
 
 // Seed notes are matched/cleaned by their human note_id.
 const PUBLIC_NOTE_ID = "SEED-PUB-001";
@@ -173,31 +192,16 @@ async function main() {
     console.log("[4/4] seeding domain rows…");
     await pg.query("begin");
 
-    // --- profiles ------------------------------------------------------
+    // --- profiles (login-level fields only) ------------------------------
     // The on_auth_user_created trigger already inserted a row for each user,
     // so UPDATE rather than INSERT (avoids a duplicate-PK failure).
     for (const [i, uid] of [userA, userB].entries()) {
       const p = SEED_USERS[i].profile;
       const res = await pg.query(
         `update public.profiles set
-           first_name = $2, last_name = $3, phone = $4,
-           entity_type = $5, business_name = $6, loan_agreement_title = $7,
-           address_street = $8, address_city = $9, address_state = $10,
-           address_zip = $11
+           first_name = $2, last_name = $3, phone = $4
          where id = $1`,
-        [
-          uid,
-          p.first_name,
-          p.last_name,
-          p.phone,
-          p.entity_type,
-          p.business_name,
-          p.loan_agreement_title,
-          p.address_street,
-          p.address_city,
-          p.address_state,
-          p.address_zip,
-        ],
+        [uid, p.first_name, p.last_name, p.phone],
       );
       if (res.rowCount !== 1) {
         throw new Error(
@@ -205,6 +209,34 @@ async function main() {
         );
       }
     }
+
+    // --- investor_entities (one primary entity per login) ------------------
+    // What the backfill migration used to produce, written directly.
+    const entityIds: string[] = [];
+    for (const [i, uid] of [userA, userB].entries()) {
+      const e = SEED_USERS[i].entity;
+      const res = await pg.query(
+        `insert into public.investor_entities
+           (owner_user_id, display_name, entity_type, business_name,
+            loan_agreement_title, address_street, address_city, address_state,
+            address_zip, is_primary)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+         returning id`,
+        [
+          uid,
+          displayName(e),
+          e.entity_type,
+          e.business_name,
+          e.loan_agreement_title,
+          e.address_street,
+          e.address_city,
+          e.address_state,
+          e.address_zip,
+        ],
+      );
+      entityIds.push(res.rows[0].id as string);
+    }
+    const [entityA, entityB] = entityIds;
 
     // --- notes (one public, one private) --------------------------------
     const notes = await pg.query(
@@ -224,47 +256,47 @@ async function main() {
     const publicNote = notes.rows.find((r) => r.note_id === PUBLIC_NOTE_ID).id;
     const privateNote = notes.rows.find((r) => r.note_id === PRIVATE_NOTE_ID).id;
 
-    // --- participations (2 for A, 1 for B) — entity_id stays NULL --------
+    // --- participations (2 for A, 1 for B) — entity_id populated ---------
     const parts = await pg.query(
       `insert into public.participations
-         (user_id, note_id, invested_amount, status, funding_received)
+         (user_id, entity_id, note_id, invested_amount, status, funding_received)
        values
-         ($1, $3, 50000, 'Active', true),
-         ($1, $4, 75000, 'Active', true),
-         ($2, $3, 25000, 'Active', false)
+         ($1, $5, $3, 50000, 'Active', true),
+         ($1, $5, $4, 75000, 'Active', true),
+         ($2, $6, $3, 25000, 'Active', false)
        returning id`,
-      [userA, userB, publicNote, privateNote],
+      [userA, userB, publicNote, privateNote, entityA, entityB],
     );
 
-    // --- beneficiaries (1 each) — entity_id stays NULL -------------------
+    // --- beneficiaries (1 each) — entity_id populated ---------------------
     const bene = await pg.query(
       `insert into public.beneficiaries
-         (user_id, name, relation, percentage, type, phone, ssn_last4)
+         (user_id, entity_id, name, relation, percentage, type, phone, ssn_last4)
        values
-         ($1, 'Alice Alpha', 'Spouse', 100, 'Primary', '512-555-0101', '1234'),
-         ($2, 'Bella Beta', 'Child', 100, 'Primary', '617-555-0201', '5678')
+         ($1, $3, 'Alice Alpha', 'Spouse', 100, 'Primary', '512-555-0101', '1234'),
+         ($2, $4, 'Bella Beta', 'Child', 100, 'Primary', '617-555-0201', '5678')
        returning id`,
-      [userA, userB],
+      [userA, userB, entityA, entityB],
     );
 
-    // --- documents (1 for A) — entity_id stays NULL ----------------------
+    // --- documents (1 for A) — entity_id populated ------------------------
     const docs = await pg.query(
       `insert into public.documents
-         (user_id, type, file_name, file_url, status)
-       values ($1, 'W-9', 'ada-alpha-w9.pdf',
+         (user_id, entity_id, type, file_name, file_url, status)
+       values ($1, $2, 'W-9', 'ada-alpha-w9.pdf',
                'https://staging.example/seed/ada-alpha-w9.pdf', 'Approved')
        returning id`,
-      [userA],
+      [userA, entityA],
     );
 
-    // --- note_visibility (A can see the PRIVATE note) — entity_id NULL ----
+    // --- note_visibility (A can see the PRIVATE note) — entity_id populated
     // Composite PK (note_id, user_id): no id column.
     const vis = await pg.query(
-      `insert into public.note_visibility (note_id, user_id)
-       values ($1, $2)
+      `insert into public.note_visibility (note_id, user_id, entity_id)
+       values ($1, $2, $3)
        on conflict (note_id, user_id) do nothing
        returning note_id`,
-      [privateNote, userA],
+      [privateNote, userA, entityA],
     );
 
     await pg.query("commit");
@@ -277,6 +309,7 @@ async function main() {
     );
     console.log("─".repeat(62));
     console.log(`  profiles updated      2`);
+    console.log(`  investor_entities     ${entityIds.length} (1 primary each)`);
     console.log(
       `  notes inserted        ${notes.rowCount} (1 public, 1 private)`,
     );
@@ -285,7 +318,7 @@ async function main() {
     console.log(`  documents             ${docs.rowCount}`);
     console.log(`  note_visibility       ${vis.rowCount} (A → private note)`);
     console.log("─".repeat(62));
-    console.log("  entity_id is NULL on every row — run the backfill next.");
+    console.log("  entity_id is populated on every row — no backfill needed.");
   } catch (e) {
     await pg.query("rollback").catch(() => {});
     throw e;
