@@ -128,7 +128,7 @@ export async function submitRegistration(
   // pages can still slip through.
   const { data: noteRow } = await supabase
     .from("notes")
-    .select("min_investment")
+    .select("min_investment, is_private")
     .eq("id", noteUuid)
     .maybeSingle();
   const minInvestment = noteRow?.min_investment
@@ -176,6 +176,35 @@ export async function submitRegistration(
     return { fieldErrors: { entity_id: "Choose which entity is investing." } };
   }
   const entityId = submittedEntityId;
+
+  // Private notes are invited PER ENTITY. RLS only proves the LOGIN may see this
+  // note (because *some* entity they own was granted it) — it does not prove the
+  // CHOSEN entity was. Without this check a lender could invite their LLC into a
+  // private deal that was only offered to them personally.
+  if (noteRow?.is_private) {
+    const [{ data: grant }, { data: existing }] = await Promise.all([
+      supabase
+        .from("note_visibility")
+        .select("note_id")
+        .eq("note_id", noteUuid)
+        .eq("entity_id", entityId)
+        .maybeSingle(),
+      supabase
+        .from("participations")
+        .select("id")
+        .eq("note_id", noteUuid)
+        .eq("entity_id", entityId)
+        .limit(1),
+    ]);
+    if (!grant && (existing ?? []).length === 0) {
+      return {
+        fieldErrors: {
+          entity_id:
+            "This note isn't offered to that entity. Choose the entity it was offered to, or contact info@kindling.network.",
+        },
+      };
+    }
+  }
   const { data: entity } = await supabase
     .from("investor_entities")
     .select(

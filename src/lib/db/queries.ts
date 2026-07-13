@@ -269,8 +269,27 @@ export async function getNextUpcomingNote(): Promise<UpcomingNote | null> {
   return data as UpcomingNote | null;
 }
 
+// Note ids that the given entities have access to via an explicit private-note
+// grant or an existing participation. Used to scope PRIVATE notes to the entity
+// you're currently viewing as.
+async function noteIdsAccessibleToEntities(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entityIds: string[],
+): Promise<Set<string>> {
+  if (entityIds.length === 0) return new Set();
+  const [vis, parts] = await Promise.all([
+    supabase.from("note_visibility").select("note_id").in("entity_id", entityIds),
+    supabase.from("participations").select("note_id").in("entity_id", entityIds),
+  ]);
+  const ids = new Set<string>();
+  for (const r of (vis.data ?? []) as Array<{ note_id: string }>) ids.add(r.note_id);
+  for (const r of (parts.data ?? []) as Array<{ note_id: string }>) ids.add(r.note_id);
+  return ids;
+}
+
 export async function getOpportunities() {
   const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
   // Today in YYYY-MM-DD. Notes whose funding_end_date is in the past drop
   // off the listing on the next day (i.e. the closing day still shows;
   // the day after, it's gone — effectively a 12:01am cutover).
@@ -290,6 +309,7 @@ export async function getOpportunities() {
       min_investment,
       funding_end_date,
       description,
+      is_private,
       borrower:borrowers (
         business_name
       )
@@ -302,7 +322,18 @@ export async function getOpportunities() {
     .order("funding_start_date", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
-  return (data ?? []) as unknown as Opportunity[];
+  const rows = (data ?? []) as unknown as Array<Opportunity & { is_private: boolean }>;
+
+  // RLS decides whether this LOGIN may see a private note at all (it passes if
+  // ANY entity they own was granted it). That's the right security boundary, but
+  // it's not the right VIEW: a note granted to "Personal" must not appear while
+  // you're viewing as an LLC. So scope private notes to the entities currently
+  // in context.
+  const accessible = await noteIdsAccessibleToEntities(
+    supabase,
+    ctx?.entityIds ?? [],
+  );
+  return rows.filter((n) => !n.is_private || accessible.has(n.id)) as Opportunity[];
 }
 
 export type NoteDetail = {
