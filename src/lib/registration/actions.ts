@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
 import { notifyRegistrationSubmitted } from "@/lib/ghl/notify-registration";
+import { getWriteEntityId } from "@/lib/entities/context";
 
 export type RegistrationFormState = {
   error?: string;
@@ -145,11 +146,10 @@ export async function submitRegistration(
       "You must acknowledge to submit your registration";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
+  // Login-level identity still lives on the profile.
   const { data: profile } = await supabase
     .from("profiles")
-    .select(
-      "first_name, last_name, phone, email, entity_type, loan_agreement_title, address_street, address_city, address_state, address_zip",
-    )
+    .select("first_name, last_name, phone, email")
     .eq("id", user.id)
     .maybeSingle();
   if (!profile) {
@@ -159,14 +159,37 @@ export async function submitRegistration(
     };
   }
 
+  // Entity-level identity (entity type, name on the loan agreement, mailing
+  // address) comes from the investor entity this registration is filed under.
+  const entityId = await getWriteEntityId();
+  if (!entityId) {
+    return {
+      error:
+        "No investor entity is set up for your account. Contact info@kindling.network.",
+    };
+  }
+  const { data: entity } = await supabase
+    .from("investor_entities")
+    .select(
+      "entity_type, loan_agreement_title, address_street, address_city, address_state, address_zip",
+    )
+    .eq("id", entityId)
+    .maybeSingle();
+  if (!entity) {
+    return {
+      error:
+        "No investor entity is set up for your account. Contact info@kindling.network.",
+    };
+  }
+
   const fn = (profile.first_name as string | null) ?? "";
   const ln = (profile.last_name as string | null) ?? "";
   const fullName = `${fn} ${ln}`.trim();
   const nameForAgreement =
-    (profile.loan_agreement_title as string | null) || fullName || null;
+    (entity.loan_agreement_title as string | null) || fullName || null;
   const phone = (profile.phone as string | null) ?? "";
   const email = (profile.email as string | null) ?? user.email ?? "";
-  const entityType = (profile.entity_type as string | null) ?? "";
+  const entityType = (entity.entity_type as string | null) ?? "";
 
   const missing: string[] = [];
   if (!fn) missing.push("first name");
@@ -183,16 +206,17 @@ export async function submitRegistration(
   const { error: regErr } = await supabase.from("note_registrations").insert({
     note_id: noteUuid,
     user_id: user.id,
+    entity_id: entityId,
     first_name: fn,
     last_name: ln,
     phone,
     email,
     entity_type: entityType,
     name_for_agreement: nameForAgreement!,
-    mailing_address: (profile.address_street as string | null) ?? null,
-    city: (profile.address_city as string | null) ?? null,
-    state: (profile.address_state as string | null) ?? null,
-    zip_code: (profile.address_zip as string | null) ?? null,
+    mailing_address: (entity.address_street as string | null) ?? null,
+    city: (entity.address_city as string | null) ?? null,
+    state: (entity.address_state as string | null) ?? null,
+    zip_code: (entity.address_zip as string | null) ?? null,
     investment_amount,
     acknowledge_lender,
     status: "approved",
@@ -201,6 +225,7 @@ export async function submitRegistration(
 
   const { error: partErr } = await supabase.from("participations").insert({
     user_id: user.id,
+    entity_id: entityId,
     note_id: noteUuid,
     invested_amount: investment_amount,
     submitted_amount: investment_amount,
