@@ -12,9 +12,12 @@ import { requireAdmin } from "@/lib/dal";
  *   2. Reads the spawned note_registration for entity / address / agreement
  *      details the lead filled out at /setup-participation
  *   3. Creates a Supabase auth user via inviteUserByEmail (sends invite email)
- *   4. Backfills participation.user_id with the new user's id
- *   5. Hydrates the auto-created profile with everything we have so the
- *      lender's first /profile visit isn't a blank form
+ *   4. Hydrates the auto-created profile with the login-level contact info so
+ *      the lender's first /profile visit isn't a blank form
+ *   5. Provisions the lender's primary investor_entity from the registration
+ *      snapshot (entity type / business name / agreement name / address)
+ *   6. Backfills participation.user_id + entity_id (and the note_registration's
+ *      entity_id) so the new login owns its rows
  *
  * Refuses if user_id already set (returning lender — no invite needed) or
  * funding hasn't cleared yet.
@@ -54,12 +57,12 @@ export async function inviteLenderForParticipation(
   }
 
   // Read the spawned note_registration too — the lead filled in entity /
-  // address / loan-agreement-name there at /setup-participation, and we
-  // want those on their profile when they sign in.
+  // address / loan-agreement-name there at /setup-participation, and that
+  // snapshot becomes their investor entity when they sign in.
   const { data: reg } = await supabase
     .from("note_registrations")
     .select(
-      "entity_type, business_name, name_for_agreement, mailing_address, city, state, zip_code",
+      "id, entity_type, business_name, name_for_agreement, mailing_address, city, state, zip_code",
     )
     .eq("access_request_id", p.access_request_id)
     .order("created_at", { ascending: false })
@@ -86,22 +89,14 @@ export async function inviteLenderForParticipation(
   }
   const newUserId = invited.user.id;
 
-  // Hydrate profile (the on_auth_user_created trigger created the row).
-  // Skip null/empty values so we don't overwrite anything the user may
-  // have already filled in elsewhere.
+  // Hydrate profile (the on_auth_user_created trigger created the row) with
+  // login-level contact info only. Entity/address details live on the
+  // investor entity provisioned below. Skip null/empty values so we don't
+  // overwrite anything the user may have already filled in elsewhere.
   const profileUpdate: Record<string, string> = {};
   if (ar.first_name) profileUpdate.first_name = ar.first_name;
   if (ar.last_name) profileUpdate.last_name = ar.last_name;
   if (ar.phone) profileUpdate.phone = ar.phone;
-  if (reg?.entity_type) profileUpdate.entity_type = reg.entity_type;
-  if (reg?.business_name) profileUpdate.business_name = reg.business_name;
-  if (reg?.name_for_agreement)
-    profileUpdate.loan_agreement_title = reg.name_for_agreement;
-  if (reg?.mailing_address)
-    profileUpdate.address_street = reg.mailing_address;
-  if (reg?.city) profileUpdate.address_city = reg.city;
-  if (reg?.state) profileUpdate.address_state = reg.state;
-  if (reg?.zip_code) profileUpdate.address_zip = reg.zip_code;
 
   if (Object.keys(profileUpdate).length > 0) {
     const { error: profileErr } = await admin
@@ -113,10 +108,16 @@ export async function inviteLenderForParticipation(
     }
   }
 
-  // Backfill the participation
+  // Provision the lender's primary investor entity from the registration
+  // snapshot. Idempotent-safe: if this user somehow already has an entity
+  // (retry / prior partial run), reuse it — a second is_primary row would be
+  // rejected by investor_entities_one_primary_idx anyway.
+  const entityId = await ensurePrimaryEntity(admin, newUserId, reg);
+
+  // Backfill the participation with the new owner + entity.
   const { error: partErr } = await admin
     .from("participations")
-    .update({ user_id: newUserId })
+    .update({ user_id: newUserId, entity_id: entityId })
     .eq("id", participationId);
   if (partErr) {
     throw new Error(
@@ -124,8 +125,89 @@ export async function inviteLenderForParticipation(
     );
   }
 
+  // Claim the lead's note_registration rows for the new login as well, so the
+  // lender can see their own paperwork under RLS.
+  const { error: regUpdErr } = await admin
+    .from("note_registrations")
+    .update({ user_id: newUserId, entity_id: entityId })
+    .eq("access_request_id", p.access_request_id);
+  if (regUpdErr) {
+    console.error(
+      "invite: note_registrations backfill failed",
+      regUpdErr.message,
+    );
+  }
+
   revalidatePath("/admin/participations");
   revalidatePath(`/admin/participations/${participationId}`);
   revalidatePath("/admin/users");
   revalidatePath("/admin");
+}
+
+type EntitySnapshot = {
+  entity_type: string | null;
+  business_name: string | null;
+  name_for_agreement: string | null;
+  mailing_address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
+} | null;
+
+/**
+ * Return the user's primary investor entity, creating it from the lead's
+ * note_registration snapshot if they don't have one yet.
+ *
+ * display_name mirrors the backfill migration
+ * (20260712000001_investor_entities_backfill.sql): the trimmed business_name
+ * when non-empty, else "Personal" for Individual/unknown entity types, else
+ * the entity_type label itself.
+ */
+async function ensurePrimaryEntity(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  reg: EntitySnapshot,
+): Promise<string> {
+  const { data: existing } = await admin
+    .from("investor_entities")
+    .select("id")
+    .eq("owner_user_id", userId)
+    .order("is_primary", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  const entityType = reg?.entity_type?.trim() || null;
+  const businessName = reg?.business_name?.trim() || null;
+  const displayName =
+    businessName ??
+    (entityType === null || entityType === "Individual"
+      ? "Personal"
+      : entityType);
+
+  const { data: created, error: entityErr } = await admin
+    .from("investor_entities")
+    .insert({
+      owner_user_id: userId,
+      display_name: displayName,
+      entity_type: entityType,
+      business_name: businessName,
+      loan_agreement_title: reg?.name_for_agreement ?? null,
+      address_street: reg?.mailing_address ?? null,
+      address_city: reg?.city ?? null,
+      address_state: reg?.state ?? null,
+      address_zip: reg?.zip_code ?? null,
+      is_primary: true,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (entityErr || !created?.id) {
+    throw new Error(
+      `Invite sent but failed to create the lender's investor entity: ${
+        entityErr?.message ?? "no row returned"
+      }`,
+    );
+  }
+  return created.id as string;
 }

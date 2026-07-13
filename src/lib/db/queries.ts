@@ -1,6 +1,13 @@
 import "server-only";
 
+import { getCurrentEntityContext } from "@/lib/entities/context";
 import { createClient } from "@/lib/supabase/server";
+
+// Lender-facing reads below are scoped by INVESTOR ENTITY, not by login:
+// they filter on `entity_id IN ctx.entityIds` rather than `user_id = user.id`.
+// RLS enforces the same boundary server-side via auth_owns_entity(). In Phase 1
+// every login owns exactly one entity, so this is behavior-identical to the
+// previous user-scoped reads. Login-level data (referrals) stays keyed on the user.
 
 export type ParticipationWithNote = {
   id: string;
@@ -42,10 +49,8 @@ export type Opportunity = {
 
 export async function getMyParticipations() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return [];
 
   const { data } = await supabase
     .from("participations")
@@ -73,7 +78,7 @@ export async function getMyParticipations() {
       )
       `,
     )
-    .eq("user_id", user.id)
+    .in("entity_id", ctx.entityIds)
     .order("created_at", { ascending: false });
 
   return (data ?? []) as unknown as ParticipationWithNote[];
@@ -92,10 +97,8 @@ export type MonthlyCashflowPoint = {
 // mature. Notes missing schedule inputs (principal / dates) are skipped.
 export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return [];
 
   const { data } = await supabase
     .from("participations")
@@ -105,7 +108,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       note:notes ( principal, rate, term_months, interest_type, first_payment_date )
       `,
     )
-    .eq("user_id", user.id)
+    .in("entity_id", ctx.entityIds)
     .eq("funding_cleared", true);
 
   const rows = (data ?? []) as unknown as Array<{
@@ -183,10 +186,8 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
 // that note.
 export async function getMyTotalMonthlyPayment(): Promise<number> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return 0;
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return 0;
 
   const { data: myParts } = await supabase
     .from("participations")
@@ -194,7 +195,7 @@ export async function getMyTotalMonthlyPayment(): Promise<number> {
       `id, note_id, invested_amount, funding_cleared,
        note:notes ( principal, rate, term_months, interest_type )`,
     )
-    .eq("user_id", user.id)
+    .in("entity_id", ctx.entityIds)
     .eq("funding_cleared", true);
 
   const rows = (myParts ?? []) as unknown as Array<{
@@ -370,10 +371,8 @@ export type MyParticipation = {
 
 export async function getMyParticipationByNoteId(noteUuid: string) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return null;
 
   const { data } = await supabase
     .from("participations")
@@ -386,7 +385,7 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
       `,
     )
     .eq("note_id", noteUuid)
-    .eq("user_id", user.id)
+    .in("entity_id", ctx.entityIds)
     .maybeSingle();
 
   return data as MyParticipation | null;
@@ -570,14 +569,12 @@ export type Beneficiary = {
 
 export async function getMyBeneficiaries() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return [];
   const { data } = await supabase
     .from("beneficiaries")
     .select("*")
-    .eq("user_id", user.id)
+    .in("entity_id", ctx.entityIds)
     .order("type", { ascending: true })
     .order("created_at", { ascending: true });
   return (data ?? []) as Beneficiary[];
@@ -635,31 +632,27 @@ export async function getMyReferrals(): Promise<MyReferralRow[]> {
 
 export async function getBeneficiaryById(id: string) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return null;
   const { data } = await supabase
     .from("beneficiaries")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user.id)
+    .in("entity_id", ctx.entityIds)
     .maybeSingle();
   return data as Beneficiary | null;
 }
 
 export async function getMyRegistrationByNoteId(noteUuid: string) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return null;
 
   const { data } = await supabase
     .from("note_registrations")
     .select("id, status, investment_amount, created_at")
     .eq("note_id", noteUuid)
-    .eq("user_id", user.id)
+    .in("entity_id", ctx.entityIds)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
