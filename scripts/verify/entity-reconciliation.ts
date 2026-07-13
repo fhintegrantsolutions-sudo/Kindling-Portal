@@ -85,42 +85,78 @@ async function main() {
   const profileCount = await countRows("profiles");
   const entityCount = await countRows("investor_entities");
 
-  // 1. Exactly one entity per login.
-  if (entityCount === profileCount) {
-    ok(`investor_entities (${entityCount}) == profiles (${profileCount})`);
-  } else {
-    fail(
-      `investor_entities (${entityCount}) != profiles (${profileCount}) — expected one entity per login`,
+  // A login may own MANY entities (Phase 2), so entity count is NOT pinned to
+  // profile count. What must hold: every profile owns >= 1 entity, and exactly
+  // one of a profile's entities is primary.
+  const { data: allEntities, error: allEntityErr } = await db
+    .from("investor_entities")
+    .select("id, owner_user_id, is_primary")
+    .limit(SCAN_LIMIT);
+  if (allEntityErr) throw new Error(`entity scan: ${allEntityErr.message}`);
+  const entities = (allEntities ?? []) as Array<{
+    id: string;
+    owner_user_id: string;
+    is_primary: boolean;
+  }>;
+  if (entities.length === SCAN_LIMIT) {
+    console.log(
+      `      (note: entity scan hit the ${SCAN_LIMIT}-row limit; add paging)`,
     );
   }
 
-  // 2. Every login has a primary entity.
-  const primaryCount = await countRows("investor_entities", (q) =>
-    q.eq("is_primary", true),
+  const { data: profiles, error: profileErr } = await db
+    .from("profiles")
+    .select("id")
+    .limit(SCAN_LIMIT);
+  if (profileErr) throw new Error(`profile scan: ${profileErr.message}`);
+  const profileIds = (profiles ?? []).map((p) => p.id as string);
+
+  const entitiesPerOwner = new Map<string, number>();
+  const primaryPerOwner = new Map<string, number>();
+  for (const e of entities) {
+    entitiesPerOwner.set(
+      e.owner_user_id,
+      (entitiesPerOwner.get(e.owner_user_id) ?? 0) + 1,
+    );
+    if (e.is_primary) {
+      primaryPerOwner.set(
+        e.owner_user_id,
+        (primaryPerOwner.get(e.owner_user_id) ?? 0) + 1,
+      );
+    }
+  }
+
+  console.log(
+    `      (${entityCount} entity/entities across ${profileCount} profile(s) — multi-entity logins are legal)`,
   );
-  if (primaryCount === profileCount) {
-    ok(`primary entities (${primaryCount}) == profiles (${profileCount})`);
+
+  // 1. Every profile owns at least one entity.
+  const entitylessProfiles = profileIds.filter(
+    (id) => (entitiesPerOwner.get(id) ?? 0) === 0,
+  );
+  if (entitylessProfiles.length === 0) {
+    ok(`all ${profileIds.length} profile(s) own at least one entity`);
   } else {
     fail(
-      `primary entities (${primaryCount}) != profiles (${profileCount}) — some login has no primary entity`,
+      `${entitylessProfiles.length} profile(s) own zero entities — e.g. ${entitylessProfiles[0]}`,
+    );
+  }
+
+  // 2. Every profile has EXACTLY one primary entity (a partial unique index
+  //    enforces <= 1; assert >= 1 here so "zero primaries" is also a failure).
+  const noPrimary = profileIds.filter(
+    (id) => (primaryPerOwner.get(id) ?? 0) === 0,
+  );
+  if (noPrimary.length === 0) {
+    ok(`all ${profileIds.length} profile(s) have exactly one primary entity`);
+  } else {
+    fail(
+      `${noPrimary.length} profile(s) have no primary entity — e.g. ${noPrimary[0]}`,
     );
   }
 
   // 3. No login has 2+ primary entities (a unique index should guarantee this).
-  const { data: primaries, error: primaryErr } = await db
-    .from("investor_entities")
-    .select("owner_user_id")
-    .eq("is_primary", true)
-    .limit(SCAN_LIMIT);
-  if (primaryErr) throw new Error(`primary scan: ${primaryErr.message}`);
-  const primaryPerOwner = new Map<string, number>();
-  for (const row of primaries ?? []) {
-    const owner = row.owner_user_id as string;
-    primaryPerOwner.set(owner, (primaryPerOwner.get(owner) ?? 0) + 1);
-  }
-  const multiPrimary = [...primaryPerOwner.entries()].filter(
-    ([, n]) => n > 1,
-  );
+  const multiPrimary = [...primaryPerOwner.entries()].filter(([, n]) => n > 1);
   if (multiPrimary.length === 0) {
     ok("no login has more than one primary entity");
   } else {
@@ -184,24 +220,11 @@ async function main() {
 
   // 6. Every entity owner corresponds to an existing profile. (owner_user_id
   // FKs auth.users, not profiles, so there is no embeddable relation — compare
-  // the id sets in JS.)
-  const { data: entities, error: entityErr } = await db
-    .from("investor_entities")
-    .select("id, owner_user_id")
-    .limit(SCAN_LIMIT);
-  if (entityErr) throw new Error(`entity owner scan: ${entityErr.message}`);
-  const { data: profiles, error: profileErr } = await db
-    .from("profiles")
-    .select("id")
-    .limit(SCAN_LIMIT);
-  if (profileErr) throw new Error(`profile scan: ${profileErr.message}`);
-
-  const profileIds = new Set((profiles ?? []).map((p) => p.id as string));
-  const ownerless = (entities ?? []).filter(
-    (e) => !profileIds.has(e.owner_user_id as string),
-  );
+  // the id sets in JS. Reuses the scans from checks 1-3.)
+  const profileIdSet = new Set(profileIds);
+  const ownerless = entities.filter((e) => !profileIdSet.has(e.owner_user_id));
   if (ownerless.length === 0) {
-    ok(`all ${entities?.length ?? 0} entity owner_user_id(s) resolve to a profile`);
+    ok(`all ${entities.length} entity owner_user_id(s) resolve to a profile`);
   } else {
     fail(
       `${ownerless.length} entity/entities have an owner_user_id with no profile — ` +

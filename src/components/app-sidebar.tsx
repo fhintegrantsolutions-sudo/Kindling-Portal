@@ -19,6 +19,10 @@ import {
   Users,
 } from "lucide-react";
 import { logout } from "@/lib/auth/actions";
+import {
+  EntitySwitcher,
+  type SwitcherEntity,
+} from "@/components/entity-switcher";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -51,11 +55,17 @@ export function AppSidebar({
   firstName,
   lastName,
   role,
+  entities,
+  currentEntityId,
+  entityMode,
 }: {
   email: string | null;
   firstName: string | null;
   lastName: string | null;
   role: string | null;
+  entities: SwitcherEntity[];
+  currentEntityId: string | null;
+  entityMode: "all" | "one";
 }) {
   const pathname = usePathname();
   const fullName = [firstName, lastName].filter(Boolean).join(" ");
@@ -80,6 +90,12 @@ export function AppSidebar({
           priority
         />
       </div>
+      {/* Renders nothing unless this login owns 2+ entities. */}
+      <EntitySwitcher
+        entities={entities}
+        currentEntityId={currentEntityId}
+        mode={entityMode}
+      />
       <Separator className="bg-sidebar-border" />
       <nav className="flex flex-1 flex-col gap-1 p-4">
         {role !== "participations_admin"

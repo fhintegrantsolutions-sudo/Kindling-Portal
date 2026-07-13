@@ -269,8 +269,27 @@ export async function getNextUpcomingNote(): Promise<UpcomingNote | null> {
   return data as UpcomingNote | null;
 }
 
+// Note ids that the given entities have access to via an explicit private-note
+// grant or an existing participation. Used to scope PRIVATE notes to the entity
+// you're currently viewing as.
+async function noteIdsAccessibleToEntities(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  entityIds: string[],
+): Promise<Set<string>> {
+  if (entityIds.length === 0) return new Set();
+  const [vis, parts] = await Promise.all([
+    supabase.from("note_visibility").select("note_id").in("entity_id", entityIds),
+    supabase.from("participations").select("note_id").in("entity_id", entityIds),
+  ]);
+  const ids = new Set<string>();
+  for (const r of (vis.data ?? []) as Array<{ note_id: string }>) ids.add(r.note_id);
+  for (const r of (parts.data ?? []) as Array<{ note_id: string }>) ids.add(r.note_id);
+  return ids;
+}
+
 export async function getOpportunities() {
   const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
   // Today in YYYY-MM-DD. Notes whose funding_end_date is in the past drop
   // off the listing on the next day (i.e. the closing day still shows;
   // the day after, it's gone — effectively a 12:01am cutover).
@@ -290,6 +309,7 @@ export async function getOpportunities() {
       min_investment,
       funding_end_date,
       description,
+      is_private,
       borrower:borrowers (
         business_name
       )
@@ -302,7 +322,18 @@ export async function getOpportunities() {
     .order("funding_start_date", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
-  return (data ?? []) as unknown as Opportunity[];
+  const rows = (data ?? []) as unknown as Array<Opportunity & { is_private: boolean }>;
+
+  // RLS decides whether this LOGIN may see a private note at all (it passes if
+  // ANY entity they own was granted it). That's the right security boundary, but
+  // it's not the right VIEW: a note granted to "Personal" must not appear while
+  // you're viewing as an LLC. So scope private notes to the entities currently
+  // in context.
+  const accessible = await noteIdsAccessibleToEntities(
+    supabase,
+    ctx?.entityIds ?? [],
+  );
+  return rows.filter((n) => !n.is_private || accessible.has(n.id)) as Opportunity[];
 }
 
 export type NoteDetail = {
@@ -367,6 +398,13 @@ export type MyParticipation = {
   funding_deposited_date: string | null;
   funding_cleared_date: string | null;
   created_at: string;
+  // The entity that HOLDS this position — paperwork (loan agreement, schedule
+  // PDF) must carry this entity's legal name, not the login's primary entity.
+  entity: {
+    id: string;
+    display_name: string;
+    loan_agreement_title: string | null;
+  } | null;
 };
 
 export async function getMyParticipationByNoteId(noteUuid: string) {
@@ -381,14 +419,64 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
       id, invested_amount, status, user_notes,
       funding_received, funding_deposited, funding_cleared,
       funding_type, funding_received_date, funding_deposited_date,
-      funding_cleared_date, created_at
+      funding_cleared_date, created_at,
+      entity:investor_entities ( id, display_name, loan_agreement_title )
       `,
     )
     .eq("note_id", noteUuid)
     .in("entity_id", ctx.entityIds)
-    .maybeSingle();
+    // In "all" mode ctx.entityIds holds MULTIPLE entities and the same note can
+    // be held through more than one of them, so this can match >1 row.
+    // .maybeSingle() would throw; take the earliest participation instead.
+    .order("created_at", { ascending: true })
+    .limit(1);
 
-  return data as MyParticipation | null;
+  return ((data ?? [])[0] ?? null) as unknown as MyParticipation | null;
+}
+
+export type EntityTotal = {
+  entity_id: string;
+  display_name: string;
+  invested: number;
+  positions: number;
+};
+
+// Invested total + position count per entity, for the dashboard's "All entities"
+// breakdown. Counts only Active + funding-cleared rows, matching the dashboard's
+// definition of deployed capital.
+export async function getMyTotalsByEntity(): Promise<EntityTotal[]> {
+  const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return [];
+
+  const { data } = await supabase
+    .from("participations")
+    .select("invested_amount, entity_id, status, funding_cleared")
+    .in("entity_id", ctx.entityIds)
+    .eq("status", "Active")
+    .eq("funding_cleared", true);
+
+  const byId = new Map<string, { invested: number; positions: number }>();
+  for (const r of (data ?? []) as Array<{
+    invested_amount: string;
+    entity_id: string | null;
+  }>) {
+    if (!r.entity_id) continue;
+    const cur = byId.get(r.entity_id) ?? { invested: 0, positions: 0 };
+    cur.invested += Number(r.invested_amount ?? 0);
+    cur.positions += 1;
+    byId.set(r.entity_id, cur);
+  }
+
+  return ctx.entities
+    .filter((e) => byId.has(e.id))
+    .map((e) => ({
+      entity_id: e.id,
+      display_name: e.display_name,
+      invested: byId.get(e.id)!.invested,
+      positions: byId.get(e.id)!.positions,
+    }))
+    .sort((a, b) => b.invested - a.invested);
 }
 
 export type MyScheduleRow = {
@@ -639,6 +727,8 @@ export async function getBeneficiaryById(id: string) {
     .select("*")
     .eq("id", id)
     .in("entity_id", ctx.entityIds)
+    // Safe in all-mode: keyed by the beneficiary's unique id, so the entity_id
+    // filter only authorizes the row — it can never widen the match past 1.
     .maybeSingle();
   return data as Beneficiary | null;
 }
@@ -653,6 +743,9 @@ export async function getMyRegistrationByNoteId(noteUuid: string) {
     .select("id, status, investment_amount, created_at")
     .eq("note_id", noteUuid)
     .in("entity_id", ctx.entityIds)
+    // Safe in all-mode: .limit(1) caps the result at one row before
+    // .maybeSingle() runs, so multiple entities registering on the same note
+    // can't throw — the newest registration wins.
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();

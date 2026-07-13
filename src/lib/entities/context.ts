@@ -68,26 +68,38 @@ export type EntityIdentity = {
   address_zip: string | null;
 };
 
-// Entity identity (type / agreement title / mailing address) for the logged-in
-// user's PRIMARY entity. These fields live on investor_entities, never on
-// profiles. Phase 1: exactly one primary entity per login.
-export async function getPrimaryEntityIdentity(): Promise<EntityIdentity | null> {
+// NOTE: there is deliberately NO `getPrimaryEntityIdentity()` here.
+//
+// A "primary entity" is only a sensible DEFAULT (which entity to select when the
+// lender hasn't chosen one) — it is NEVER the right answer to "whose details do
+// I show/save?". Reaching for the primary entity caused three real bugs: the
+// profile showed (and would have overwritten) the personal entity's address
+// while the lender was viewing their LLC, and paperwork carried the wrong legal
+// name. Use `getCurrentEntityIdentity()` (the SELECTED entity) for display and
+// writes, or read the entity off the row you're acting on (e.g. a
+// participation's `entity_id`) when there is one.
+
+// Identity of the CURRENTLY SELECTED entity. In "all" mode there is no single
+// identity (paperwork is per-entity), so this returns null and callers must ask
+// the user to pick an entity.
+export async function getCurrentEntityIdentity(): Promise<
+  (EntityIdentity & { id: string; display_name: string }) | null
+> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.mode === "all" || !ctx.currentEntityId) return null;
 
   const { data } = await supabase
     .from("investor_entities")
     .select(
-      "entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip",
+      "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip",
     )
-    .eq("owner_user_id", user.id)
-    .eq("is_primary", true)
+    .eq("id", ctx.currentEntityId)
     .maybeSingle();
 
-  return (data ?? null) as EntityIdentity | null;
+  return (data ?? null) as
+    | (EntityIdentity & { id: string; display_name: string })
+    | null;
 }
 
 // The concrete entity to use for a WRITE (registration/paperwork). Never "all".

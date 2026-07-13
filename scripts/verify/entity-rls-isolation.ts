@@ -101,17 +101,23 @@ async function findUserId(email: string): Promise<string> {
   );
 }
 
+/** A PostgREST select builder, as returned by `client.from(t).select(s)`. */
+type SelectQuery = ReturnType<ReturnType<SupabaseClient["from"]>["select"]>;
+
+/** A row read back through RLS; columns are addressed by name. */
+type Row = Record<string, unknown>;
+
 /** Rows visible to `client`, or a throwing error. */
 async function rows(
   client: SupabaseClient,
   table: string,
   select: string,
-  apply?: (q: any) => any,
-): Promise<any[]> {
-  const base = client.from(table).select(select);
+  apply?: (q: SelectQuery) => SelectQuery,
+): Promise<Row[]> {
+  const base = client.from(table).select(select) as SelectQuery;
   const { data, error } = await (apply ? apply(base) : base);
   if (error) throw new Error(`${table} select as lender: ${error.message}`);
-  return (data ?? []) as any[];
+  return (data ?? []) as Row[];
 }
 
 async function main() {
@@ -126,15 +132,13 @@ async function main() {
 
   const { data: allEntities, error: entErr } = await admin
     .from("investor_entities")
-    .select("id, owner_user_id")
+    .select("id, owner_user_id, is_primary")
     .in("owner_user_id", [userA, userB]);
   if (entErr) throw new Error(`entity lookup: ${entErr.message}`);
-  const entitiesA = (allEntities ?? [])
-    .filter((e) => e.owner_user_id === userA)
-    .map((e) => e.id as string);
-  const entitiesB = (allEntities ?? [])
-    .filter((e) => e.owner_user_id === userB)
-    .map((e) => e.id as string);
+  const ownedBy = (uid: string) =>
+    (allEntities ?? []).filter((e) => e.owner_user_id === uid);
+  const entitiesA = ownedBy(userA).map((e) => e.id as string);
+  const entitiesB = ownedBy(userB).map((e) => e.id as string);
   if (entitiesA.length === 0 || entitiesB.length === 0) {
     throw new Error(
       "seed users have no investor_entities — run the backfill/seed " +
@@ -142,6 +146,73 @@ async function main() {
     );
   }
 
+  // Phase 2: a login may own MANY entities. The load-bearing read-path test
+  // needs A to hold positions under more than one hat, so A must own >= 2.
+  const primaryA = ownedBy(userA).find((e) => e.is_primary === true);
+  const secondaryA = ownedBy(userA).find((e) => e.is_primary !== true);
+  if (!primaryA || !secondaryA) {
+    throw new Error(
+      "user A must own a primary AND at least one secondary entity for the " +
+        "multi-entity assertions. Add one with:\n" +
+        `  npx tsx scripts/verify/make-test-entity.ts add ${USER_A.email} "Alpha Holdings LLC" LLC "Alpha Holdings LLC"`,
+    );
+  }
+  const primaryEntityA = primaryA.id as string;
+  const secondEntityA = secondaryA.id as string;
+
+  // Stage a participation on A's SECOND entity so the "A sees every one of my
+  // hats" read path is actually exercised. Torn down in the finally below.
+  const { data: seedNote, error: seedNoteErr } = await admin
+    .from("notes")
+    .select("id")
+    .eq("note_id", PUBLIC_NOTE_ID)
+    .single();
+  if (seedNoteErr || !seedNote)
+    throw new Error(
+      `public seed note ${PUBLIC_NOTE_ID} not found — run seed-staging.ts`,
+    );
+
+  const { data: multiPart, error: multiPartErr } = await admin
+    .from("participations")
+    .insert({
+      user_id: userA,
+      note_id: seedNote.id as string,
+      entity_id: secondEntityA,
+      invested_amount: 5000,
+      status: "Active",
+    })
+    .select("id")
+    .single();
+  if (multiPartErr)
+    throw new Error(
+      `stage second-entity participation: ${multiPartErr.message}`,
+    );
+  const multiEntityPartId = multiPart.id as string;
+
+  try {
+    await runAssertions();
+  } finally {
+    const { error: cleanupErr } = await admin
+      .from("participations")
+      .delete()
+      .eq("id", multiEntityPartId);
+    if (cleanupErr) {
+      fail(
+        `cleanup: could not delete second-entity participation: ${cleanupErr.message}`,
+      );
+    } else {
+      ok("second-entity fixture participation cleaned up");
+    }
+  }
+
+  console.log("");
+  console.log(
+    failures === 0 ? "RLS ISOLATION PASS" : `RLS ISOLATION FAIL (${failures})`,
+  );
+  process.exit(failures === 0 ? 0 : 1);
+
+  // ---- assertions ---------------------------------------------------------
+  async function runAssertions() {
   const { count: expectedPartsA, error: partCountErr } = await admin
     .from("participations")
     .select("*", { count: "exact", head: true })
@@ -188,6 +259,23 @@ async function main() {
     aParts.length === expectedPartsA && !strayPart,
     `A sees all ${expectedPartsA} participation(s) across A's entities, all entity_id-owned by A ` +
       `(got ${aParts.length}${strayPart ? `, stray entity_id ${strayPart.entity_id}` : ""})`,
+  );
+
+  // 2b. MULTI-ENTITY READ PATH: the distinct entity_ids A sees must include
+  //     BOTH of A's entities — A's positions are not siloed to one hat.
+  const aPartEntityIds = new Set(aParts.map((p) => p.entity_id as string));
+  check(
+    aPartEntityIds.has(primaryEntityA) && aPartEntityIds.has(secondEntityA),
+    `A sees participations from BOTH of A's entities — primary ${primaryEntityA} ` +
+      `(${aParts.filter((p) => p.entity_id === primaryEntityA).length} row(s)) and ` +
+      `secondary ${secondEntityA} (${aParts.filter((p) => p.entity_id === secondEntityA).length} row(s)); ` +
+      `distinct entity_ids seen: ${aPartEntityIds.size}`,
+  );
+
+  // 2c. Every row A sees carries an entity_id A owns.
+  check(
+    aParts.every((p) => entitiesA.includes(p.entity_id as string)),
+    `every participation A sees has an entity_id owned by A (${aParts.length} row(s))`,
   );
 
   // 3. A sees A's beneficiary and A's document.
@@ -427,12 +515,7 @@ async function main() {
     if (childDocId)
       await admin.from("participation_documents").delete().eq("id", childDocId);
   }
-
-  console.log("");
-  console.log(
-    failures === 0 ? "RLS ISOLATION PASS" : `RLS ISOLATION FAIL (${failures})`,
-  );
-  process.exit(failures === 0 ? 0 : 1);
+  } // end runAssertions
 }
 
 main().catch((e) => {

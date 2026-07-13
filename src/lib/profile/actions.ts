@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentEntityContext } from "@/lib/entities/context";
 
 export type ProfileFormState = {
   error?: string;
@@ -35,14 +36,31 @@ export async function updateProfile(
     address_zip: String(formData.get("address_zip") ?? "").trim() || null,
   };
 
+  // The address belongs to the SELECTED entity — never the primary one. Writing
+  // to the primary here would silently overwrite the personal entity's address
+  // while the lender was editing their LLC.
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entities.length === 0) {
+    return {
+      error:
+        "No investor entity is set up for your account. Contact info@kindling.network.",
+    };
+  }
+  if (ctx.mode === "all" || !ctx.currentEntityId) {
+    return {
+      error:
+        "Your mailing address is set per entity. Choose an entity from the switcher, then save.",
+    };
+  }
+  const targetEntityId = ctx.currentEntityId;
+
   // Snapshot the entity's current address so we can tell the client whether this
   // save changed it (drives the W-9 prompt). Lenders can SELECT their own
   // entities, so the session client is enough for the read.
   const { data: current } = await supabase
     .from("investor_entities")
     .select("address_street, address_city, address_state, address_zip")
-    .eq("owner_user_id", user.id)
-    .eq("is_primary", true)
+    .eq("id", targetEntityId)
     .maybeSingle();
 
   // Phone stays on the login-level profile row.
@@ -67,15 +85,18 @@ export async function updateProfile(
 
   // The mailing address lives on the investor entity. Lenders have no UPDATE
   // policy on investor_entities (entities are admin-managed), so this one write
-  // goes through the service-role client — scoped strictly to the row owned by
-  // the *session's* user (identity comes from supabase.auth.getUser() above,
-  // never from client input) and to their primary entity.
+  // goes through the service-role client. It's scoped to the SELECTED entity AND
+  // re-checks ownership against the *session's* user (identity comes from
+  // supabase.auth.getUser() above, never from client input) — the service-role
+  // client bypasses RLS, so this owner check is the only thing standing between
+  // a tampered cookie and someone else's row. getCurrentEntityContext() already
+  // validates ownership; the owner_user_id filter is belt-and-braces.
   const admin = createAdminClient();
   const { data: entity, error: entityError } = await admin
     .from("investor_entities")
     .update(address)
+    .eq("id", targetEntityId)
     .eq("owner_user_id", user.id)
-    .eq("is_primary", true)
     .select("id")
     .maybeSingle();
 

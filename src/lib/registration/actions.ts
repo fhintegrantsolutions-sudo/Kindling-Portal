@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency } from "@/lib/format";
 import { notifyRegistrationSubmitted } from "@/lib/ghl/notify-registration";
-import { getWriteEntityId } from "@/lib/entities/context";
+import { getCurrentEntityContext } from "@/lib/entities/context";
 
 export type RegistrationFormState = {
   error?: string;
@@ -128,7 +128,7 @@ export async function submitRegistration(
   // pages can still slip through.
   const { data: noteRow } = await supabase
     .from("notes")
-    .select("min_investment")
+    .select("min_investment, is_private")
     .eq("id", noteUuid)
     .maybeSingle();
   const minInvestment = noteRow?.min_investment
@@ -161,12 +161,49 @@ export async function submitRegistration(
 
   // Entity-level identity (entity type, name on the loan agreement, mailing
   // address) comes from the investor entity this registration is filed under.
-  const entityId = await getWriteEntityId();
-  if (!entityId) {
+  // The lender picks that entity on the form — there's no defensible default
+  // once a login owns more than one.
+  const submittedEntityId = String(formData.get("entity_id") ?? "").trim();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entities.length === 0) {
     return {
       error:
         "No investor entity is set up for your account. Contact info@kindling.network.",
     };
+  }
+  // Never trust the form — must be an entity this caller actually owns.
+  if (!ctx.entities.some((e) => e.id === submittedEntityId)) {
+    return { fieldErrors: { entity_id: "Choose which entity is investing." } };
+  }
+  const entityId = submittedEntityId;
+
+  // Private notes are invited PER ENTITY. RLS only proves the LOGIN may see this
+  // note (because *some* entity they own was granted it) — it does not prove the
+  // CHOSEN entity was. Without this check a lender could invite their LLC into a
+  // private deal that was only offered to them personally.
+  if (noteRow?.is_private) {
+    const [{ data: grant }, { data: existing }] = await Promise.all([
+      supabase
+        .from("note_visibility")
+        .select("note_id")
+        .eq("note_id", noteUuid)
+        .eq("entity_id", entityId)
+        .maybeSingle(),
+      supabase
+        .from("participations")
+        .select("id")
+        .eq("note_id", noteUuid)
+        .eq("entity_id", entityId)
+        .limit(1),
+    ]);
+    if (!grant && (existing ?? []).length === 0) {
+      return {
+        fieldErrors: {
+          entity_id:
+            "This note isn't offered to that entity. Choose the entity it was offered to, or contact info@kindling.network.",
+        },
+      };
+    }
   }
   const { data: entity } = await supabase
     .from("investor_entities")
