@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type LeadFormState = {
@@ -176,6 +177,12 @@ export async function submitLeadParticipationForm(
       error: `Saved but failed to mark request converted: ${arUpdateErr.message}`,
     };
   }
+
+  // A lead's submission creates a participation and flips the access request, both
+  // of which admin acts on. Bust those cached pages so they show up immediately.
+  revalidatePath("/admin/participations");
+  revalidatePath("/admin/access-requests");
+  revalidatePath("/admin");
 
   redirect(`/setup-participation/${token}/done`);
 }
