@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getWriteEntityId } from "@/lib/entities/context";
 
 export type BeneficiaryFormState = {
   error?: string;
@@ -23,11 +24,22 @@ export async function createBeneficiary(
   const fieldErrors = validate(fields);
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
-  const overAllocated = await checkTotal(supabase, user.id, fields, null);
+  // Beneficiaries belong to an investor ENTITY (RLS enforces auth_owns_entity),
+  // so the row must carry entity_id or the insert is rejected.
+  const entityId = await getWriteEntityId();
+  if (!entityId) {
+    return {
+      error:
+        "No investor entity is set up for your account. Contact info@kindling.network.",
+    };
+  }
+
+  const overAllocated = await checkTotal(supabase, entityId, fields, null);
   if (overAllocated) return { fieldErrors: { percentage: overAllocated } };
 
   const { error } = await supabase.from("beneficiaries").insert({
     user_id: user.id,
+    entity_id: entityId,
     name: fields.name,
     relation: fields.relation,
     percentage: fields.percentage,
@@ -35,6 +47,7 @@ export async function createBeneficiary(
     dob: fields.dob,
     phone: fields.phone,
     address: fields.address,
+    ssn_last4: fields.ssn_last4,
   });
   if (error) return { error: error.message };
 
@@ -57,9 +70,24 @@ export async function updateBeneficiary(
   const fieldErrors = validate(fields);
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
+  // The row being edited already belongs to an entity; the 100% cap is scoped to
+  // that entity, so read it from the row rather than assuming the current one.
+  const { data: existing } = await supabase
+    .from("beneficiaries")
+    .select("entity_id")
+    .eq("id", beneficiaryId)
+    .maybeSingle();
+  const entityId = existing?.entity_id ?? (await getWriteEntityId());
+  if (!entityId) {
+    return {
+      error:
+        "No investor entity is set up for your account. Contact info@kindling.network.",
+    };
+  }
+
   const overAllocated = await checkTotal(
     supabase,
-    user.id,
+    entityId,
     fields,
     beneficiaryId,
   );
@@ -101,21 +129,22 @@ export async function deleteBeneficiary(beneficiaryId: string): Promise<void> {
   revalidatePath("/profile/beneficiaries");
 }
 
-// Enforce that a beneficiary type (Primary/Contingent) never exceeds 100%.
-// Sums the other beneficiaries of the same type for this user (excluding the
-// row being edited) and returns an error message if adding this one would push
-// the total over 100 — otherwise null. Under-100 is allowed (the list page
-// warns about it); this only blocks over-allocation.
+// Enforce that a beneficiary type (Primary/Contingent) never exceeds 100% FOR A
+// GIVEN ENTITY. Beneficiaries are per-entity, so each entity gets its own 100%
+// allocation. Sums the other beneficiaries of the same type on that entity
+// (excluding the row being edited) and returns an error message if adding this
+// one would push the total over 100 — otherwise null. Under-100 is allowed (the
+// list page warns about it); this only blocks over-allocation.
 async function checkTotal(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
+  entityId: string,
   fields: Fields,
   excludeId: string | null,
 ): Promise<string | null> {
   const { data } = await supabase
     .from("beneficiaries")
     .select("id, percentage")
-    .eq("user_id", userId)
+    .eq("entity_id", entityId)
     .eq("type", fields.type);
 
   const othersTotal = (data ?? [])
