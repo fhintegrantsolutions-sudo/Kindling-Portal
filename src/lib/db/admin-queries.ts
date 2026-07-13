@@ -48,10 +48,13 @@ export async function getUsersByState(): Promise<StateUserCount[]> {
   );
   if (activeUserIds.size === 0) return [];
 
+  // The mailing address lives on the investor entity, not the login. This is a
+  // user-context count (unique lenders), so we read each login's PRIMARY entity.
   const { data } = await supabase
-    .from("profiles")
-    .select("id, address_state")
-    .in("id", Array.from(activeUserIds))
+    .from("investor_entities")
+    .select("owner_user_id, address_state")
+    .in("owner_user_id", Array.from(activeUserIds))
+    .eq("is_primary", true)
     .not("address_state", "is", null);
 
   const counts = new Map<string, number>();
@@ -262,7 +265,8 @@ export async function getParticipations(filter?: {
       id, user_id, access_request_id, invested_amount, status,
       funding_received, funding_deposited, funding_cleared,
       funding_type, created_at,
-      note:notes ( note_id, title, funding_archived_at )
+      note:notes ( note_id, title, funding_archived_at ),
+      entity:investor_entities ( business_name )
       `,
     )
     .order("created_at", { ascending: false });
@@ -286,11 +290,15 @@ export async function getParticipations(filter?: {
   }
 
   const { data } = await q;
+  // business_name now comes from the entity that holds the position (the
+  // participation's entity_id), not from the login's profile. Leads that were
+  // never converted have entity_id NULL and, exactly as before, show no
+  // business name in this list.
   const rows = (data ?? []) as unknown as Array<
     Omit<
       AdminParticipationListItem,
       "lender_name" | "lender_email" | "business_name" | "is_prospect"
-    >
+    > & { entity: { business_name: string | null } | null }
   >;
   if (rows.length === 0) return [];
 
@@ -306,27 +314,26 @@ export async function getParticipations(filter?: {
     ),
   );
 
+  // Name + email stay login-level (profiles) — those columns aren't moving.
   const profileMap = new Map<
     string,
-    { name: string | null; email: string | null; business_name: string | null }
+    { name: string | null; email: string | null }
   >();
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, email, business_name")
+      .select("id, first_name, last_name, email")
       .in("id", userIds);
     for (const p of (profiles ?? []) as Array<{
       id: string;
       first_name: string | null;
       last_name: string | null;
       email: string | null;
-      business_name: string | null;
     }>) {
       profileMap.set(p.id, {
         name:
           `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null,
         email: p.email,
-        business_name: p.business_name,
       });
     }
   }
@@ -355,15 +362,14 @@ export async function getParticipations(filter?: {
   }
 
   return rows.map((r) => {
+    const { entity, ...rest } = r;
     let lenderName: string | null = null;
     let lenderEmail: string | null = null;
-    let businessName: string | null = null;
     let isProspect = false;
     if (r.user_id) {
       const p = profileMap.get(r.user_id);
       lenderName = p?.name ?? null;
       lenderEmail = p?.email ?? null;
-      businessName = p?.business_name ?? null;
     } else if (r.access_request_id) {
       const a = arMap.get(r.access_request_id);
       lenderName = a?.name ?? null;
@@ -371,10 +377,10 @@ export async function getParticipations(filter?: {
       isProspect = true;
     }
     return {
-      ...r,
+      ...rest,
       lender_name: lenderName,
       lender_email: lenderEmail,
-      business_name: businessName,
+      business_name: entity?.business_name ?? null,
       is_prospect: isProspect,
     };
   });
@@ -590,8 +596,18 @@ export type UserDetail = {
 export async function getUserById(userId: string): Promise<UserDetail | null> {
   const supabase = await createClient();
 
-  const [profileRes, partsRes, bensRes] = await Promise.all([
+  const [profileRes, entityRes, partsRes, bensRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+    // Entity identity (type / agreement title / mailing address) lives on the
+    // investor entity now. This is a user-context view, so read the PRIMARY one.
+    supabase
+      .from("investor_entities")
+      .select(
+        "entity_type, loan_agreement_title, address_street, address_city, address_state, address_zip",
+      )
+      .eq("owner_user_id", userId)
+      .eq("is_primary", true)
+      .maybeSingle(),
     supabase
       .from("participations")
       .select(
@@ -691,8 +707,26 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
     };
   });
 
+  const entity = (entityRes.data ?? null) as Pick<
+    UserProfile,
+    | "entity_type"
+    | "loan_agreement_title"
+    | "address_street"
+    | "address_city"
+    | "address_state"
+    | "address_zip"
+  > | null;
+
   return {
-    profile: profileRes.data as UserProfile,
+    profile: {
+      ...(profileRes.data as object),
+      entity_type: entity?.entity_type ?? null,
+      loan_agreement_title: entity?.loan_agreement_title ?? null,
+      address_street: entity?.address_street ?? null,
+      address_city: entity?.address_city ?? null,
+      address_state: entity?.address_state ?? null,
+      address_zip: entity?.address_zip ?? null,
+    } as UserProfile,
     participations,
     beneficiaries: (bensRes.data ?? []) as UserBeneficiary[],
   };
@@ -1513,16 +1547,21 @@ export async function getFundedParticipantsForNote(
     .select("principal, rate, term_months, interest_type")
     .eq("id", noteUuid)
     .maybeSingle();
+  // business_name comes from the entity holding the position; name/email stay
+  // login-level (profiles).
   const { data: parts } = await supabase
     .from("participations")
-    .select("id, user_id, invested_amount")
+    .select(
+      "id, user_id, invested_amount, entity:investor_entities ( business_name )",
+    )
     .eq("note_id", noteUuid)
     .eq("funding_cleared", true);
 
-  const rows = (parts ?? []) as Array<{
+  const rows = (parts ?? []) as unknown as Array<{
     id: string;
     user_id: string | null;
     invested_amount: string;
+    entity: { business_name: string | null } | null;
   }>;
   if (rows.length === 0) return [];
 
@@ -1531,26 +1570,24 @@ export async function getFundedParticipantsForNote(
   );
   const profileMap = new Map<
     string,
-    { name: string | null; email: string | null; business_name: string | null }
+    { name: string | null; email: string | null }
   >();
   if (userIds.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, email, business_name")
+      .select("id, first_name, last_name, email")
       .in("id", userIds);
     for (const p of (profiles ?? []) as Array<{
       id: string;
       first_name: string | null;
       last_name: string | null;
       email: string | null;
-      business_name: string | null;
     }>) {
       const fullName =
         `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null;
       profileMap.set(p.id, {
         name: fullName,
         email: p.email,
-        business_name: p.business_name,
       });
     }
   }
@@ -1586,7 +1623,7 @@ export async function getFundedParticipantsForNote(
         user_id: r.user_id,
         lender_name: profile?.name ?? null,
         lender_email: profile?.email ?? null,
-        business_name: profile?.business_name ?? null,
+        business_name: r.entity?.business_name ?? null,
         invested_amount: r.invested_amount,
         share_pct: total > 0 ? (invested / total) * 100 : 0,
         monthly_payment: monthly,

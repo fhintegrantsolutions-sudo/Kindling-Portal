@@ -7,6 +7,7 @@ import {
   type MyParticipation,
 } from "@/lib/db/queries";
 import { getCurrentProfile } from "@/lib/dal";
+import { getPrimaryEntityIdentity } from "@/lib/entities/context";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { NoteDetailCard } from "@/components/note-detail-card";
@@ -28,26 +29,28 @@ export default async function OpportunityDetailPage({
   // Both pieces of registration state are needed because admin can flip a
   // pending registration into a participation; either implies "already
   // signed up on this note" and should hide the form.
-  const [existingParticipation, existingRegistration, profile] =
+  const [existingParticipation, existingRegistration, profile, entity] =
     await Promise.all([
       getMyParticipationByNoteId(note.id),
       getMyRegistrationByNoteId(note.id),
       getCurrentProfile(),
+      getPrimaryEntityIdentity(),
     ]);
 
+  // Name/phone are login-level (profiles); entity type, agreement title and
+  // mailing address come from the lender's primary investor entity.
   const firstName = (profile?.first_name as string | null) ?? "";
   const lastName = (profile?.last_name as string | null) ?? "";
   const fullName = `${firstName} ${lastName}`.trim() || null;
   const phone = (profile?.phone as string | null) ?? null;
-  const entityType = (profile?.entity_type as string | null) ?? null;
-  const loanTitle =
-    (profile?.loan_agreement_title as string | null) ?? fullName;
+  const entityType = entity?.entity_type ?? null;
+  const loanTitle = entity?.loan_agreement_title ?? fullName;
   const mailingAddress =
     [
-      profile?.address_street,
-      profile?.address_city,
-      profile?.address_state,
-      profile?.address_zip,
+      entity?.address_street,
+      entity?.address_city,
+      entity?.address_state,
+      entity?.address_zip,
     ]
       .filter(Boolean)
       .join(", ") || null;

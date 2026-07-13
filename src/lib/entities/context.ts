@@ -58,6 +58,38 @@ export async function getCurrentEntityContext(): Promise<EntityContext | null> {
   return { mode: "one", currentEntityId: chosen, entityIds: [chosen], entities };
 }
 
+export type EntityIdentity = {
+  entity_type: string | null;
+  business_name: string | null;
+  loan_agreement_title: string | null;
+  address_street: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+};
+
+// Entity identity (type / agreement title / mailing address) for the logged-in
+// user's PRIMARY entity. These fields live on investor_entities, never on
+// profiles. Phase 1: exactly one primary entity per login.
+export async function getPrimaryEntityIdentity(): Promise<EntityIdentity | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("investor_entities")
+    .select(
+      "entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip",
+    )
+    .eq("owner_user_id", user.id)
+    .eq("is_primary", true)
+    .maybeSingle();
+
+  return (data ?? null) as EntityIdentity | null;
+}
+
 // The concrete entity to use for a WRITE (registration/paperwork). Never "all".
 export async function getWriteEntityId(): Promise<string | null> {
   const ctx = await getCurrentEntityContext();

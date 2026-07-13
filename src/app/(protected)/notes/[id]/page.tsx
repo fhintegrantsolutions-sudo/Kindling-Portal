@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { NoteDetailCard } from "@/components/note-detail-card";
 import { getCurrentProfile } from "@/lib/dal";
+import { getPrimaryEntityIdentity } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
 import { EditInvestedAmount } from "./edit-invested-amount";
 
@@ -32,17 +33,18 @@ export default async function MyNoteDetailPage({
     redirect(`/opportunities/${note.note_id}`);
   }
 
-  const [bonuses, schedule, profile] = await Promise.all([
+  const [bonuses, schedule, profile, entity] = await Promise.all([
     getMyBonusPayoutsForParticipation(participation.id),
     getMyScheduleForNote(note.id, participation.id),
     getCurrentProfile(),
+    getPrimaryEntityIdentity(),
   ]);
   // Prefer the formal loan-agreement title (e.g. "Specialized Trust Company
   // Custodian FBO Felipe Vazquez ROTH IRA") since that's what appears on the
-  // executed loan docs. Fall back to first + last, then email, then a
-  // generic placeholder.
+  // executed loan docs — it lives on the lender's investor entity. Fall back to
+  // first + last, then email, then a generic placeholder.
   const lenderName =
-    ((profile?.loan_agreement_title as string | null) ?? "").trim() ||
+    (entity?.loan_agreement_title ?? "").trim() ||
     [
       (profile?.first_name as string | null) ?? "",
       (profile?.last_name as string | null) ?? "",
