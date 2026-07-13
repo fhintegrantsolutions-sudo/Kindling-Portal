@@ -145,9 +145,32 @@ async function syncVisibility(
   }
   if (!fields.is_private || fields.visible_user_ids.length === 0) return;
 
+  // Visibility is entity-scoped: the RLS gate on `notes` joins note_visibility
+  // to investor_entities via entity_id, so a row without entity_id grants
+  // nothing. Admin still picks people, so map each user to their primary entity.
+  const { data: entities, error: entErr } = await supabase
+    .from("investor_entities")
+    .select("id, owner_user_id")
+    .in("owner_user_id", fields.visible_user_ids)
+    .eq("is_primary", true);
+  if (entErr) {
+    throw new Error(`Failed to resolve entities: ${entErr.message}`);
+  }
+
+  const entityByUser = new Map(
+    (entities ?? []).map((e) => [e.owner_user_id as string, e.id as string]),
+  );
+  const missing = fields.visible_user_ids.filter((u) => !entityByUser.has(u));
+  if (missing.length > 0) {
+    throw new Error(
+      `Cannot grant visibility: ${missing.length} selected lender(s) have no investor entity.`,
+    );
+  }
+
   const rows = fields.visible_user_ids.map((user_id) => ({
     note_id: noteUuid,
     user_id,
+    entity_id: entityByUser.get(user_id)!,
   }));
   const { error: insertErr } = await supabase
     .from("note_visibility")
