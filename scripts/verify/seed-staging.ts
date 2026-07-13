@@ -238,6 +238,21 @@ async function main() {
     }
     const [entityA, entityB] = entityIds;
 
+    // User A also gets a SECOND (non-primary) entity, so the fixture exercises a
+    // genuinely multi-entity login. The RLS harness asserts A sees positions
+    // across BOTH entities — without this, that assertion goes vacuous.
+    const secondA = await pg.query(
+      `insert into public.investor_entities
+         (owner_user_id, display_name, entity_type, business_name,
+          loan_agreement_title, is_primary)
+       values ($1, 'Alpha Holdings LLC', 'LLC', 'Alpha Holdings LLC',
+               'Alpha Holdings LLC', false)
+       returning id`,
+      [userA],
+    );
+    const entityA2 = secondA.rows[0].id as string;
+    entityIds.push(entityA2);
+
     // --- notes (one public, one private) --------------------------------
     const notes = await pg.query(
       `insert into public.notes
@@ -309,7 +324,7 @@ async function main() {
     );
     console.log("─".repeat(62));
     console.log(`  profiles updated      2`);
-    console.log(`  investor_entities     ${entityIds.length} (1 primary each)`);
+    console.log(`  investor_entities     ${entityIds.length} (1 primary each; A also has a 2nd, non-primary)`);
     console.log(
       `  notes inserted        ${notes.rowCount} (1 public, 1 private)`,
     );
