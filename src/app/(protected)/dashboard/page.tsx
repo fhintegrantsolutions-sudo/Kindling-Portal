@@ -5,7 +5,9 @@ import {
   getMyMonthlyCashflow,
   getMyParticipations,
   getMyTotalMonthlyPayment,
+  getMyTotalsByEntity,
 } from "@/lib/db/queries";
+import { getCurrentEntityContext } from "@/lib/entities/context";
 import { formatCurrency } from "@/lib/format";
 import {
   Card,
@@ -16,13 +18,20 @@ import {
 import { MonthlyCashflowChart } from "./monthly-cashflow-chart";
 
 export default async function DashboardPage() {
-  const [profile, participations, totalMonthly, monthlyCashflow] =
+  const [profile, participations, totalMonthly, monthlyCashflow, ctx, byEntity] =
     await Promise.all([
       getCurrentProfile(),
       getMyParticipations(),
       getMyTotalMonthlyPayment(),
       getMyMonthlyCashflow(),
+      getCurrentEntityContext(),
+      getMyTotalsByEntity(),
     ]);
+
+  // Only in "All entities" mode, and only for logins that actually own more than
+  // one entity — single-entity lenders see no breakdown at all.
+  const showByEntity =
+    ctx?.mode === "all" && ctx.entities.length > 1 && byEntity.length > 0;
 
   // "Active" = the row is Active AND the funding has cleared — un-cleared
   // participations are still pending and shouldn't count as deployed capital.
@@ -70,6 +79,36 @@ export default async function DashboardPage() {
           icon={<TrendingUp className="size-4" />}
         />
       </section>
+
+      {showByEntity ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              By entity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col">
+              {byEntity.map((e) => (
+                <li
+                  key={e.entity_id}
+                  className="flex items-center justify-between gap-3 border-b py-3 last:border-b-0 last:pb-0 first:pt-0"
+                >
+                  <p className="text-sm font-medium">{e.display_name}</p>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold tabular-nums">
+                      {formatCurrency(e.invested)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {e.positions} position{e.positions === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {participations.length === 0 ? (
         <section className="rounded-lg border bg-card p-8 text-center">

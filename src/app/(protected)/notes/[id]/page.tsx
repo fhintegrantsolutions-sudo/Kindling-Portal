@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { NoteDetailCard } from "@/components/note-detail-card";
 import { getCurrentProfile } from "@/lib/dal";
-import { getPrimaryEntityIdentity } from "@/lib/entities/context";
+import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
 import { EditInvestedAmount } from "./edit-invested-amount";
 
@@ -33,18 +33,19 @@ export default async function MyNoteDetailPage({
     redirect(`/opportunities/${note.note_id}`);
   }
 
-  const [bonuses, schedule, profile, entity] = await Promise.all([
+  const [bonuses, schedule, profile, ctx] = await Promise.all([
     getMyBonusPayoutsForParticipation(participation.id),
     getMyScheduleForNote(note.id, participation.id),
     getCurrentProfile(),
-    getPrimaryEntityIdentity(),
+    getCurrentEntityContext(),
   ]);
   // Prefer the formal loan-agreement title (e.g. "Specialized Trust Company
   // Custodian FBO Felipe Vazquez ROTH IRA") since that's what appears on the
-  // executed loan docs — it lives on the lender's investor entity. Fall back to
-  // first + last, then email, then a generic placeholder.
+  // executed loan docs — it lives on the investor entity that actually HOLDS
+  // this participation (not necessarily the login's primary entity). Fall back
+  // to first + last, then email, then a generic placeholder.
   const lenderName =
-    (entity?.loan_agreement_title ?? "").trim() ||
+    (participation.entity?.loan_agreement_title ?? "").trim() ||
     [
       (profile?.first_name as string | null) ?? "",
       (profile?.last_name as string | null) ?? "",
@@ -64,6 +65,13 @@ export default async function MyNoteDetailPage({
   const totalInterest = receivedRows.reduce((s, r) => s + r.my_interest, 0);
   const totalReceived = totalPrincipal + totalInterest;
 
+  // Only meaningful when the login owns more than one entity — single-entity
+  // lenders would just see their own name restated.
+  const heldByName =
+    (ctx?.entities.length ?? 0) > 1
+      ? (participation.entity?.display_name ?? null)
+      : null;
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
       <Link
@@ -76,6 +84,11 @@ export default async function MyNoteDetailPage({
       <Card>
         <CardHeader>
           <CardTitle>Your participation</CardTitle>
+          {heldByName ? (
+            <p className="text-xs text-muted-foreground">
+              Held by {heldByName}
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>

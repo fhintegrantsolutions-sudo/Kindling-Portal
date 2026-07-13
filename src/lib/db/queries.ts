@@ -367,6 +367,13 @@ export type MyParticipation = {
   funding_deposited_date: string | null;
   funding_cleared_date: string | null;
   created_at: string;
+  // The entity that HOLDS this position — paperwork (loan agreement, schedule
+  // PDF) must carry this entity's legal name, not the login's primary entity.
+  entity: {
+    id: string;
+    display_name: string;
+    loan_agreement_title: string | null;
+  } | null;
 };
 
 export async function getMyParticipationByNoteId(noteUuid: string) {
@@ -381,7 +388,8 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
       id, invested_amount, status, user_notes,
       funding_received, funding_deposited, funding_cleared,
       funding_type, funding_received_date, funding_deposited_date,
-      funding_cleared_date, created_at
+      funding_cleared_date, created_at,
+      entity:investor_entities ( id, display_name, loan_agreement_title )
       `,
     )
     .eq("note_id", noteUuid)
@@ -393,6 +401,51 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
     .limit(1);
 
   return ((data ?? [])[0] ?? null) as unknown as MyParticipation | null;
+}
+
+export type EntityTotal = {
+  entity_id: string;
+  display_name: string;
+  invested: number;
+  positions: number;
+};
+
+// Invested total + position count per entity, for the dashboard's "All entities"
+// breakdown. Counts only Active + funding-cleared rows, matching the dashboard's
+// definition of deployed capital.
+export async function getMyTotalsByEntity(): Promise<EntityTotal[]> {
+  const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return [];
+
+  const { data } = await supabase
+    .from("participations")
+    .select("invested_amount, entity_id, status, funding_cleared")
+    .in("entity_id", ctx.entityIds)
+    .eq("status", "Active")
+    .eq("funding_cleared", true);
+
+  const byId = new Map<string, { invested: number; positions: number }>();
+  for (const r of (data ?? []) as Array<{
+    invested_amount: string;
+    entity_id: string | null;
+  }>) {
+    if (!r.entity_id) continue;
+    const cur = byId.get(r.entity_id) ?? { invested: 0, positions: 0 };
+    cur.invested += Number(r.invested_amount ?? 0);
+    cur.positions += 1;
+    byId.set(r.entity_id, cur);
+  }
+
+  return ctx.entities
+    .filter((e) => byId.has(e.id))
+    .map((e) => ({
+      entity_id: e.id,
+      display_name: e.display_name,
+      invested: byId.get(e.id)!.invested,
+      positions: byId.get(e.id)!.positions,
+    }))
+    .sort((a, b) => b.invested - a.invested);
 }
 
 export type MyScheduleRow = {

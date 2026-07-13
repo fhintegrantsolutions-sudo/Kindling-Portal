@@ -7,14 +7,35 @@ import {
   type MyParticipation,
 } from "@/lib/db/queries";
 import { getCurrentProfile } from "@/lib/dal";
-import {
-  getCurrentEntityContext,
-  getPrimaryEntityIdentity,
-} from "@/lib/entities/context";
+import { getCurrentEntityContext } from "@/lib/entities/context";
+import { createClient } from "@/lib/supabase/server";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { NoteDetailCard } from "@/components/note-detail-card";
-import { RegistrationForm } from "./registration-form";
+import {
+  RegistrationForm,
+  type RegistrationEntity,
+} from "./registration-form";
+
+// Identity for EVERY entity this login owns. The lender picks which one is
+// investing, and the "Your details" summary has to follow that choice — so the
+// page ships all of them and the client form renders the selected one.
+async function getMyEntityIdentities(): Promise<RegistrationEntity[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("investor_entities")
+    .select(
+      "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip",
+    )
+    .eq("owner_user_id", user.id);
+
+  return (data ?? []) as RegistrationEntity[];
+}
 
 export default async function OpportunityDetailPage({
   params,
@@ -32,46 +53,42 @@ export default async function OpportunityDetailPage({
   // Both pieces of registration state are needed because admin can flip a
   // pending registration into a participation; either implies "already
   // signed up on this note" and should hide the form.
-  const [existingParticipation, existingRegistration, profile, entity, ctx] =
-    await Promise.all([
-      getMyParticipationByNoteId(note.id),
-      getMyRegistrationByNoteId(note.id),
-      getCurrentProfile(),
-      getPrimaryEntityIdentity(),
-      getCurrentEntityContext(),
-    ]);
+  const [
+    existingParticipation,
+    existingRegistration,
+    profile,
+    identities,
+    ctx,
+  ] = await Promise.all([
+    getMyParticipationByNoteId(note.id),
+    getMyRegistrationByNoteId(note.id),
+    getCurrentProfile(),
+    getMyEntityIdentities(),
+    getCurrentEntityContext(),
+  ]);
 
   // The lender chooses which of their entities is investing (hidden input when
-  // they only own one).
-  const entities = (ctx?.entities ?? []).map((e) => ({
-    id: e.id,
-    display_name: e.display_name,
-  }));
+  // they only own one). Keep the context's ordering (primary first, then name).
+  const order = ctx?.entities ?? [];
+  const entities: RegistrationEntity[] = order.flatMap((e) => {
+    const found = identities.find((i) => i.id === e.id);
+    return found ? [found] : [];
+  });
   const currentEntityId = ctx?.currentEntityId ?? null;
 
-  // Name/phone are login-level (profiles); entity type, agreement title and
-  // mailing address come from the lender's primary investor entity.
+  // Name/phone are login-level (profiles). Entity type, agreement title and
+  // mailing address live on the investor entity and are validated client-side
+  // against the SELECTED entity, since the lender can switch entities without a
+  // reload.
   const firstName = (profile?.first_name as string | null) ?? "";
   const lastName = (profile?.last_name as string | null) ?? "";
   const fullName = `${firstName} ${lastName}`.trim() || null;
   const phone = (profile?.phone as string | null) ?? null;
-  const entityType = entity?.entity_type ?? null;
-  const loanTitle = entity?.loan_agreement_title ?? fullName;
-  const mailingAddress =
-    [
-      entity?.address_street,
-      entity?.address_city,
-      entity?.address_state,
-      entity?.address_zip,
-    ]
-      .filter(Boolean)
-      .join(", ") || null;
 
   const missing: string[] = [];
   if (!firstName) missing.push("first name");
   if (!lastName) missing.push("last name");
   if (!phone) missing.push("phone");
-  if (!entityType) missing.push("entity type");
 
   const alreadySignedUp = Boolean(
     existingParticipation || existingRegistration,
@@ -127,9 +144,6 @@ export default async function OpportunityDetailPage({
             full_name: fullName,
             email: profile?.email ?? null,
             phone,
-            entity_type: entityType,
-            name_for_agreement: loanTitle,
-            mailing_address: mailingAddress,
           }}
         />
       )}
