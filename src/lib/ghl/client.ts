@@ -25,13 +25,16 @@ function ghlHeaders(token: string): Record<string, string> {
 }
 
 // Create or update a contact by email; returns the GHL contact id (or null).
-// Any tags provided are added to the contact (upsert merges, never removes).
+//
+// DANGER: /contacts/upsert REPLACES the contact's entire `tags` array — it does
+// NOT merge. Passing one tag here wipes every other tag on that contact. This
+// function therefore NEVER sends `tags`; use ghlAddContactTags() to add tags
+// without destroying the existing ones. (Verified against the live API.)
 export async function ghlUpsertContact(input: {
   email: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
-  tags?: string[];
 }): Promise<string | null> {
   const cfg = ghlConfig();
   if (!cfg) return null;
@@ -44,7 +47,6 @@ export async function ghlUpsertContact(input: {
       firstName: input.firstName || undefined,
       lastName: input.lastName || undefined,
       phone: input.phone || undefined,
-      tags: input.tags && input.tags.length > 0 ? input.tags : undefined,
     }),
   });
   if (!res.ok) {
@@ -53,6 +55,28 @@ export async function ghlUpsertContact(input: {
   }
   const json = (await res.json()) as { contact?: { id?: string } };
   return json.contact?.id ?? null;
+}
+
+// ADD tags to a contact without disturbing the ones already on it.
+// POST /contacts/{id}/tags is additive (unlike the upsert endpoint).
+export async function ghlAddContactTags(
+  contactId: string,
+  tags: string[],
+): Promise<boolean> {
+  const cfg = ghlConfig();
+  if (!cfg) return false;
+  const clean = tags.map((t) => t.trim()).filter(Boolean);
+  if (!contactId || clean.length === 0) return false;
+  const res = await fetch(`${BASE}/contacts/${contactId}/tags`, {
+    method: "POST",
+    headers: ghlHeaders(cfg.token),
+    body: JSON.stringify({ tags: clean }),
+  });
+  if (!res.ok) {
+    console.warn(`[ghl] addContactTags HTTP ${res.status}`);
+    return false;
+  }
+  return true;
 }
 
 // Send an email to a contact via the Conversations API. Returns true on accept.

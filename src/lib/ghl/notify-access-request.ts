@@ -1,6 +1,6 @@
 import "server-only";
 
-import { ghlCreateOpportunity, ghlUpsertContact } from "./client";
+import { ghlAddContactTags, ghlCreateOpportunity, ghlUpsertContact } from "./client";
 
 export type AccessRequestNotification = {
   email: string;
@@ -23,9 +23,11 @@ export async function notifyAccessRequestSubmitted(
       firstName: payload.first_name,
       lastName: payload.last_name,
       phone: payload.phone,
-      tags: ["kindling lead"],
     });
     if (!contactId) return;
+
+    // Additive endpoint — upsert would replace the contact's whole tag array.
+    await ghlAddContactTags(contactId, ["kindling lead"]);
 
     const name =
       `${payload.first_name} ${payload.last_name}`.trim() || payload.email;
