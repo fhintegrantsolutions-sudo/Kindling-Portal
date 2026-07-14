@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import {
   getPossibleDuplicateLogins,
   getUsers,
@@ -41,7 +42,17 @@ export default async function AdminUsersPage({
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">All users</h1>
         </div>
-        <CreateUserSheet />
+        <div className="flex items-center gap-2">
+          {/* The duplicate-name card below is only a shortcut — this reaches the
+              full picker, so any two logins can be merged. */}
+          <Link
+            href="/admin/users/merge"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Merge logins…
+          </Link>
+          <CreateUserSheet />
+        </div>
       </header>
 
       {duplicates.length > 0 ? (
