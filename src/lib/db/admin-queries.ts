@@ -519,12 +519,82 @@ export type UserListItem = {
   role: "admin" | "lender";
   is_referral_partner: boolean;
   created_at: string;
+  /** How many investor entities this login owns. */
+  entity_count: number;
+  /** Entity display names, primary first. */
+  entity_names: string[];
+  /** Participations across every entity this login owns. */
+  position_count: number;
 };
+
+type EntityStats = {
+  entity_count: number;
+  entity_names: string[];
+  position_count: number;
+};
+
+/**
+ * Entity counts / names / position counts keyed by owner user id.
+ *
+ * There is no FK between `profiles` and `investor_entities` (the FK points at
+ * auth.users), so PostgREST cannot embed them — fetch separately, join in JS.
+ */
+async function getEntityStatsByOwner(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userIds: string[],
+): Promise<Map<string, EntityStats>> {
+  const stats = new Map<string, EntityStats>();
+  if (userIds.length === 0) return stats;
+
+  const { data: ents } = await supabase
+    .from("investor_entities")
+    .select("id, display_name, owner_user_id, is_primary")
+    .in("owner_user_id", userIds)
+    // Primary first, then alphabetical — the order the chips render in.
+    .order("is_primary", { ascending: false })
+    .order("display_name", { ascending: true });
+  const rows = (ents ?? []) as Array<{
+    id: string;
+    display_name: string;
+    owner_user_id: string;
+    is_primary: boolean;
+  }>;
+  if (rows.length === 0) return stats;
+
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("entity_id")
+    .in(
+      "entity_id",
+      rows.map((r) => r.id),
+    );
+  const positionsByEntity = new Map<string, number>();
+  for (const p of (parts ?? []) as Array<{ entity_id: string | null }>) {
+    if (!p.entity_id) continue;
+    positionsByEntity.set(
+      p.entity_id,
+      (positionsByEntity.get(p.entity_id) ?? 0) + 1,
+    );
+  }
+
+  for (const r of rows) {
+    const cur = stats.get(r.owner_user_id) ?? {
+      entity_count: 0,
+      entity_names: [],
+      position_count: 0,
+    };
+    cur.entity_count += 1;
+    cur.entity_names.push(r.display_name);
+    cur.position_count += positionsByEntity.get(r.id) ?? 0;
+    stats.set(r.owner_user_id, cur);
+  }
+  return stats;
+}
 
 export async function getUsers(filter?: {
   role?: "admin" | "lender";
   q?: string;
-}) {
+}): Promise<UserListItem[]> {
   const supabase = await createClient();
   let q = supabase
     .from("profiles")
@@ -544,7 +614,93 @@ export async function getUsers(filter?: {
     );
   }
   const { data } = await q;
-  return (data ?? []) as UserListItem[];
+  const profiles = (data ?? []) as Omit<
+    UserListItem,
+    "entity_count" | "entity_names" | "position_count"
+  >[];
+
+  const stats = await getEntityStatsByOwner(
+    supabase,
+    profiles.map((p) => p.id),
+  );
+  return profiles.map((p) => ({
+    ...p,
+    entity_count: stats.get(p.id)?.entity_count ?? 0,
+    entity_names: stats.get(p.id)?.entity_names ?? [],
+    position_count: stats.get(p.id)?.position_count ?? 0,
+  }));
+}
+
+export type DuplicateGroup = {
+  name: string;
+  logins: Array<{
+    id: string;
+    email: string | null;
+    entity_count: number;
+    position_count: number;
+    created_at: string;
+  }>;
+};
+
+/**
+ * Logins that share a first+last name (case-insensitive, trimmed).
+ *
+ * A name match is a HINT, not a judgement — two different people can share a
+ * name. The UI must present these as candidates to review, never as confirmed
+ * duplicates. Blank names are skipped; only groups of 2+ are returned.
+ */
+export async function getPossibleDuplicateLogins(): Promise<DuplicateGroup[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, email, first_name, last_name, created_at");
+  const profiles = (data ?? []) as Array<{
+    id: string;
+    email: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    created_at: string;
+  }>;
+
+  const groups = new Map<
+    string,
+    { name: string; ids: typeof profiles }
+  >();
+  for (const p of profiles) {
+    const name = `${(p.first_name ?? "").trim()} ${(p.last_name ?? "").trim()}`
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const g = groups.get(key) ?? { name, ids: [] };
+    g.ids.push(p);
+    groups.set(key, g);
+  }
+
+  const dupes = [...groups.values()].filter((g) => g.ids.length >= 2);
+  if (dupes.length === 0) return [];
+
+  const stats = await getEntityStatsByOwner(
+    supabase,
+    dupes.flatMap((g) => g.ids.map((p) => p.id)),
+  );
+
+  return dupes
+    .map((g) => ({
+      name: g.name,
+      logins: g.ids
+        // Oldest login first — the likeliest survivor in a merge.
+        .slice()
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map((p) => ({
+          id: p.id,
+          email: p.email,
+          entity_count: stats.get(p.id)?.entity_count ?? 0,
+          position_count: stats.get(p.id)?.position_count ?? 0,
+          created_at: p.created_at,
+        })),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export type UserProfile = {
@@ -1102,15 +1258,77 @@ export async function getLendersForPicker(): Promise<LenderPickerOption[]> {
   }));
 }
 
+export type EntityPickerOption = {
+  entity_id: string;
+  display_name: string;
+  owner_user_id: string;
+  owner_name: string | null;
+  owner_email: string | null;
+};
+
+// Every investor entity, labelled with the person who owns it. Private-note
+// visibility is granted per ENTITY (you invite "Smith LLC", not the human).
+//
+// There is no FK between `profiles` and `investor_entities` (the FK points at
+// auth.users), so PostgREST cannot embed them — join in JS.
+export async function getEntitiesForPicker(): Promise<EntityPickerOption[]> {
+  const supabase = await createClient();
+  const { data: entities } = await supabase
+    .from("investor_entities")
+    .select("id, display_name, owner_user_id")
+    .order("display_name", { ascending: true });
+  const rows = (entities ?? []) as Array<{
+    id: string;
+    display_name: string;
+    owner_user_id: string;
+  }>;
+  if (rows.length === 0) return [];
+
+  const ownerIds = Array.from(new Set(rows.map((r) => r.owner_user_id)));
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, email")
+    .in("id", ownerIds);
+  const byId = new Map(
+    (
+      (profiles ?? []) as Array<{
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        email: string | null;
+      }>
+    ).map((p) => [
+      p.id,
+      {
+        name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null,
+        email: p.email,
+      },
+    ]),
+  );
+
+  return rows.map((r) => ({
+    entity_id: r.id,
+    display_name: r.display_name,
+    owner_user_id: r.owner_user_id,
+    owner_name: byId.get(r.owner_user_id)?.name ?? null,
+    owner_email: byId.get(r.owner_user_id)?.email ?? null,
+  }));
+}
+
+// Returns the ENTITY ids on the note's allowlist. A note_visibility row without
+// entity_id grants nothing (the RLS gate joins through investor_entities), so
+// such rows are filtered out rather than surfaced as selections.
 export async function getNoteVisibility(
   noteUuid: string,
 ): Promise<string[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("note_visibility")
-    .select("user_id")
+    .select("entity_id")
     .eq("note_id", noteUuid);
-  return (data ?? []).map((r) => r.user_id as string);
+  return ((data ?? []) as Array<{ entity_id: string | null }>)
+    .map((r) => r.entity_id)
+    .filter(Boolean) as string[];
 }
 
 export type AdminNoteListItem = {
@@ -1937,4 +2155,65 @@ export async function getNoteFundingArchiveSummary(
     total: rows.length,
     uncleared: rows.filter((r) => !r.funding_cleared).length,
   };
+}
+
+export type AdminEntity = {
+  id: string;
+  display_name: string;
+  entity_type: string | null;
+  business_name: string | null;
+  loan_agreement_title: string | null;
+  address_street: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+  is_primary: boolean;
+  positions: number;
+  invested: number;
+};
+
+/**
+ * All investor entities owned by a login, primary first, with each entity's
+ * participation count + invested total (used by the admin entities panel to
+ * show — and pre-disable — the delete guard).
+ */
+export async function getEntitiesForUser(
+  userId: string,
+): Promise<AdminEntity[]> {
+  const supabase = await createClient();
+  const { data: ents } = await supabase
+    .from("investor_entities")
+    .select(
+      "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip, is_primary",
+    )
+    .eq("owner_user_id", userId)
+    .order("is_primary", { ascending: false })
+    .order("display_name", { ascending: true });
+  const rows = (ents ?? []) as Omit<AdminEntity, "positions" | "invested">[];
+  if (rows.length === 0) return [];
+
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("entity_id, invested_amount")
+    .in(
+      "entity_id",
+      rows.map((r) => r.id),
+    );
+
+  const agg = new Map<string, { positions: number; invested: number }>();
+  for (const p of (parts ?? []) as Array<{
+    entity_id: string | null;
+    invested_amount: string | null;
+  }>) {
+    if (!p.entity_id) continue;
+    const cur = agg.get(p.entity_id) ?? { positions: 0, invested: 0 };
+    cur.positions += 1;
+    cur.invested += Number(p.invested_amount ?? 0);
+    agg.set(p.entity_id, cur);
+  }
+  return rows.map((r) => ({
+    ...r,
+    positions: agg.get(r.id)?.positions ?? 0,
+    invested: agg.get(r.id)?.invested ?? 0,
+  }));
 }

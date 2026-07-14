@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import {
   getAdminNoteById,
   getBorrowersForPicker,
-  getLendersForPicker,
+  getEntitiesForPicker,
   getNoteFundingArchiveSummary,
   getNoteVisibility,
 } from "@/lib/db/admin-queries";
@@ -15,11 +15,11 @@ export default async function NoteSettingsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [note, borrowers, lenders, visibleUserIds, archiveSummary] =
+  const [note, borrowers, entities, visibleEntityIds, archiveSummary] =
     await Promise.all([
       getAdminNoteById(id),
       getBorrowersForPicker(),
-      getLendersForPicker(),
+      getEntitiesForPicker(),
       getNoteVisibility(id),
       getNoteFundingArchiveSummary(id),
     ]);
@@ -49,8 +49,8 @@ export default async function NoteSettingsPage({
       <NoteForm
         noteId={note.id}
         borrowers={borrowers}
-        lenders={lenders}
-        visibleUserIds={visibleUserIds}
+        entities={entities}
+        visibleEntityIds={visibleEntityIds}
         defaults={{
           note_id: note.note_id,
           title: note.title,

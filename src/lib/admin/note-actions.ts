@@ -127,9 +127,9 @@ export async function archiveNoteFunding(
 /**
  * Reset and re-insert the note_visibility allowlist for this note.
  * - If is_private is false, we drop all visibility rows (the note is public).
- * - If is_private is true, the visibility list dictates who can see it.
- *   Existing participants always retain access via the RLS participations
- *   fallback, so we don't need to back-pop those.
+ * - If is_private is true, the visibility list dictates which INVESTOR ENTITIES
+ *   can see it. Existing participants always retain access via the RLS
+ *   participations fallback, so we don't need to back-pop those.
  */
 async function syncVisibility(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -143,34 +143,34 @@ async function syncVisibility(
   if (delErr) {
     throw new Error(`Failed to reset visibility: ${delErr.message}`);
   }
-  if (!fields.is_private || fields.visible_user_ids.length === 0) return;
+  if (!fields.is_private || fields.visible_entity_ids.length === 0) return;
 
-  // Visibility is entity-scoped: the RLS gate on `notes` joins note_visibility
-  // to investor_entities via entity_id, so a row without entity_id grants
-  // nothing. Admin still picks people, so map each user to their primary entity.
-  const { data: entities, error: entErr } = await supabase
+  // Visibility is granted PER ENTITY — write exactly what admin chose. (This
+  // used to map each user to their PRIMARY entity, which made it impossible to
+  // invite a non-primary entity to a private note.) Validate the submitted ids
+  // against the table; never trust the form.
+  const { data: valid, error: valErr } = await supabase
     .from("investor_entities")
     .select("id, owner_user_id")
-    .in("owner_user_id", fields.visible_user_ids)
-    .eq("is_primary", true);
-  if (entErr) {
-    throw new Error(`Failed to resolve entities: ${entErr.message}`);
+    .in("id", fields.visible_entity_ids);
+  if (valErr) {
+    throw new Error(`Failed to resolve entities: ${valErr.message}`);
   }
 
-  const entityByUser = new Map(
-    (entities ?? []).map((e) => [e.owner_user_id as string, e.id as string]),
+  const found = new Map(
+    (valid ?? []).map((e) => [e.id as string, e.owner_user_id as string]),
   );
-  const missing = fields.visible_user_ids.filter((u) => !entityByUser.has(u));
+  const missing = fields.visible_entity_ids.filter((id) => !found.has(id));
   if (missing.length > 0) {
     throw new Error(
-      `Cannot grant visibility: ${missing.length} selected lender(s) have no investor entity.`,
+      `Cannot grant visibility: ${missing.length} unknown entity id(s).`,
     );
   }
 
-  const rows = fields.visible_user_ids.map((user_id) => ({
+  const rows = fields.visible_entity_ids.map((entity_id) => ({
     note_id: noteUuid,
-    user_id,
-    entity_id: entityByUser.get(user_id)!,
+    entity_id,
+    user_id: found.get(entity_id)!, // still dual-written until the cleanup pass
   }));
   const { error: insertErr } = await supabase
     .from("note_visibility")
@@ -194,7 +194,7 @@ function parseFields(formData: FormData) {
     interest_type: text(formData, "interest_type") || "Amortized",
     is_private: formData.get("is_private") === "on",
     has_profit_bonus: formData.get("has_profit_bonus") === "on",
-    visible_user_ids: formData.getAll("visible_user_ids").map(String),
+    visible_entity_ids: formData.getAll("visible_entity_ids").map(String),
     principal: money(formData, "principal"),
     rate: text(formData, "rate"),
     term_months: text(formData, "term_months"),
