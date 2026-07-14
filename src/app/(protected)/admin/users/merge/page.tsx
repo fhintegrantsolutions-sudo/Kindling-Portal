@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { previewMergeLogins } from "@/lib/admin/merge-actions";
+import {
+  getPossibleDuplicateLogins,
+  getUsers,
+} from "@/lib/db/admin-queries";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
 import { MergeForm } from "./merge-form";
+import { MergePicker } from "./merge-picker";
 
 /**
- * Admin merge tool. Reads ?survivor=<id>&absorbed=<id>&absorbed=<id>… — the
- * links on /admin/users' "Possible duplicate logins" card point here.
+ * Admin merge tool. Reads ?survivor=<id>&absorbed=<id>&absorbed=<id>….
+ *
+ * With no (or incomplete) params it renders the PICKER, which can select any
+ * logins at all — the "Possible duplicate logins" name-matcher is a shortcut
+ * inside it, not the only way in.
  *
  * The survivor is switched by NAVIGATING (the links below rewrite the query
  * string), so the preview is always recomputed on the server for the survivor
@@ -47,21 +54,28 @@ export default async function MergeLoginsPage({
   );
 
   if (!survivorId || absorbedIds.length === 0) {
+    const [users, duplicates] = await Promise.all([
+      getUsers(),
+      getPossibleDuplicateLogins(),
+    ]);
     return (
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
         {heading}
-        <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            Pick a duplicate group from the{" "}
-            <Link
-              href="/admin/users"
-              className="underline underline-offset-4 hover:no-underline"
-            >
-              users page
-            </Link>{" "}
-            to start a merge.
-          </CardContent>
-        </Card>
+        <MergePicker
+          candidates={users.map((u) => ({
+            id: u.id,
+            email: u.email,
+            first_name: u.first_name,
+            last_name: u.last_name,
+            entity_count: u.entity_count,
+            position_count: u.position_count,
+            created_at: u.created_at,
+          }))}
+          duplicateGroups={duplicates.map((g) => ({
+            name: g.name,
+            loginIds: g.logins.map((l) => l.id),
+          }))}
+        />
       </div>
     );
   }
@@ -77,6 +91,12 @@ export default async function MergeLoginsPage({
             {error ?? "Could not build a merge preview."}
           </AlertDescription>
         </Alert>
+        <Link
+          href="/admin/users/merge"
+          className="w-fit text-xs underline underline-offset-4 hover:no-underline"
+        >
+          Change selection
+        </Link>
       </div>
     );
   }
@@ -93,7 +113,15 @@ export default async function MergeLoginsPage({
       {heading}
 
       <section className="flex flex-col gap-2 rounded-lg border bg-card p-6">
-        <p className="text-sm font-medium">Who survives?</p>
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="text-sm font-medium">Who survives?</p>
+          <Link
+            href="/admin/users/merge"
+            className="shrink-0 text-xs underline underline-offset-4 hover:no-underline"
+          >
+            Change selection
+          </Link>
+        </div>
         <p className="text-xs text-muted-foreground">
           The survivor keeps their login and email. Everyone else is merged into
           them and can no longer sign in.
