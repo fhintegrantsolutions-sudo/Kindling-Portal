@@ -1,14 +1,14 @@
 import Link from "next/link";
 import {
   getBorrowersForPicker,
-  getLendersForPicker,
+  getEntitiesForPicker,
 } from "@/lib/db/admin-queries";
 import { NoteForm } from "../note-form";
 
 export default async function NewNotePage() {
-  const [borrowers, lenders] = await Promise.all([
+  const [borrowers, entities] = await Promise.all([
     getBorrowersForPicker(),
-    getLendersForPicker(),
+    getEntitiesForPicker(),
   ]);
 
   return (
@@ -25,8 +25,8 @@ export default async function NewNotePage() {
 
       <NoteForm
         borrowers={borrowers}
-        lenders={lenders}
-        visibleUserIds={[]}
+        entities={entities}
+        visibleEntityIds={[]}
         defaults={{
           note_id: "",
           title: "",

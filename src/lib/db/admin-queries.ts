@@ -1102,15 +1102,77 @@ export async function getLendersForPicker(): Promise<LenderPickerOption[]> {
   }));
 }
 
+export type EntityPickerOption = {
+  entity_id: string;
+  display_name: string;
+  owner_user_id: string;
+  owner_name: string | null;
+  owner_email: string | null;
+};
+
+// Every investor entity, labelled with the person who owns it. Private-note
+// visibility is granted per ENTITY (you invite "Smith LLC", not the human).
+//
+// There is no FK between `profiles` and `investor_entities` (the FK points at
+// auth.users), so PostgREST cannot embed them — join in JS.
+export async function getEntitiesForPicker(): Promise<EntityPickerOption[]> {
+  const supabase = await createClient();
+  const { data: entities } = await supabase
+    .from("investor_entities")
+    .select("id, display_name, owner_user_id")
+    .order("display_name", { ascending: true });
+  const rows = (entities ?? []) as Array<{
+    id: string;
+    display_name: string;
+    owner_user_id: string;
+  }>;
+  if (rows.length === 0) return [];
+
+  const ownerIds = Array.from(new Set(rows.map((r) => r.owner_user_id)));
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, email")
+    .in("id", ownerIds);
+  const byId = new Map(
+    (
+      (profiles ?? []) as Array<{
+        id: string;
+        first_name: string | null;
+        last_name: string | null;
+        email: string | null;
+      }>
+    ).map((p) => [
+      p.id,
+      {
+        name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null,
+        email: p.email,
+      },
+    ]),
+  );
+
+  return rows.map((r) => ({
+    entity_id: r.id,
+    display_name: r.display_name,
+    owner_user_id: r.owner_user_id,
+    owner_name: byId.get(r.owner_user_id)?.name ?? null,
+    owner_email: byId.get(r.owner_user_id)?.email ?? null,
+  }));
+}
+
+// Returns the ENTITY ids on the note's allowlist. A note_visibility row without
+// entity_id grants nothing (the RLS gate joins through investor_entities), so
+// such rows are filtered out rather than surfaced as selections.
 export async function getNoteVisibility(
   noteUuid: string,
 ): Promise<string[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("note_visibility")
-    .select("user_id")
+    .select("entity_id")
     .eq("note_id", noteUuid);
-  return (data ?? []).map((r) => r.user_id as string);
+  return ((data ?? []) as Array<{ entity_id: string | null }>)
+    .map((r) => r.entity_id)
+    .filter(Boolean) as string[];
 }
 
 export type AdminNoteListItem = {

@@ -40,7 +40,13 @@ export type NoteDefaults = {
 };
 
 type Borrower = { id: string; business_name: string };
-type Lender = { id: string; email: string; name: string | null };
+type Entity = {
+  entity_id: string;
+  display_name: string;
+  owner_user_id: string;
+  owner_name: string | null;
+  owner_email: string | null;
+};
 
 type SubTab = "basics" | "terms" | "dates" | "description";
 
@@ -55,14 +61,14 @@ export function NoteForm({
   noteId,
   defaults: initialDefaults,
   borrowers,
-  lenders,
-  visibleUserIds,
+  entities,
+  visibleEntityIds,
 }: {
   noteId?: string;
   defaults: NoteDefaults;
   borrowers: Borrower[];
-  lenders: Lender[];
-  visibleUserIds: string[];
+  entities: Entity[];
+  visibleEntityIds: string[];
 }) {
   // Capture defaults at first render so changing parent props (after a
   // server revalidation, for example) doesn't trip Base UI's "default
@@ -124,23 +130,27 @@ export function NoteForm({
     });
   }, [principalStr, rateStr, termStr, interestType]);
 
-  // Sort lenders by name (with email fallback) so the list is scannable.
-  const sortedLenders = [...lenders].sort((a, b) => {
-    const an = (a.name ?? a.email).toLowerCase();
-    const bn = (b.name ?? b.email).toLowerCase();
-    return an.localeCompare(bn);
+  // Sort entities by their display name, then by owner, so a person with two
+  // entities still reads as two clearly-distinct rows.
+  const sortedEntities = [...entities].sort((a, b) => {
+    const byName = a.display_name.localeCompare(b.display_name);
+    if (byName !== 0) return byName;
+    return (a.owner_name ?? a.owner_email ?? "").localeCompare(
+      b.owner_name ?? b.owner_email ?? "",
+    );
   });
-  const visibleSet = new Set(visibleUserIds);
+  const visibleEntitySet = new Set(visibleEntityIds);
 
   const lc = search.trim().toLowerCase();
-  const lenderMatches = (l: Lender): boolean => {
+  const entityMatches = (e: Entity): boolean => {
     if (!lc) return true;
     return (
-      (l.name ?? "").toLowerCase().includes(lc) ||
-      l.email.toLowerCase().includes(lc)
+      e.display_name.toLowerCase().includes(lc) ||
+      (e.owner_name ?? "").toLowerCase().includes(lc) ||
+      (e.owner_email ?? "").toLowerCase().includes(lc)
     );
   };
-  const visibleCount = sortedLenders.filter(lenderMatches).length;
+  const visibleCount = sortedEntities.filter(entityMatches).length;
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -278,70 +288,76 @@ export function NoteForm({
             className="mt-0.5"
           />
           <span>
-            <span className="font-medium">Private to specific lenders.</span>{" "}
-            When checked, only the lenders ticked below will see this note
-            on /opportunities. Existing participants always see notes
-            they&apos;ve invested in, regardless of this setting.
+            <span className="font-medium">
+              Private to specific investor entities.
+            </span>{" "}
+            When checked, only the entities ticked below will see this note on
+            /opportunities. Access is granted per entity, not per person — a
+            lender with several entities only sees the note through the ones you
+            tick. Existing participants always see notes they&apos;ve invested
+            in, regardless of this setting.
           </span>
         </label>
 
         <div className={isPrivate ? "flex flex-col gap-2" : "hidden"}>
           <div className="flex items-center justify-between gap-3">
-            <Label htmlFor="lender-search">
-              Lenders who can see this note
+            <Label htmlFor="entity-search">
+              Investor entities who can see this note
             </Label>
             <span className="text-xs text-muted-foreground">
-              {sortedLenders.length} total
+              {sortedEntities.length} total
             </span>
           </div>
 
-          {sortedLenders.length === 0 ? (
+          {sortedEntities.length === 0 ? (
             <p className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-              No lenders in the system yet.
+              No investor entities in the system yet.
             </p>
           ) : (
             <>
               <Input
-                id="lender-search"
+                id="entity-search"
                 type="search"
-                placeholder="Search by name or email…"
+                placeholder="Search by entity, owner name, or email…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
               <div className="flex max-h-72 flex-col gap-1 overflow-y-auto rounded-md border bg-background p-2">
-                {sortedLenders.map((l) => (
+                {sortedEntities.map((e) => (
                   <label
-                    key={l.id}
+                    key={e.entity_id}
                     className={
-                      lenderMatches(l)
+                      entityMatches(e)
                         ? "flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted/40"
                         : "hidden"
                     }
                   >
                     <input
                       type="checkbox"
-                      name="visible_user_ids"
-                      value={l.id}
-                      defaultChecked={visibleSet.has(l.id)}
+                      name="visible_entity_ids"
+                      value={e.entity_id}
+                      defaultChecked={visibleEntitySet.has(e.entity_id)}
                       className="mt-0.5"
                     />
                     <span className="flex flex-col">
-                      <span className="font-medium">{l.name ?? "—"}</span>
+                      <span className="font-medium">{e.display_name}</span>
                       <span className="text-xs text-muted-foreground">
-                        {l.email}
+                        {[e.owner_name, e.owner_email]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
                       </span>
                     </span>
                   </label>
                 ))}
                 {visibleCount === 0 ? (
                   <p className="px-2 py-3 text-center text-sm text-muted-foreground">
-                    No lenders match &ldquo;{search}&rdquo;.
+                    No entities match &ldquo;{search}&rdquo;.
                   </p>
                 ) : null}
               </div>
               {lc ? (
                 <p className="text-xs text-muted-foreground">
-                  Showing {visibleCount} of {sortedLenders.length}. Selections
+                  Showing {visibleCount} of {sortedEntities.length}. Selections
                   outside the current filter are preserved on save.
                 </p>
               ) : null}
