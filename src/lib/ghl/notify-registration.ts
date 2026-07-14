@@ -1,6 +1,7 @@
 import "server-only";
 
 import {
+  ghlAddContactTags,
   ghlCreateOpportunity,
   ghlSendEmail,
   ghlUpsertContact,
@@ -40,9 +41,12 @@ export async function notifyRegistrationSubmitted(
       firstName: payload.first_name,
       lastName: payload.last_name,
       phone: payload.phone,
-      tags: [noteTag],
     });
     if (!contactId) return;
+
+    // Tags go through the additive endpoint — passing them to upsert would wipe
+    // every other tag on the contact.
+    await ghlAddContactTags(contactId, [noteTag]);
 
     // Track the registration as an opportunity in the pipeline (independent
     // best-effort — a failure here must not skip the confirmation email).

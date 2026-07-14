@@ -1,6 +1,10 @@
 import "server-only";
 
-import { ghlRemoveContactTags, ghlUpsertContact } from "./client";
+import {
+  ghlAddContactTags,
+  ghlRemoveContactTags,
+  ghlUpsertContact,
+} from "./client";
 import { noteBaseTag, noteLeadTag } from "./note-tags";
 
 // When a participation's funds are received, transition the lender's GHL tags
@@ -17,12 +21,11 @@ export async function tagParticipantFundsReceived(payload: {
     const lead = noteLeadTag(payload.note_id);
     if (!base || !payload.email) return;
 
-    const contactId = await ghlUpsertContact({
-      email: payload.email,
-      tags: [base],
-    });
+    const contactId = await ghlUpsertContact({ email: payload.email });
     if (!contactId) return;
 
+    // Additive — upsert would replace the contact's whole tag array.
+    await ghlAddContactTags(contactId, [base]);
     if (lead) await ghlRemoveContactTags(contactId, [lead]);
   } catch (e) {
     console.warn(
