@@ -4,6 +4,7 @@ import {
   getUserById,
   countAdmins,
   getReferralCodeByUserId,
+  getEntitiesForUser,
 } from "@/lib/db/admin-queries";
 import { verifySession } from "@/lib/dal";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -13,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EntitiesPanel } from "./entities-panel";
 import { ReferralsPanel } from "./referrals-panel";
 import { RoleChange } from "./role-change";
 
@@ -26,9 +28,10 @@ export default async function AdminUserDetailPage({
   if (!detail) notFound();
 
   const session = await verifySession();
-  const [adminCount, referralCode] = await Promise.all([
+  const [adminCount, referralCode, entities] = await Promise.all([
     countAdmins(),
     getReferralCodeByUserId(id),
+    getEntitiesForUser(id),
   ]);
   const isSelf = session.userId === detail.profile.id;
   const isLastAdmin =
@@ -101,6 +104,8 @@ export default async function AdminUserDetailPage({
         isSelf={isSelf}
         isLastAdmin={isLastAdmin}
       />
+
+      <EntitiesPanel userId={p.id} entities={entities} />
 
       <ReferralsPanel userId={p.id} referralCode={referralCode} />
 

@@ -2000,3 +2000,64 @@ export async function getNoteFundingArchiveSummary(
     uncleared: rows.filter((r) => !r.funding_cleared).length,
   };
 }
+
+export type AdminEntity = {
+  id: string;
+  display_name: string;
+  entity_type: string | null;
+  business_name: string | null;
+  loan_agreement_title: string | null;
+  address_street: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+  is_primary: boolean;
+  positions: number;
+  invested: number;
+};
+
+/**
+ * All investor entities owned by a login, primary first, with each entity's
+ * participation count + invested total (used by the admin entities panel to
+ * show — and pre-disable — the delete guard).
+ */
+export async function getEntitiesForUser(
+  userId: string,
+): Promise<AdminEntity[]> {
+  const supabase = await createClient();
+  const { data: ents } = await supabase
+    .from("investor_entities")
+    .select(
+      "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip, is_primary",
+    )
+    .eq("owner_user_id", userId)
+    .order("is_primary", { ascending: false })
+    .order("display_name", { ascending: true });
+  const rows = (ents ?? []) as Omit<AdminEntity, "positions" | "invested">[];
+  if (rows.length === 0) return [];
+
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("entity_id, invested_amount")
+    .in(
+      "entity_id",
+      rows.map((r) => r.id),
+    );
+
+  const agg = new Map<string, { positions: number; invested: number }>();
+  for (const p of (parts ?? []) as Array<{
+    entity_id: string | null;
+    invested_amount: string | null;
+  }>) {
+    if (!p.entity_id) continue;
+    const cur = agg.get(p.entity_id) ?? { positions: 0, invested: 0 };
+    cur.positions += 1;
+    cur.invested += Number(p.invested_amount ?? 0);
+    agg.set(p.entity_id, cur);
+  }
+  return rows.map((r) => ({
+    ...r,
+    positions: agg.get(r.id)?.positions ?? 0,
+    invested: agg.get(r.id)?.invested ?? 0,
+  }));
+}
