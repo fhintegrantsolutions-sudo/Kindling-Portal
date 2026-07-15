@@ -601,6 +601,8 @@ export async function getUsers(filter?: {
     .select(
       "id, email, first_name, last_name, role, is_referral_partner, created_at",
     )
+    // Hide logins that were merged away — they're banned and own no entities.
+    .is("merged_into", null)
     // Sort by first_name (nulls last so unfilled profiles drop to the end);
     // last_name and email are tie-breakers.
     .order("first_name", { ascending: true, nullsFirst: false })

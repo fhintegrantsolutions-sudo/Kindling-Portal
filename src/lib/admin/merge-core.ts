@@ -539,6 +539,20 @@ export async function mergeLoginsCore(
       };
     }
     bannedUserIds.push(a.id);
+
+    // Mark the profile as merged so it drops out of the active users list and
+    // records which login it was folded into. Idempotent.
+    const { error: markErr } = await db
+      .from("profiles")
+      .update({ merged_into: survivorId })
+      .eq("id", a.id);
+    if (markErr) {
+      return {
+        error: `Banned ${
+          a.email ?? a.id
+        } but failed to mark it merged: ${markErr.message}. Re-run the merge — it is safe to repeat.`,
+      };
+    }
   }
 
   const summary: MergeSummary = {
