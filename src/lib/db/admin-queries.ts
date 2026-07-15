@@ -698,8 +698,13 @@ export async function getPossibleDuplicateLogins(): Promise<DuplicateGroup[]> {
           entity_count: stats.get(p.id)?.entity_count ?? 0,
           position_count: stats.get(p.id)?.position_count ?? 0,
           created_at: p.created_at,
-        })),
+        }))
+        // Drop logins that own zero entities — a merged-away (banned) login has
+        // already had its entities re-parented, so it's not a live duplicate.
+        .filter((l) => l.entity_count > 0),
     }))
+    // Only a real duplicate if 2+ live logins still share the name.
+    .filter((g) => g.logins.length >= 2)
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
