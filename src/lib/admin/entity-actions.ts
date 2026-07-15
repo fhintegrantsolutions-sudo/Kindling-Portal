@@ -41,7 +41,16 @@ function parseFields(formData: FormData) {
     address_city: text(formData, "address_city") || null,
     address_state: text(formData, "address_state") || null,
     address_zip: text(formData, "address_zip") || null,
+    email: text(formData, "email").toLowerCase() || null,
   };
+}
+
+/** Same shape check the public access-request form uses. */
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Empty (→ null) is allowed; anything present must look like an email. */
+function invalidEmail(email: string | null): boolean {
+  return email !== null && !EMAIL_RE.test(email);
 }
 
 /**
@@ -51,6 +60,11 @@ function parseFields(formData: FormData) {
  * partial unique index `investor_entities_one_primary_idx` forbids a second
  * primary. The one exception is the owner's FIRST entity: every login must end
  * up with exactly one primary, never zero.
+ *
+ * `email` defaults to the OWNER'S login email when the admin leaves it blank, so
+ * a new entity is never emailless — the same association the backfill migration
+ * stamped onto every pre-existing entity. Once set it is the entity's own, and
+ * survives a later merge into a login with a different address.
  */
 export async function createEntity(
   ownerUserId: string,
@@ -64,6 +78,9 @@ export async function createEntity(
   if (!fields.display_name) {
     return { fieldErrors: { display_name: "Required" } };
   }
+  if (invalidEmail(fields.email)) {
+    return { fieldErrors: { email: "Enter a valid email address" } };
+  }
 
   const { count, error: countErr } = await supabase
     .from("investor_entities")
@@ -71,9 +88,21 @@ export async function createEntity(
     .eq("owner_user_id", ownerUserId);
   if (countErr) return { error: countErr.message };
 
+  let email = fields.email;
+  if (!email) {
+    const { data: owner, error: ownerErr } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", ownerUserId)
+      .maybeSingle();
+    if (ownerErr) return { error: ownerErr.message };
+    email = (owner?.email as string | null) ?? null;
+  }
+
   const { error } = await supabase.from("investor_entities").insert({
     owner_user_id: ownerUserId,
     ...fields,
+    email,
     is_primary: (count ?? 0) === 0,
   });
   if (error) return { error: error.message };
@@ -83,8 +112,8 @@ export async function createEntity(
 }
 
 /**
- * Edit an entity's descriptive fields. Never touches owner_user_id or
- * is_primary (use setPrimaryEntity for the latter).
+ * Edit an entity's descriptive fields, `email` included. Never touches
+ * owner_user_id or is_primary (use setPrimaryEntity for the latter).
  */
 export async function updateEntity(
   entityId: string,
@@ -97,6 +126,9 @@ export async function updateEntity(
   const fields = parseFields(formData);
   if (!fields.display_name) {
     return { fieldErrors: { display_name: "Required" } };
+  }
+  if (invalidEmail(fields.email)) {
+    return { fieldErrors: { email: "Enter a valid email address" } };
   }
 
   const { error } = await supabase

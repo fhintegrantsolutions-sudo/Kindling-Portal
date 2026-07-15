@@ -116,6 +116,10 @@ function EntityRow({
     .filter(Boolean)
     .join(" · ");
 
+  // The entity's OWN correspondence address — not necessarily the login's, once
+  // duplicate logins have been merged.
+  const emailLine = entity.email ?? "No email on file";
+
   return (
     <div className="flex items-start justify-between gap-4 rounded-md border px-3 py-2 text-sm">
       <div>
@@ -130,6 +134,15 @@ function EntityRow({
         {meta ? (
           <p className="text-xs text-muted-foreground">{meta}</p>
         ) : null}
+        <p
+          className={
+            entity.email
+              ? "text-xs text-muted-foreground"
+              : "text-xs text-muted-foreground italic"
+          }
+        >
+          {emailLine}
+        </p>
         <p className="text-xs text-muted-foreground">
           {entity.positions} position(s) · {formatCurrency(entity.invested)}
         </p>
@@ -301,6 +314,17 @@ function EntityFields({
         defaultValue={entity?.display_name}
       />
       <Field
+        name="email"
+        type="email"
+        label={
+          entity
+            ? "Contact email (optional)"
+            : "Contact email (defaults to the login's email)"
+        }
+        error={fe.email}
+        defaultValue={entity?.email ?? ""}
+      />
+      <Field
         name="entity_type"
         label="Entity type (optional)"
         error={fe.entity_type}
@@ -369,12 +393,14 @@ function Field({
   error,
   required,
   defaultValue,
+  type,
 }: {
   name: string;
   label: string;
   error?: string;
   required?: boolean;
   defaultValue?: string;
+  type?: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -385,6 +411,7 @@ function Field({
       <Input
         id={name}
         name={name}
+        type={type}
         required={required}
         defaultValue={defaultValue}
       />
