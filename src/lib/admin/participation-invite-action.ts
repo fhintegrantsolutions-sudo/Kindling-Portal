@@ -112,7 +112,7 @@ export async function inviteLenderForParticipation(
   // snapshot. Idempotent-safe: if this user somehow already has an entity
   // (retry / prior partial run), reuse it — a second is_primary row would be
   // rejected by investor_entities_one_primary_idx anyway.
-  const entityId = await ensurePrimaryEntity(admin, newUserId, reg);
+  const entityId = await ensurePrimaryEntity(admin, newUserId, ar.email, reg);
 
   // Backfill the participation with the new owner + entity.
   const { error: partErr } = await admin
@@ -162,10 +162,16 @@ type EntitySnapshot = {
  * (20260712000001_investor_entities_backfill.sql): the trimmed business_name
  * when non-empty, else "Personal" for Individual/unknown entity types, else
  * the entity_type label itself.
+ *
+ * `email` is seeded from the address we just invited — the same address the
+ * lead corresponded under. Without it this path would mint the one kind of row
+ * the whole feature exists to prevent: an entity with no email of its own, whose
+ * correspondence address would be lost the moment its login is merged away.
  */
 async function ensurePrimaryEntity(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
+  email: string,
   reg: EntitySnapshot,
 ): Promise<string> {
   const { data: existing } = await admin
@@ -190,6 +196,7 @@ async function ensurePrimaryEntity(
     .insert({
       owner_user_id: userId,
       display_name: displayName,
+      email,
       entity_type: entityType,
       business_name: businessName,
       loan_agreement_title: reg?.name_for_agreement ?? null,

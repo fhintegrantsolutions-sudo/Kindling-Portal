@@ -53,6 +53,14 @@ export type MergePreview = {
       display_name: string;
       /** After collision-renaming. Equal to display_name when no collision. */
       newDisplayName: string;
+      /**
+       * The entity's OWN contact email — the address it actually corresponded
+       * under. It is a column on the entity row, so it travels with the row and
+       * is UNCHANGED by the merge: the entity keeps this address even though
+       * the login it belonged to is about to be banned. Shown in the preview so
+       * the admin can confirm the correspondence address survives.
+       */
+      email: string | null;
       is_primary: boolean;
       /** True when currently primary — it will be demoted before it moves. */
       willDemote: boolean;
@@ -98,6 +106,7 @@ type EntityRow = {
   owner_user_id: string;
   display_name: string;
   business_name: string | null;
+  email: string | null;
   is_primary: boolean;
 };
 
@@ -154,7 +163,7 @@ async function loadProfiles(db: Db, ids: string[]): Promise<ProfileRow[]> {
 async function loadEntities(db: Db, ownerIds: string[]): Promise<EntityRow[]> {
   const { data, error } = await db
     .from("investor_entities")
-    .select("id, owner_user_id, display_name, business_name, is_primary")
+    .select("id, owner_user_id, display_name, business_name, email, is_primary")
     .in("owner_user_id", ownerIds);
   if (error) throw new Error(`entity lookup: ${error.message}`);
   return (data ?? []) as EntityRow[];
@@ -265,6 +274,9 @@ export async function buildMergePreview(
         id: e.id,
         display_name: e.display_name,
         newDisplayName,
+        // Reported as-is. The merge never writes this column — the entity keeps
+        // the address it corresponded under.
+        email: e.email,
         is_primary: e.is_primary,
         willDemote: e.is_primary,
         positions: s.positions,

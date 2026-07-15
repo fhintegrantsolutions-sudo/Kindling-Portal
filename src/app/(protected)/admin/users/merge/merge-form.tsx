@@ -156,6 +156,14 @@ export function MergeForm({ preview }: { preview: MergePreview }) {
                       ) : null}
                     </div>
                     <p className="text-muted-foreground">
+                      Email kept:{" "}
+                      <span className="font-medium text-foreground">
+                        {e.email ?? "— none on file"}
+                      </span>{" "}
+                      — the entity keeps its own address, even though this login
+                      is banned.
+                    </p>
+                    <p className="text-muted-foreground">
                       {e.positions} position(s) ·{" "}
                       {formatCurrency(e.invested)} invested — they travel with
                       the entity

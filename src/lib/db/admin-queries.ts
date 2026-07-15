@@ -2167,6 +2167,11 @@ export type AdminEntity = {
   address_city: string | null;
   address_state: string | null;
   address_zip: string | null;
+  /**
+   * Contact email for this entity. Seeded from the owning login, but INDEPENDENT
+   * of it: after a merge the entity keeps the address it corresponded under.
+   */
+  email: string | null;
   is_primary: boolean;
   positions: number;
   invested: number;
@@ -2184,7 +2189,7 @@ export async function getEntitiesForUser(
   const { data: ents } = await supabase
     .from("investor_entities")
     .select(
-      "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip, is_primary",
+      "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip, email, is_primary",
     )
     .eq("owner_user_id", userId)
     .order("is_primary", { ascending: false })
