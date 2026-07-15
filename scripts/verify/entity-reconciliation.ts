@@ -109,7 +109,31 @@ async function main() {
     .select("id")
     .limit(SCAN_LIMIT);
   if (profileErr) throw new Error(`profile scan: ${profileErr.message}`);
-  const profileIds = (profiles ?? []).map((p) => p.id as string);
+
+  // A merged-away login is BANNED and legitimately owns zero entities — its
+  // entities were re-parented to the survivor. Exclude banned auth users from
+  // the "every profile owns exactly one primary" invariant; it only applies to
+  // active logins. (auth.admin.listUsers is paginated.)
+  const bannedIds = new Set<string>();
+  for (let page = 1; ; page++) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error(`listUsers: ${error.message}`);
+    if (!data.users.length) break;
+    for (const u of data.users) {
+      const until = (u as { banned_until?: string | null }).banned_until;
+      if (until && new Date(until) > new Date()) bannedIds.add(u.id);
+    }
+    if (data.users.length < 200) break;
+  }
+
+  const profileIds = (profiles ?? [])
+    .map((p) => p.id as string)
+    .filter((id) => !bannedIds.has(id));
+  if (bannedIds.size > 0) {
+    console.log(
+      `      (excluding ${bannedIds.size} banned/merged login(s) from the owns-a-primary checks)`,
+    );
+  }
 
   const entitiesPerOwner = new Map<string, number>();
   const primaryPerOwner = new Map<string, number>();
