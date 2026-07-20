@@ -7,7 +7,7 @@ import {
   getEntitiesForUser,
 } from "@/lib/db/admin-queries";
 import { verifySession } from "@/lib/dal";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -190,7 +190,9 @@ export default async function AdminUserDetailPage({
                 >
                   <div>
                     <p className="font-medium">
-                      {row.note?.note_id} · {row.note?.title}
+                      {row.note
+                        ? formatNoteLabel(row.note.note_id, row.note.title)
+                        : "—"}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {formatCurrency(row.invested_amount)} · {label} ·{" "}

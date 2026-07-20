@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency, formatPercent, formatNoteLabel } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -83,7 +83,7 @@ export default async function SetupParticipationPage({
               <CardTitle className="text-base">The note</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
-              <Field label="Note" value={`${note.note_id} · ${note.title}`} />
+              <Field label="Note" value={formatNoteLabel(note.note_id, note.title)} />
               <Field label="Rate" value={formatPercent(note.rate)} />
               <Field label="Term" value={`${note.term_months} mo`} />
               <Field

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatNoteLabel } from "@/lib/format";
 import { notFound } from "next/navigation";
 import {
   getAdminBorrowerById,
@@ -76,7 +77,7 @@ export default async function EditBorrowerPage({
               >
                 <div>
                   <p className="font-medium">
-                    {n.note_id} · {n.title}
+                    {formatNoteLabel(n.note_id, n.title)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {n.status} · {n.client_status}
