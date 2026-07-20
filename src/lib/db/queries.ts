@@ -484,6 +484,7 @@ export type MyScheduleRow = {
   due_date: string;
   my_principal: number;
   my_interest: number;
+  my_fee: number; // this lender's pro-rata share of the one-time fee (row 1)
   my_balance: number;
   received_date: string | null;
 };
@@ -501,7 +502,9 @@ export async function getMyScheduleForNote(
   // Note params for the schedule.
   const { data: note } = await supabase
     .from("notes")
-    .select("principal, rate, term_months, interest_type, first_payment_date")
+    .select(
+      "principal, rate, term_months, interest_type, first_payment_date, fee",
+    )
     .eq("id", noteUuid)
     .maybeSingle();
   if (!note) return { ok: false, reason: "Note not found." };
@@ -549,6 +552,7 @@ export async function getMyScheduleForNote(
     termMonths: Number(note.term_months),
     interestType: String(note.interest_type),
     firstPaymentDate: String(note.first_payment_date),
+    fee: note.fee !== null ? Number(note.fee) : 0,
   });
   if (!result.ok) return { ok: false, reason: result.reason };
 
@@ -586,12 +590,16 @@ export async function getMyScheduleForNote(
     const myInterest = got
       ? got.interest
       : Math.round(row.interest_amount * myShare * 100) / 100;
+    // Received rows already reflect the fee in the recorded payout; my_fee is
+    // only meaningful on projected (unpaid) rows.
+    const myFee = got ? 0 : Math.round(row.fee_amount * myShare * 100) / 100;
     runningBalance = Math.round((runningBalance - myPrincipal) * 100) / 100;
     return {
       payment_number: row.payment_number,
       due_date: row.due_date,
       my_principal: myPrincipal,
       my_interest: myInterest,
+      my_fee: myFee,
       my_balance: runningBalance < 0 ? 0 : runningBalance,
       received_date: got ? got.date : null,
     };
