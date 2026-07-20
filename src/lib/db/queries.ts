@@ -105,7 +105,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     .select(
       `
       invested_amount, funding_cleared,
-      note:notes ( principal, rate, term_months, interest_type, first_payment_date )
+      note:notes ( principal, rate, term_months, interest_type, first_payment_date, fee )
       `,
     )
     .in("entity_id", ctx.entityIds)
@@ -120,6 +120,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       term_months: number | null;
       interest_type: string;
       first_payment_date: string | null;
+      fee: string | null;
     } | null;
   }>;
 
@@ -146,6 +147,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       termMonths: Number(n.term_months),
       interestType: String(n.interest_type),
       firstPaymentDate: String(n.first_payment_date),
+      fee: n.fee === null ? 0 : Number(n.fee),
     });
     if (!sched.ok) continue;
     for (const row of sched.rows) {
@@ -153,6 +155,11 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
       cur.principal += row.principal_amount * myShare;
       cur.interest += row.interest_amount * myShare;
+      // Net the lender's pro-rata one-time fee out of month 1 (only row 1
+      // has fee_amount > 0). Subtract from interest so principal+interest
+      // equals the net payment. fee < first payment, so this stays >= 0.
+      const myFee = Math.round(row.fee_amount * myShare * 100) / 100;
+      cur.interest -= myFee;
       byMonth.set(month, cur);
     }
   }
