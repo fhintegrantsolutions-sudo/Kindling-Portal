@@ -153,13 +153,17 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     for (const row of sched.rows) {
       const month = row.due_date.slice(0, 7);
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
+      const myInterest = Math.round(row.interest_amount * myShare * 100) / 100;
       cur.principal += row.principal_amount * myShare;
-      cur.interest += row.interest_amount * myShare;
+      cur.interest += myInterest;
       // Net the lender's pro-rata one-time fee out of month 1 (only row 1
-      // has fee_amount > 0). Subtract from interest so principal+interest
-      // equals the net payment. fee < first payment, so this stays >= 0.
+      // has fee_amount > 0). Take it from interest first, then any remainder
+      // from principal, so neither bucket goes negative (an amortized note's
+      // month-1 fee can exceed month-1 interest) while principal+interest
+      // still drops by exactly the fee.
       const myFee = Math.round(row.fee_amount * myShare * 100) / 100;
-      cur.interest -= myFee;
+      cur.interest -= Math.min(myFee, myInterest);
+      cur.principal -= Math.max(0, myFee - myInterest);
       byMonth.set(month, cur);
     }
   }

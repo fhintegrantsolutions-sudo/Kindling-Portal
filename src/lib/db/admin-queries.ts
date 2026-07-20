@@ -1600,11 +1600,15 @@ export async function getLedgerForMonth(
           : null,
         payment_number: row.payment_number,
         due_date: row.due_date,
-        principal_amount: row.principal_amount,
         // Net the one-time fee out of month 1 (only row 1 has fee_amount > 0).
-        // Subtract from interest so principal+interest equals the net payment,
-        // consistent with getMyMonthlyCashflow. fee < first payment, so >= 0.
-        interest_amount: row.interest_amount - row.fee_amount,
+        // Take it from interest first, then any remainder from principal, so
+        // neither bucket goes negative (an amortized note's month-1 fee can
+        // exceed month-1 interest) while principal+interest still drops by
+        // exactly the fee. Consistent with getMyMonthlyCashflow.
+        principal_amount:
+          row.principal_amount - Math.max(0, row.fee_amount - row.interest_amount),
+        interest_amount:
+          row.interest_amount - Math.min(row.fee_amount, row.interest_amount),
         received_date: got ? got.payment_date : null,
         payment_id: got ? got.id : null,
         payment_method: got ? got.payment_method : null,
