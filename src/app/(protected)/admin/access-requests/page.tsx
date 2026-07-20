@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAccessRequests } from "@/lib/db/admin-queries";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -91,7 +91,7 @@ export default async function AdminAccessRequestsPage({
                   <Field
                     label="Note"
                     value={
-                      r.note ? `${r.note.note_id} · ${r.note.title}` : "—"
+                      r.note ? formatNoteLabel(r.note.note_id, r.note.title) : "—"
                     }
                   />
                   <Field

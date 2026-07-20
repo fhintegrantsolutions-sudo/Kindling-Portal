@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useTransition } from "react";
+import { formatNoteLabel } from "@/lib/format";
 import {
   approveAccessRequest,
   rejectAccessRequest,
@@ -62,7 +63,7 @@ export function ApproveForm({
           <option value="">— select —</option>
           {notes.map((n) => (
             <option key={n.id} value={n.id}>
-              {n.note_id} · {n.title}
+              {formatNoteLabel(n.note_id, n.title)}
             </option>
           ))}
         </select>

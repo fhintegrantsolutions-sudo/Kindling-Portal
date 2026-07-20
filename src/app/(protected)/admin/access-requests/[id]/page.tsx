@@ -5,7 +5,7 @@ import {
   getAccessRequestById,
   getNotesForPicker,
 } from "@/lib/db/admin-queries";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -157,7 +157,7 @@ export default async function AdminAccessRequestDetailPage({
           <Field label="Referral code" value={r.referral_code ?? "—"} />
           <Field
             label="Note assigned"
-            value={r.note ? `${r.note.note_id} · ${r.note.title}` : "—"}
+            value={r.note ? formatNoteLabel(r.note.note_id, r.note.title) : "—"}
           />
           <Field
             label="Amount"

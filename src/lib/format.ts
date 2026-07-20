@@ -8,6 +8,16 @@ export function formatCurrency(value: number | string | null | undefined) {
   }).format(n);
 }
 
+// "K26001 · Austin Fund III", or just "K26001" when the note has no title —
+// so an empty title never leaves a dangling " · " separator.
+export function formatNoteLabel(
+  noteId: string,
+  title: string | null | undefined,
+): string {
+  const t = (title ?? "").trim();
+  return t ? `${noteId} · ${t}` : noteId;
+}
+
 export function formatPercent(value: number | string | null | undefined) {
   const n = typeof value === "string" ? Number(value) : (value ?? 0);
   return `${n}%`;

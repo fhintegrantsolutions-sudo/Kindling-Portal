@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getNextUpcomingNote, getOpportunities } from "@/lib/db/queries";
-import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
+import { formatCurrency, formatDate, formatPercent, formatNoteLabel } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Countdown } from "./countdown";
@@ -28,7 +28,7 @@ export default async function OpportunitiesPage() {
                 Next note opens
               </p>
               <p className="text-base font-medium">
-                {upcoming.note_id} · {upcoming.title}
+                {formatNoteLabel(upcoming.note_id, upcoming.title)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {formatDate(upcoming.funding_start_date)}
