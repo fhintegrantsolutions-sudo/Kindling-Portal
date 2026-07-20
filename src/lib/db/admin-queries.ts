@@ -1415,6 +1415,7 @@ export type AdminNoteDetail = {
   borrower_id: string | null;
   title: string;
   principal: string | null;
+  fee: string | null;
   rate: string;
   term_months: number;
   term_years: number | null;

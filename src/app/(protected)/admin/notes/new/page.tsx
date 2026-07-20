@@ -37,6 +37,7 @@ export default async function NewNotePage() {
           is_private: false,
           has_profit_bonus: false,
           principal: "",
+          fee: null,
           rate: "",
           term_months: "",
           min_investment: "2500",
