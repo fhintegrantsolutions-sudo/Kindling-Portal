@@ -67,7 +67,7 @@ export function PublicTopbar({
                 Sign in
               </Link>
               <Link href="/request-access">
-                <Button size="sm">Request access</Button>
+                <Button size="sm">Join</Button>
               </Link>
             </>
           )}
