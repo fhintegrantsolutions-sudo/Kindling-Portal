@@ -6,10 +6,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
-] as const;
+const NAV = [{ label: "Home", href: "/" }] as const;
 
 export function PublicTopbar({
   isAuthenticated,
