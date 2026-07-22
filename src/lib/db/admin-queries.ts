@@ -2229,3 +2229,41 @@ export async function getEntitiesForUser(
     invested: agg.get(r.id)?.invested ?? 0,
   }));
 }
+
+export type UserNeighbor = { id: string; label: string } | null;
+
+/**
+ * Prev/next neighbors for the admin user detail header, in the SAME order the
+ * users list uses (first name, last name, email — nulls last) so paging through
+ * lenders matches the list you came from. Merged-away logins are skipped, since
+ * they're hidden from the list and shouldn't be reachable by arrow.
+ */
+export async function getAdminUserNeighbors(currentUserId: string): Promise<{
+  prev: UserNeighbor;
+  next: UserNeighbor;
+}> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, email")
+    .is("merged_into", null)
+    .order("first_name", { ascending: true, nullsFirst: false })
+    .order("last_name", { ascending: true, nullsFirst: false })
+    .order("email", { ascending: true });
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  }>;
+  const idx = rows.findIndex((r) => r.id === currentUserId);
+  if (idx === -1) return { prev: null, next: null };
+
+  const label = (r: (typeof rows)[number]) =>
+    `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || r.email || "—";
+  const at = (i: number): UserNeighbor =>
+    i >= 0 && i < rows.length ? { id: rows[i].id, label: label(rows[i]) } : null;
+
+  return { prev: at(idx - 1), next: at(idx + 1) };
+}

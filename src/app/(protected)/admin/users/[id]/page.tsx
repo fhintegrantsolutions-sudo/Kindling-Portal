@@ -5,6 +5,7 @@ import {
   countAdmins,
   getReferralCodeByUserId,
   getEntitiesForUser,
+  getAdminUserNeighbors,
 } from "@/lib/db/admin-queries";
 import { verifySession } from "@/lib/dal";
 import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
@@ -17,6 +18,7 @@ import {
 import { EntitiesPanel } from "./entities-panel";
 import { ReferralsPanel } from "./referrals-panel";
 import { RoleChange } from "./role-change";
+import { UserSiblingNav } from "./user-sibling-nav";
 
 export default async function AdminUserDetailPage({
   params,
@@ -28,10 +30,11 @@ export default async function AdminUserDetailPage({
   if (!detail) notFound();
 
   const session = await verifySession();
-  const [adminCount, referralCode, entities] = await Promise.all([
+  const [adminCount, referralCode, entities, neighbors] = await Promise.all([
     countAdmins(),
     getReferralCodeByUserId(id),
     getEntitiesForUser(id),
+    getAdminUserNeighbors(id),
   ]);
   const isSelf = session.userId === detail.profile.id;
   const isLastAdmin =
@@ -69,12 +72,15 @@ export default async function AdminUserDetailPage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
-      <Link
-        href="/admin/users"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        ← Back to users
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link
+          href="/admin/users"
+          className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
+          ← Back to users
+        </Link>
+        <UserSiblingNav prev={neighbors.prev} next={neighbors.next} />
+      </div>
 
       <header className="flex items-start justify-between gap-4">
         <div>
