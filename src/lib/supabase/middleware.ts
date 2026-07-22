@@ -4,7 +4,6 @@ import { NextResponse, type NextRequest } from "next/server";
 // Paths reachable without a session.
 const PUBLIC_PATHS = [
   "/",
-  "/about",
   "/request-access",
   "/login",
   "/forgot-password",
