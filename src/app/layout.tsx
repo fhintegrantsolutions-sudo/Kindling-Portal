@@ -28,6 +28,10 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${libreBaskerville.variable} h-full`}
+      // Browser extensions (screen recorders, wallets) stamp attributes onto
+      // <html> before React hydrates. Scoped to this element only — it does
+      // not cascade, so real hydration mismatches still surface everywhere else.
+      suppressHydrationWarning
     >
       <body
         className="min-h-full flex flex-col bg-background text-foreground"
