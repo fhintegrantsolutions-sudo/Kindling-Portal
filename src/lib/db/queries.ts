@@ -125,6 +125,11 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
 
   const { generateSchedule, addMonths } = await import("@/lib/notes/schedule");
   const byMonth = new Map<string, { principal: number; interest: number }>();
+  // A note returns exactly its invested principal over the term, so this is the
+  // exact target the rounded monthly series must sum to. Interest has no clean
+  // target, so we track its unrounded total and settle to that.
+  let targetPrincipal = 0;
+  let exactInterest = 0;
 
   for (const r of rows) {
     const n = r.note;
@@ -148,11 +153,13 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       firstPaymentDate: String(n.first_payment_date),
     });
     if (!sched.ok) continue;
+    targetPrincipal += Number(r.invested_amount);
     for (const row of sched.rows) {
       const month = row.due_date.slice(0, 7);
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
       cur.principal += row.principal_amount * myShare;
       cur.interest += row.interest_amount * myShare;
+      exactInterest += row.interest_amount * myShare;
       byMonth.set(month, cur);
     }
   }
@@ -177,6 +184,18 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     });
     cursor = addMonths(cursor, 1);
   }
+
+  // Per-month rounding drifts the column totals a cent or two off the true
+  // figures. Settle both onto the last month so the lender's total principal
+  // returned equals exactly what they invested (and interest matches its
+  // unrounded total). out has at least one row here (byMonth is non-empty).
+  const last = out[out.length - 1];
+  const cents = (x: number) => Math.round(x * 100);
+  const sumP = out.reduce((s, p) => s + cents(p.principal), 0);
+  const sumI = out.reduce((s, p) => s + cents(p.interest), 0);
+  last.principal =
+    (cents(last.principal) + (cents(targetPrincipal) - sumP)) / 100;
+  last.interest = (cents(last.interest) + (cents(exactInterest) - sumI)) / 100;
   return out;
 }
 
@@ -577,15 +596,34 @@ export async function getMyScheduleForNote(
     });
   }
 
+  // Index of the last still-projected payment. Per-row rounding of
+  // (note principal × share) drifts a cent or two over the full term, so we
+  // settle that final payment to the remaining balance — the lender's total
+  // principal returned then equals exactly what they invested. Frozen
+  // (already-received) rows are never adjusted; if every row is received there's
+  // nothing to settle and the recorded payouts stand as-is.
+  let lastProjectedIdx = -1;
+  for (let i = result.rows.length - 1; i >= 0; i--) {
+    if (!receivedByNumber.has(result.rows[i].payment_number)) {
+      lastProjectedIdx = i;
+      break;
+    }
+  }
+
   let runningBalance = Number(me.invested_amount);
-  const rows: MyScheduleRow[] = result.rows.map((row) => {
+  const rows: MyScheduleRow[] = result.rows.map((row, i) => {
     const got = receivedByNumber.get(row.payment_number);
-    const myPrincipal = got
-      ? got.principal
-      : Math.round(row.principal_amount * myShare * 100) / 100;
     const myInterest = got
       ? got.interest
       : Math.round(row.interest_amount * myShare * 100) / 100;
+    let myPrincipal: number;
+    if (got) {
+      myPrincipal = got.principal;
+    } else if (i === lastProjectedIdx) {
+      myPrincipal = runningBalance > 0 ? runningBalance : 0;
+    } else {
+      myPrincipal = Math.round(row.principal_amount * myShare * 100) / 100;
+    }
     runningBalance = Math.round((runningBalance - myPrincipal) * 100) / 100;
     return {
       payment_number: row.payment_number,
