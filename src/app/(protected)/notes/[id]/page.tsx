@@ -136,9 +136,6 @@ export default async function MyNoteDetailPage({
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium">{d.file_name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {d.type} · {formatDate(d.created_at)}
-                  </p>
                 </div>
                 <DocumentDownloadButton documentId={d.id} />
               </div>
