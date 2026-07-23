@@ -751,6 +751,9 @@ export type UserBeneficiary = {
   relation: string;
   type: string;
   percentage: number;
+  // Beneficiary designations are per-entity, each with its own 100% total, so
+  // the detail page groups by this.
+  entity: { id: string; display_name: string } | null;
 };
 
 export type UserDetail = {
@@ -787,7 +790,9 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       .order("created_at", { ascending: false }),
     supabase
       .from("beneficiaries")
-      .select("id, name, relation, type, percentage")
+      .select(
+        "id, name, relation, type, percentage, entity:investor_entities ( id, display_name )",
+      )
       .eq("user_id", userId)
       .order("type", { ascending: true })
       .order("created_at", { ascending: true }),
@@ -899,7 +904,18 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       address_zip: entity?.address_zip ?? null,
     } as UserProfile,
     participations,
-    beneficiaries: (bensRes.data ?? []) as UserBeneficiary[],
+    // Supabase types the embedded entity as an array; it's a to-one FK, so
+    // normalize to a single object (or null).
+    beneficiaries: (
+      (bensRes.data ?? []) as unknown as Array<
+        Omit<UserBeneficiary, "entity"> & {
+          entity: { id: string; display_name: string }[] | { id: string; display_name: string } | null;
+        }
+      >
+    ).map((b) => ({
+      ...b,
+      entity: Array.isArray(b.entity) ? (b.entity[0] ?? null) : b.entity,
+    })),
   };
 }
 

@@ -94,6 +94,33 @@ export default async function AdminUserDetailPage({
     entityGroups[i].rows.push(row);
   }
 
+  // Beneficiary designations are per-entity, each with its own 100% total, so
+  // group them the same way — a flat list would stack two entities' Primaries
+  // and read like a >100% error when each entity is actually correct on its own.
+  const beneficiaryGroups: {
+    key: string;
+    name: string;
+    total: number;
+    rows: typeof detail.beneficiaries;
+  }[] = [];
+  const benIndex = new Map<string, number>();
+  for (const b of detail.beneficiaries) {
+    const key = b.entity?.id ?? "__none__";
+    let i = benIndex.get(key);
+    if (i === undefined) {
+      i = beneficiaryGroups.length;
+      benIndex.set(key, i);
+      beneficiaryGroups.push({
+        key,
+        name: b.entity?.display_name ?? "No entity",
+        total: 0,
+        rows: [],
+      });
+    }
+    beneficiaryGroups[i].total += Number(b.percentage ?? 0);
+    beneficiaryGroups[i].rows.push(b);
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
       <div className="flex items-center justify-between gap-4">
@@ -229,24 +256,40 @@ export default async function AdminUserDetailPage({
             Beneficiaries ({detail.beneficiaries.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+        <CardContent className="flex flex-col gap-5">
           {detail.beneficiaries.length === 0 ? (
             <p className="text-sm text-muted-foreground">No beneficiaries.</p>
           ) : (
-            detail.beneficiaries.map((b) => (
-              <div
-                key={b.id}
-                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
-              >
-                <div>
-                  <p className="font-medium">{b.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {b.relation} · {b.type}
+            beneficiaryGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between gap-4 border-b pb-1">
+                  <h3 className="text-sm font-semibold">{group.name}</h3>
+                  <p
+                    className={
+                      Math.round(group.total) === 100
+                        ? "text-xs text-muted-foreground"
+                        : "text-xs text-destructive"
+                    }
+                  >
+                    {group.total}%
                   </p>
                 </div>
-                <span className="rounded-full border px-2 py-0.5 text-xs">
-                  {b.percentage}%
-                </span>
+                {group.rows.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">{b.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {b.relation} · {b.type}
+                      </p>
+                    </div>
+                    <span className="rounded-full border px-2 py-0.5 text-xs">
+                      {b.percentage}%
+                    </span>
+                  </div>
+                ))}
               </div>
             ))
           )}
