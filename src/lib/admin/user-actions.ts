@@ -51,6 +51,73 @@ export async function updateUserRole(
   revalidatePath("/admin");
 }
 
+export type ChangeEmailState = { error?: string; message?: string };
+
+// Change a user's LOGIN email (Supabase auth) and keep profiles.email in sync.
+// email_confirm:true marks it verified so the new address works immediately —
+// the password is untouched, so the user signs in with the new email + their
+// existing password. The entity correspondence emails are a separate field and
+// are left alone.
+export async function changeLoginEmail(
+  userId: string,
+  _prev: ChangeEmailState | undefined,
+  formData: FormData,
+): Promise<ChangeEmailState> {
+  await requireAdmin();
+
+  const email = normalizeEmail(String(formData.get("email") ?? ""));
+  if (!email) return { error: "Enter an email address." };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+    return { error: "Enter a valid email address." };
+
+  const admin = createAdminClient();
+
+  // Reject if the target user isn't found, or the address is unchanged.
+  const { data: current } = await admin.auth.admin.getUserById(userId);
+  if (!current?.user) return { error: "User not found." };
+  if ((current.user.email ?? "").toLowerCase() === email) {
+    return { error: "That's already this user's login email." };
+  }
+
+  // Friendly pre-check for a collision (auth would also reject, less clearly).
+  const { data: clash } = await admin
+    .from("profiles")
+    .select("id")
+    .ilike("email", email)
+    .neq("id", userId)
+    .maybeSingle();
+  if (clash) {
+    return { error: "Another account already uses that email." };
+  }
+
+  const { error: authErr } = await admin.auth.admin.updateUserById(userId, {
+    email,
+    email_confirm: true,
+  });
+  if (authErr) {
+    const msg = authErr.message;
+    return {
+      error: msg.toLowerCase().includes("already")
+        ? "Another account already uses that email."
+        : `Could not update login email: ${msg}`,
+    };
+  }
+
+  const { error: pErr } = await admin
+    .from("profiles")
+    .update({ email })
+    .eq("id", userId);
+  if (pErr) {
+    return {
+      error: `Login email changed, but the profile record didn't sync: ${pErr.message}`,
+    };
+  }
+
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin/users");
+  return { message: `Login email changed to ${email}.` };
+}
+
 // Create a single user manually — used for one-off admin invites without
 // running the CSV import script. The auth user is created with a random
 // temporary password; pass send_invite=true to fire Supabase's password-reset
