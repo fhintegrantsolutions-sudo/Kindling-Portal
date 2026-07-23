@@ -9,7 +9,10 @@ import {
 
 export function NoteDetailCard({
   note,
-  showPrincipal = true,
+  // The note's total principal is the whole deal size — admin-only. Default to
+  // hidden so it's opt-in; a lender-facing caller never has to remember to
+  // suppress it.
+  showPrincipal = false,
 }: {
   note: NoteDetail;
   showPrincipal?: boolean;

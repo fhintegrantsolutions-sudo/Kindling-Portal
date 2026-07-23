@@ -266,7 +266,9 @@ export default async function MyNoteDetailPage({
       </Card>
       ) : null}
 
-      <NoteDetailCard note={note} />
+      {/* The note's total principal is the whole deal size — admin-only.
+          A lender sees their own position in "Your participation" above. */}
+      <NoteDetailCard note={note} showPrincipal={false} />
     </div>
   );
 }
