@@ -638,6 +638,29 @@ export async function getMyScheduleForNote(
   return { ok: true, rows };
 }
 
+export type MyDocument = {
+  id: string;
+  type: string;
+  file_name: string;
+  size_bytes: number | null;
+  created_at: string;
+};
+
+// The lender's documents for one participation. RLS returns rows only when the
+// caller owns the participation's entity AND its funding has cleared, so this is
+// safe to call with the plain session client — no extra gating needed here.
+export async function getMyParticipationDocuments(
+  participationId: string,
+): Promise<MyDocument[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("participation_documents")
+    .select("id, type, file_name, size_bytes, created_at")
+    .eq("participation_id", participationId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as MyDocument[];
+}
+
 export type MyBonusPayout = {
   id: string;
   amount: string;

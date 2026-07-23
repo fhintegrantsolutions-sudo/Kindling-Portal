@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getParticipationById } from "@/lib/db/admin-queries";
+import { listParticipationDocuments } from "@/lib/documents/actions";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import {
   Card,
@@ -11,6 +12,7 @@ import {
 import { FundingForm } from "./funding-form";
 import { InviteButton } from "./invite-button";
 import { AmountReceivedEditor } from "./amount-received-editor";
+import { ParticipationDocuments } from "./documents-section";
 
 export default async function AdminParticipationDetailPage({
   params,
@@ -20,6 +22,8 @@ export default async function AdminParticipationDetailPage({
   const { id } = await params;
   const p = await getParticipationById(id);
   if (!p) notFound();
+
+  const documents = await listParticipationDocuments(id);
 
   const isNewLead = p.user_id === null;
   const inviteDisabled = !p.funding_cleared || !isNewLead;
@@ -142,6 +146,8 @@ export default async function AdminParticipationDetailPage({
           disabledReason={inviteReason}
         />
       ) : null}
+
+      <ParticipationDocuments participationId={p.id} documents={documents} />
     </div>
   );
 }
