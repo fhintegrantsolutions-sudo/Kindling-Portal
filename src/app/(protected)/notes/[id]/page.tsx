@@ -14,6 +14,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { NoteDetailCard } from "@/components/note-detail-card";
+import {
+  AnnualSummaryTable,
+  type YearStatus,
+} from "@/components/annual-summary-table";
+import { rollupByYear } from "@/lib/notes/annual-summary";
 import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
@@ -64,6 +69,32 @@ export default async function MyNoteDetailPage({
   );
   const totalInterest = receivedRows.reduce((s, r) => s + r.my_interest, 0);
   const totalReceived = totalPrincipal + totalInterest;
+
+  // Calendar-year rollup of this participation's schedule. Each year is tagged
+  // from received_date: Paid = every payment that year received, In progress =
+  // some, Upcoming = none.
+  const annual = rollupByYear(
+    scheduleRows.map((r) => ({
+      date: r.due_date,
+      principal: r.my_principal,
+      interest: r.my_interest,
+    })),
+  );
+  const yearStatus = new Map<number, YearStatus>();
+  for (const row of annual.rows) {
+    const inYear = scheduleRows.filter(
+      (r) => Number(r.due_date.slice(0, 4)) === row.year,
+    );
+    const received = inYear.filter((r) => r.received_date !== null).length;
+    yearStatus.set(
+      row.year,
+      received === 0
+        ? "Upcoming"
+        : received === inYear.length
+          ? "Paid"
+          : "In progress",
+    );
+  }
 
   // Only meaningful when the login owns more than one entity — single-entity
   // lenders would just see their own name restated.
@@ -223,6 +254,20 @@ export default async function MyNoteDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {schedule.ok && annual.rows.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Annual summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Principal and interest by calendar year for this note.
+            </p>
+            <AnnualSummaryTable summary={annual} statusByYear={yearStatus} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {note.has_profit_bonus ? (
       <Card>
