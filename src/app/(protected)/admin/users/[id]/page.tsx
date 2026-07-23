@@ -6,6 +6,7 @@ import {
   getReferralCodeByUserId,
   getEntitiesForUser,
   getAdminUserNeighbors,
+  type UserDetail,
 } from "@/lib/db/admin-queries";
 import { verifySession } from "@/lib/dal";
 import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
@@ -41,14 +42,6 @@ export default async function AdminUserDetailPage({
     detail.profile.role === "admin" && adminCount <= 1;
 
   const p = detail.profile;
-  const fullAddress = [
-    p.address_street,
-    p.address_city,
-    p.address_state,
-    p.address_zip,
-  ]
-    .filter(Boolean)
-    .join(", ");
 
   // Investment stats. detail.participations is ordered created_at DESC
   // (newest first) — so head=last note invested, tail=first note invested.
@@ -70,6 +63,79 @@ export default async function AdminUserDetailPage({
   const firstNote = detail.participations[detail.participations.length - 1]?.note ?? null;
   const lastNote = detail.participations[0]?.note ?? null;
 
+  // A single login can own several legally-separate entities, so group the
+  // participations under each entity and subtotal per group — a blended
+  // whole-login monthly (kept above in the summary) isn't a real payee.
+  // Insertion order follows detail.participations (created_at DESC), so the
+  // entity of the newest participation heads the list.
+  const entityGroups: {
+    key: string;
+    name: string;
+    invested: number;
+    monthly: number;
+    rows: typeof detail.participations;
+  }[] = [];
+  const groupIndex = new Map<string, number>();
+  for (const row of detail.participations) {
+    const key = row.entity?.id ?? "__none__";
+    let i = groupIndex.get(key);
+    if (i === undefined) {
+      i = entityGroups.length;
+      groupIndex.set(key, i);
+      entityGroups.push({
+        key,
+        name: row.entity?.display_name ?? "No entity",
+        invested: 0,
+        monthly: 0,
+        rows: [],
+      });
+    }
+    entityGroups[i].invested += Number(row.invested_amount ?? 0);
+    entityGroups[i].monthly += row.monthly_payment ?? 0;
+    entityGroups[i].rows.push(row);
+  }
+
+  // Beneficiary designations are per-entity, and within an entity Primary and
+  // Contingent are separate classes that EACH total 100% — so we group by
+  // entity, then split each entity into its two classes with their own totals.
+  // Order: primary entity first (then entities A-Z); within an entity, Primary
+  // class before Contingent; within a class, beneficiaries A-Z by name.
+  const primaryEntityId = entities.find((e) => e.is_primary)?.id ?? null;
+  type BenClass = { total: number; rows: typeof detail.beneficiaries };
+  const beneficiaryGroups = new Map<
+    string,
+    { name: string; isPrimary: boolean; primary: BenClass; contingent: BenClass }
+  >();
+  for (const b of detail.beneficiaries) {
+    const key = b.entity?.id ?? "__none__";
+    let group = beneficiaryGroups.get(key);
+    if (!group) {
+      group = {
+        name: b.entity?.display_name ?? "No entity",
+        isPrimary: key === primaryEntityId,
+        primary: { total: 0, rows: [] },
+        contingent: { total: 0, rows: [] },
+      };
+      beneficiaryGroups.set(key, group);
+    }
+    const cls = b.type === "Contingent" ? group.contingent : group.primary;
+    cls.total += Number(b.percentage ?? 0);
+    cls.rows.push(b);
+  }
+  const byName = (a: (typeof detail.beneficiaries)[number], b: typeof a) =>
+    a.name.localeCompare(b.name);
+  const orderedBenGroups = [...beneficiaryGroups.entries()]
+    .map(([key, g]) => {
+      g.primary.rows.sort(byName);
+      g.contingent.rows.sort(byName);
+      return { key, ...g };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.isPrimary) - Number(a.isPrimary) ||
+        a.name.localeCompare(b.name),
+    );
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
       <div className="flex items-center justify-between gap-4">
@@ -88,6 +154,9 @@ export default async function AdminUserDetailPage({
             {[p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}
           </h1>
           <p className="text-sm text-muted-foreground">{p.email}</p>
+          <p className="text-xs text-muted-foreground">
+            {p.phone ?? "No phone"} · Joined {formatDate(p.created_at)}
+          </p>
           {isSelf ? (
             <p className="mt-1 text-xs text-muted-foreground">
               (this is you)
@@ -104,39 +173,7 @@ export default async function AdminUserDetailPage({
         </div>
       </header>
 
-      <RoleChange
-        userId={p.id}
-        currentRole={p.role}
-        isSelf={isSelf}
-        isLastAdmin={isLastAdmin}
-      />
-
       <EntitiesPanel userId={p.id} entities={entities} />
-
-      <ReferralsPanel userId={p.id} referralCode={referralCode} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Profile</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Phone" value={p.phone ?? "—"} />
-          <Field label="Entity type" value={p.entity_type ?? "—"} />
-          <Field
-            label="Loan agreement title"
-            value={p.loan_agreement_title ?? "—"}
-          />
-          <Field
-            label="Address"
-            value={fullAddress || "—"}
-            className="sm:col-span-3"
-          />
-          <Field
-            label="Joined"
-            value={formatDate(p.created_at)}
-          />
-        </CardContent>
-      </Card>
 
       {detail.participations.length > 0 ? (
         <Card>
@@ -176,41 +213,54 @@ export default async function AdminUserDetailPage({
             Participations ({detail.participations.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+        <CardContent className="flex flex-col gap-5">
           {detail.participations.length === 0 ? (
             <p className="text-sm text-muted-foreground">No participations.</p>
           ) : (
-            detail.participations.map((row) => {
-              const label = row.funding_cleared
-                ? "Cleared"
-                : row.funding_deposited
-                  ? "Deposited"
-                  : row.funding_received
-                    ? "Received"
-                    : "Awaiting funding";
-              return (
-                <Link
-                  key={row.id}
-                  href={`/admin/participations/${row.id}`}
-                  className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {row.note
-                        ? formatNoteLabel(row.note.note_id, row.note.title)
-                        : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(row.invested_amount)} · {label} ·{" "}
-                      {row.status}
-                      {row.monthly_payment !== null
-                        ? ` · ${formatCurrency(row.monthly_payment)}/mo`
-                        : ""}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })
+            entityGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between gap-4 border-b pb-1">
+                  <h3 className="text-sm font-semibold">{group.name}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {formatCurrency(group.invested)}
+                    {group.monthly > 0
+                      ? ` · ${formatCurrency(group.monthly)}/mo`
+                      : ""}
+                  </p>
+                </div>
+                {group.rows.map((row) => {
+                  const label = row.funding_cleared
+                    ? "Cleared"
+                    : row.funding_deposited
+                      ? "Deposited"
+                      : row.funding_received
+                        ? "Received"
+                        : "Awaiting funding";
+                  return (
+                    <Link
+                      key={row.id}
+                      href={`/admin/participations/${row.id}`}
+                      className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {row.note
+                            ? formatNoteLabel(row.note.note_id, row.note.title)
+                            : "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(row.invested_amount)} · {label} ·{" "}
+                          {row.status}
+                          {row.monthly_payment !== null
+                            ? ` · ${formatCurrency(row.monthly_payment)}/mo`
+                            : ""}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))
           )}
         </CardContent>
       </Card>
@@ -221,29 +271,91 @@ export default async function AdminUserDetailPage({
             Beneficiaries ({detail.beneficiaries.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+        <CardContent className="flex flex-col gap-6">
           {detail.beneficiaries.length === 0 ? (
             <p className="text-sm text-muted-foreground">No beneficiaries.</p>
           ) : (
-            detail.beneficiaries.map((b) => (
-              <div
-                key={b.id}
-                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
-              >
-                <div>
-                  <p className="font-medium">{b.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {b.relation} · {b.type}
-                  </p>
-                </div>
-                <span className="rounded-full border px-2 py-0.5 text-xs">
-                  {b.percentage}%
-                </span>
+            orderedBenGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  {group.name}
+                  {group.isPrimary ? (
+                    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-normal text-primary">
+                      Primary entity
+                    </span>
+                  ) : null}
+                </h3>
+                <BeneficiaryClass
+                  label="Primary"
+                  total={group.primary.total}
+                  rows={group.primary.rows}
+                />
+                {group.contingent.rows.length > 0 ? (
+                  <BeneficiaryClass
+                    label="Contingent"
+                    total={group.contingent.total}
+                    rows={group.contingent.rows}
+                  />
+                ) : null}
               </div>
             ))
           )}
         </CardContent>
       </Card>
+
+      <ReferralsPanel userId={p.id} referralCode={referralCode} />
+
+      <RoleChange
+        userId={p.id}
+        currentRole={p.role}
+        isSelf={isSelf}
+        isLastAdmin={isLastAdmin}
+      />
+    </div>
+  );
+}
+
+// One beneficiary class (Primary or Contingent) within an entity, with its own
+// 100% total — shown red when it doesn't add up.
+function BeneficiaryClass({
+  label,
+  total,
+  rows,
+}: {
+  label: string;
+  total: number;
+  rows: UserDetail["beneficiaries"];
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-4 border-b pb-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <p
+          className={
+            Math.round(total) === 100
+              ? "text-xs text-muted-foreground"
+              : "text-xs text-destructive"
+          }
+        >
+          {total}%
+        </p>
+      </div>
+      {rows.map((b) => (
+        <div
+          key={b.id}
+          className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
+        >
+          <div>
+            <p className="font-medium">{b.name}</p>
+            <p className="text-xs text-muted-foreground">{b.relation}</p>
+          </div>
+          <span className="rounded-full border px-2 py-0.5 text-xs">
+            {b.percentage}%
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
