@@ -41,14 +41,6 @@ export default async function AdminUserDetailPage({
     detail.profile.role === "admin" && adminCount <= 1;
 
   const p = detail.profile;
-  const fullAddress = [
-    p.address_street,
-    p.address_city,
-    p.address_state,
-    p.address_zip,
-  ]
-    .filter(Boolean)
-    .join(", ");
 
   // Investment stats. detail.participations is ordered created_at DESC
   // (newest first) — so head=last note invested, tail=first note invested.
@@ -120,6 +112,9 @@ export default async function AdminUserDetailPage({
             {[p.first_name, p.last_name].filter(Boolean).join(" ") || "—"}
           </h1>
           <p className="text-sm text-muted-foreground">{p.email}</p>
+          <p className="text-xs text-muted-foreground">
+            {p.phone ?? "No phone"} · Joined {formatDate(p.created_at)}
+          </p>
           {isSelf ? (
             <p className="mt-1 text-xs text-muted-foreground">
               (this is you)
@@ -144,31 +139,6 @@ export default async function AdminUserDetailPage({
       />
 
       <EntitiesPanel userId={p.id} entities={entities} />
-
-      <ReferralsPanel userId={p.id} referralCode={referralCode} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Profile</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Phone" value={p.phone ?? "—"} />
-          <Field label="Entity type" value={p.entity_type ?? "—"} />
-          <Field
-            label="Loan agreement title"
-            value={p.loan_agreement_title ?? "—"}
-          />
-          <Field
-            label="Address"
-            value={fullAddress || "—"}
-            className="sm:col-span-3"
-          />
-          <Field
-            label="Joined"
-            value={formatDate(p.created_at)}
-          />
-        </CardContent>
-      </Card>
 
       {detail.participations.length > 0 ? (
         <Card>
@@ -289,6 +259,8 @@ export default async function AdminUserDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <ReferralsPanel userId={p.id} referralCode={referralCode} />
     </div>
   );
 }
