@@ -6,6 +6,7 @@ import {
   getReferralCodeByUserId,
   getEntitiesForUser,
   getAdminUserNeighbors,
+  type UserDetail,
 } from "@/lib/db/admin-queries";
 import { verifySession } from "@/lib/dal";
 import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
@@ -94,32 +95,46 @@ export default async function AdminUserDetailPage({
     entityGroups[i].rows.push(row);
   }
 
-  // Beneficiary designations are per-entity, each with its own 100% total, so
-  // group them the same way — a flat list would stack two entities' Primaries
-  // and read like a >100% error when each entity is actually correct on its own.
-  const beneficiaryGroups: {
-    key: string;
-    name: string;
-    total: number;
-    rows: typeof detail.beneficiaries;
-  }[] = [];
-  const benIndex = new Map<string, number>();
+  // Beneficiary designations are per-entity, and within an entity Primary and
+  // Contingent are separate classes that EACH total 100% — so we group by
+  // entity, then split each entity into its two classes with their own totals.
+  // Order: primary entity first (then entities A-Z); within an entity, Primary
+  // class before Contingent; within a class, beneficiaries A-Z by name.
+  const primaryEntityId = entities.find((e) => e.is_primary)?.id ?? null;
+  type BenClass = { total: number; rows: typeof detail.beneficiaries };
+  const beneficiaryGroups = new Map<
+    string,
+    { name: string; isPrimary: boolean; primary: BenClass; contingent: BenClass }
+  >();
   for (const b of detail.beneficiaries) {
     const key = b.entity?.id ?? "__none__";
-    let i = benIndex.get(key);
-    if (i === undefined) {
-      i = beneficiaryGroups.length;
-      benIndex.set(key, i);
-      beneficiaryGroups.push({
-        key,
+    let group = beneficiaryGroups.get(key);
+    if (!group) {
+      group = {
         name: b.entity?.display_name ?? "No entity",
-        total: 0,
-        rows: [],
-      });
+        isPrimary: key === primaryEntityId,
+        primary: { total: 0, rows: [] },
+        contingent: { total: 0, rows: [] },
+      };
+      beneficiaryGroups.set(key, group);
     }
-    beneficiaryGroups[i].total += Number(b.percentage ?? 0);
-    beneficiaryGroups[i].rows.push(b);
+    const cls = b.type === "Contingent" ? group.contingent : group.primary;
+    cls.total += Number(b.percentage ?? 0);
+    cls.rows.push(b);
   }
+  const byName = (a: (typeof detail.beneficiaries)[number], b: typeof a) =>
+    a.name.localeCompare(b.name);
+  const orderedBenGroups = [...beneficiaryGroups.entries()]
+    .map(([key, g]) => {
+      g.primary.rows.sort(byName);
+      g.contingent.rows.sort(byName);
+      return { key, ...g };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.isPrimary) - Number(a.isPrimary) ||
+        a.name.localeCompare(b.name),
+    );
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
@@ -256,40 +271,32 @@ export default async function AdminUserDetailPage({
             Beneficiaries ({detail.beneficiaries.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
+        <CardContent className="flex flex-col gap-6">
           {detail.beneficiaries.length === 0 ? (
             <p className="text-sm text-muted-foreground">No beneficiaries.</p>
           ) : (
-            beneficiaryGroups.map((group) => (
-              <div key={group.key} className="flex flex-col gap-2">
-                <div className="flex items-baseline justify-between gap-4 border-b pb-1">
-                  <h3 className="text-sm font-semibold">{group.name}</h3>
-                  <p
-                    className={
-                      Math.round(group.total) === 100
-                        ? "text-xs text-muted-foreground"
-                        : "text-xs text-destructive"
-                    }
-                  >
-                    {group.total}%
-                  </p>
-                </div>
-                {group.rows.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium">{b.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {b.relation} · {b.type}
-                      </p>
-                    </div>
-                    <span className="rounded-full border px-2 py-0.5 text-xs">
-                      {b.percentage}%
+            orderedBenGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  {group.name}
+                  {group.isPrimary ? (
+                    <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-normal text-primary">
+                      Primary entity
                     </span>
-                  </div>
-                ))}
+                  ) : null}
+                </h3>
+                <BeneficiaryClass
+                  label="Primary"
+                  total={group.primary.total}
+                  rows={group.primary.rows}
+                />
+                {group.contingent.rows.length > 0 ? (
+                  <BeneficiaryClass
+                    label="Contingent"
+                    total={group.contingent.total}
+                    rows={group.contingent.rows}
+                  />
+                ) : null}
               </div>
             ))
           )}
@@ -304,6 +311,51 @@ export default async function AdminUserDetailPage({
         isSelf={isSelf}
         isLastAdmin={isLastAdmin}
       />
+    </div>
+  );
+}
+
+// One beneficiary class (Primary or Contingent) within an entity, with its own
+// 100% total — shown red when it doesn't add up.
+function BeneficiaryClass({
+  label,
+  total,
+  rows,
+}: {
+  label: string;
+  total: number;
+  rows: UserDetail["beneficiaries"];
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-4 border-b pb-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <p
+          className={
+            Math.round(total) === 100
+              ? "text-xs text-muted-foreground"
+              : "text-xs text-destructive"
+          }
+        >
+          {total}%
+        </p>
+      </div>
+      {rows.map((b) => (
+        <div
+          key={b.id}
+          className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
+        >
+          <div>
+            <p className="font-medium">{b.name}</p>
+            <p className="text-xs text-muted-foreground">{b.relation}</p>
+          </div>
+          <span className="rounded-full border px-2 py-0.5 text-xs">
+            {b.percentage}%
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
