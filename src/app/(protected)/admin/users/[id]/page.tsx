@@ -70,6 +70,38 @@ export default async function AdminUserDetailPage({
   const firstNote = detail.participations[detail.participations.length - 1]?.note ?? null;
   const lastNote = detail.participations[0]?.note ?? null;
 
+  // A single login can own several legally-separate entities, so group the
+  // participations under each entity and subtotal per group — a blended
+  // whole-login monthly (kept above in the summary) isn't a real payee.
+  // Insertion order follows detail.participations (created_at DESC), so the
+  // entity of the newest participation heads the list.
+  const entityGroups: {
+    key: string;
+    name: string;
+    invested: number;
+    monthly: number;
+    rows: typeof detail.participations;
+  }[] = [];
+  const groupIndex = new Map<string, number>();
+  for (const row of detail.participations) {
+    const key = row.entity?.id ?? "__none__";
+    let i = groupIndex.get(key);
+    if (i === undefined) {
+      i = entityGroups.length;
+      groupIndex.set(key, i);
+      entityGroups.push({
+        key,
+        name: row.entity?.display_name ?? "No entity",
+        invested: 0,
+        monthly: 0,
+        rows: [],
+      });
+    }
+    entityGroups[i].invested += Number(row.invested_amount ?? 0);
+    entityGroups[i].monthly += row.monthly_payment ?? 0;
+    entityGroups[i].rows.push(row);
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
       <div className="flex items-center justify-between gap-4">
@@ -176,41 +208,54 @@ export default async function AdminUserDetailPage({
             Participations ({detail.participations.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2">
+        <CardContent className="flex flex-col gap-5">
           {detail.participations.length === 0 ? (
             <p className="text-sm text-muted-foreground">No participations.</p>
           ) : (
-            detail.participations.map((row) => {
-              const label = row.funding_cleared
-                ? "Cleared"
-                : row.funding_deposited
-                  ? "Deposited"
-                  : row.funding_received
-                    ? "Received"
-                    : "Awaiting funding";
-              return (
-                <Link
-                  key={row.id}
-                  href={`/admin/participations/${row.id}`}
-                  className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {row.note
-                        ? formatNoteLabel(row.note.note_id, row.note.title)
-                        : "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(row.invested_amount)} · {label} ·{" "}
-                      {row.status}
-                      {row.monthly_payment !== null
-                        ? ` · ${formatCurrency(row.monthly_payment)}/mo`
-                        : ""}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })
+            entityGroups.map((group) => (
+              <div key={group.key} className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between gap-4 border-b pb-1">
+                  <h3 className="text-sm font-semibold">{group.name}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {formatCurrency(group.invested)}
+                    {group.monthly > 0
+                      ? ` · ${formatCurrency(group.monthly)}/mo`
+                      : ""}
+                  </p>
+                </div>
+                {group.rows.map((row) => {
+                  const label = row.funding_cleared
+                    ? "Cleared"
+                    : row.funding_deposited
+                      ? "Deposited"
+                      : row.funding_received
+                        ? "Received"
+                        : "Awaiting funding";
+                  return (
+                    <Link
+                      key={row.id}
+                      href={`/admin/participations/${row.id}`}
+                      className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {row.note
+                            ? formatNoteLabel(row.note.note_id, row.note.title)
+                            : "—"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(row.invested_amount)} · {label} ·{" "}
+                          {row.status}
+                          {row.monthly_payment !== null
+                            ? ` · ${formatCurrency(row.monthly_payment)}/mo`
+                            : ""}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))
           )}
         </CardContent>
       </Card>

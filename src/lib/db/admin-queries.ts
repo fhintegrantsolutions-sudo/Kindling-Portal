@@ -735,6 +735,9 @@ export type UserParticipationRow = {
   funding_deposited: boolean;
   funding_cleared: boolean;
   note: { note_id: string; title: string } | null;
+  // The investor entity this participation belongs to. A single login can own
+  // several legally-separate entities, so the detail page groups by this.
+  entity: { id: string; display_name: string } | null;
   // Monthly payment the lender is expected to receive on this
   // participation: their pro-rata share of the note's monthly payment.
   // null when the note doesn't have enough info to compute one (missing
@@ -776,6 +779,7 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       .select(
         `id, note_id, invested_amount, status,
          funding_received, funding_deposited, funding_cleared,
+         entity:investor_entities ( id, display_name ),
          note:notes ( id, note_id, title, principal, rate, term_months,
                       interest_type )`,
       )
@@ -799,6 +803,7 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
     funding_received: boolean;
     funding_deposited: boolean;
     funding_cleared: boolean;
+    entity: { id: string; display_name: string } | null;
     note: {
       id: string;
       note_id: string;
@@ -866,6 +871,9 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       funding_deposited: r.funding_deposited,
       funding_cleared: r.funding_cleared,
       note: n ? { note_id: n.note_id, title: n.title } : null,
+      entity: r.entity
+        ? { id: r.entity.id, display_name: r.entity.display_name }
+        : null,
       monthly_payment: monthly,
     };
   });
