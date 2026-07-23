@@ -5,6 +5,7 @@ import {
   getMyParticipationByNoteId,
   getMyBonusPayoutsForParticipation,
   getMyScheduleForNote,
+  getMyParticipationDocuments,
 } from "@/lib/db/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
@@ -18,6 +19,7 @@ import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
 import { EditInvestedAmount } from "./edit-invested-amount";
+import { DocumentDownloadButton } from "@/components/document-download-button";
 
 export default async function MyNoteDetailPage({
   params,
@@ -33,11 +35,12 @@ export default async function MyNoteDetailPage({
     redirect(`/opportunities/${note.note_id}`);
   }
 
-  const [bonuses, schedule, profile, ctx] = await Promise.all([
+  const [bonuses, schedule, profile, ctx, documents] = await Promise.all([
     getMyBonusPayoutsForParticipation(participation.id),
     getMyScheduleForNote(note.id, participation.id),
     getCurrentProfile(),
     getCurrentEntityContext(),
+    getMyParticipationDocuments(participation.id),
   ]);
   // Prefer the formal loan-agreement title (e.g. "Specialized Trust Company
   // Custodian FBO Felipe Vazquez ROTH IRA") since that's what appears on the
@@ -119,6 +122,30 @@ export default async function MyNoteDetailPage({
           />
         </CardContent>
       </Card>
+
+      {participation.funding_cleared && documents.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {documents.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{d.file_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.type} · {formatDate(d.created_at)}
+                  </p>
+                </div>
+                <DocumentDownloadButton documentId={d.id} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
