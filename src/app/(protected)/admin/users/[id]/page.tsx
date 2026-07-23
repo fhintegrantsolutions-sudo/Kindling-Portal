@@ -131,13 +131,6 @@ export default async function AdminUserDetailPage({
         </div>
       </header>
 
-      <RoleChange
-        userId={p.id}
-        currentRole={p.role}
-        isSelf={isSelf}
-        isLastAdmin={isLastAdmin}
-      />
-
       <EntitiesPanel userId={p.id} entities={entities} />
 
       {detail.participations.length > 0 ? (
@@ -261,6 +254,13 @@ export default async function AdminUserDetailPage({
       </Card>
 
       <ReferralsPanel userId={p.id} referralCode={referralCode} />
+
+      <RoleChange
+        userId={p.id}
+        currentRole={p.role}
+        isSelf={isSelf}
+        isLastAdmin={isLastAdmin}
+      />
     </div>
   );
 }
