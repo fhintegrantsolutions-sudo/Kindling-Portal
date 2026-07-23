@@ -19,6 +19,7 @@ import {
 import { EntitiesPanel } from "./entities-panel";
 import { ReferralsPanel } from "./referrals-panel";
 import { RoleChange } from "./role-change";
+import { ChangeLoginEmail } from "./change-login-email";
 import { UserSiblingNav } from "./user-sibling-nav";
 
 export default async function AdminUserDetailPage({
@@ -304,6 +305,8 @@ export default async function AdminUserDetailPage({
       </Card>
 
       <ReferralsPanel userId={p.id} referralCode={referralCode} />
+
+      <ChangeLoginEmail userId={p.id} currentEmail={p.email} />
 
       <RoleChange
         userId={p.id}
