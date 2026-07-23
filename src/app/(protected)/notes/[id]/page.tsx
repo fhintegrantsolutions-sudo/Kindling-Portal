@@ -123,27 +123,6 @@ export default async function MyNoteDetailPage({
         </CardContent>
       </Card>
 
-      {participation.funding_cleared && documents.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Documents</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {documents.map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{d.file_name}</p>
-                </div>
-                <DocumentDownloadButton documentId={d.id} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
-
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
@@ -247,6 +226,27 @@ export default async function MyNoteDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {participation.funding_cleared && documents.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {documents.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between gap-4 rounded-md border px-3 py-2 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{d.file_name}</p>
+                </div>
+                <DocumentDownloadButton documentId={d.id} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {note.has_profit_bonus ? (
       <Card>
