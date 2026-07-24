@@ -36,7 +36,6 @@
     "@types/react-simple-maps": "^3.0.6",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
-    "firebase-admin": "^13.8.0",
     "pg": "^8.22.0",
     "supabase": "^2.98.2",
     "tailwindcss": "^4",
