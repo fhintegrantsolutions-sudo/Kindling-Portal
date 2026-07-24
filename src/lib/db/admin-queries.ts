@@ -1439,6 +1439,7 @@ export type AdminNoteDetail = {
   borrower_id: string | null;
   title: string;
   principal: string | null;
+  fee: string | null;
   rate: string;
   term_months: number;
   term_years: number | null;
@@ -1512,7 +1513,7 @@ export async function getLedgerForMonth(
   let q = supabase
     .from("notes")
     .select(
-      "id, note_id, title, borrower_id, principal, rate, term_months, interest_type, first_payment_date",
+      "id, note_id, title, borrower_id, principal, rate, term_months, interest_type, first_payment_date, fee",
     );
   if (borrowerId) q = q.eq("borrower_id", borrowerId);
   const { data: notes } = await q;
@@ -1526,6 +1527,7 @@ export async function getLedgerForMonth(
     term_months: number | null;
     interest_type: string;
     first_payment_date: string | null;
+    fee: string | null;
   }>;
 
   const borrowerIds = Array.from(
@@ -1602,6 +1604,7 @@ export async function getLedgerForMonth(
       termMonths: Number(n.term_months),
       interestType: n.interest_type,
       firstPaymentDate: n.first_payment_date,
+      fee: n.fee === null ? 0 : Number(n.fee),
     });
     if (!result.ok) continue;
     for (const row of result.rows) {
@@ -1621,8 +1624,15 @@ export async function getLedgerForMonth(
           : null,
         payment_number: row.payment_number,
         due_date: row.due_date,
-        principal_amount: row.principal_amount,
-        interest_amount: row.interest_amount,
+        // Net the one-time fee out of month 1 (only row 1 has fee_amount > 0).
+        // Take it from interest first, then any remainder from principal, so
+        // neither bucket goes negative (an amortized note's month-1 fee can
+        // exceed month-1 interest) while principal+interest still drops by
+        // exactly the fee. Consistent with getMyMonthlyCashflow.
+        principal_amount:
+          row.principal_amount - Math.max(0, row.fee_amount - row.interest_amount),
+        interest_amount:
+          row.interest_amount - Math.min(row.fee_amount, row.interest_amount),
         received_date: got ? got.payment_date : null,
         payment_id: got ? got.id : null,
         payment_method: got ? got.payment_method : null,

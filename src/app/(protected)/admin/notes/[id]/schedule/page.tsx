@@ -34,6 +34,7 @@ export default async function NoteSchedulePage({
       termMonths: Number(note.term_months),
       interestType: note.interest_type,
       firstPaymentDate: note.first_payment_date,
+      fee: note.fee !== null ? Number(note.fee) : 0,
     });
     if (result.ok) scheduleRows = result.rows;
     else scheduleError = result.reason;

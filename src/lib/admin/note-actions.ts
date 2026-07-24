@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
-import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
+import {
+  addMonths,
+  computeMonthlyPayment,
+  generateSchedule,
+} from "@/lib/notes/schedule";
 import { ensureNoteTags } from "@/lib/ghl/note-tags";
 
 export type NoteFormState = {
@@ -196,6 +200,7 @@ function parseFields(formData: FormData) {
     has_profit_bonus: formData.get("has_profit_bonus") === "on",
     visible_entity_ids: formData.getAll("visible_entity_ids").map(String),
     principal: money(formData, "principal"),
+    fee: money(formData, "fee"),
     rate: text(formData, "rate"),
     term_months: text(formData, "term_months"),
     min_investment: text(formData, "min_investment") || null,
@@ -247,6 +252,39 @@ function validate(fields: Fields): Record<string, string> {
     errors.interest_type = "Invalid";
   }
 
+  if (fields.fee !== null) {
+    const fee = Number(fields.fee);
+    if (!Number.isFinite(fee) || fee < 0) {
+      errors.fee = "Must be zero or greater";
+    } else if (
+      fee > 0 &&
+      fields.principal !== null &&
+      fields.rate &&
+      fields.term_months &&
+      fields.first_payment_date
+    ) {
+      // The fee is subtracted from the first payment, so it must be smaller than
+      // it — the net first payment can never be negative.
+      const sched = generateSchedule({
+        principal: Number(fields.principal),
+        annualRatePct: Number(fields.rate),
+        termMonths: parseInt(fields.term_months, 10),
+        interestType: fields.interest_type,
+        firstPaymentDate: fields.first_payment_date,
+      });
+      if (sched.ok) {
+        const firstPayment =
+          sched.rows[0].principal_amount + sched.rows[0].interest_amount;
+        if (fee >= firstPayment) {
+          errors.fee = `Must be less than the first month's payment ($${firstPayment.toLocaleString(
+            undefined,
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+          )})`;
+        }
+      }
+    }
+  }
+
   return errors;
 }
 
@@ -267,6 +305,7 @@ async function buildInsert(
     borrower_id: fields.borrower_id,
     title: fields.title,
     principal: fields.principal,
+    fee: fields.fee,
     rate: fields.rate,
     term_months: parseInt(fields.term_months, 10),
     project_type: fields.project_type,

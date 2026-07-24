@@ -105,7 +105,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     .select(
       `
       invested_amount, funding_cleared,
-      note:notes ( principal, rate, term_months, interest_type, first_payment_date )
+      note:notes ( principal, rate, term_months, interest_type, first_payment_date, fee )
       `,
     )
     .in("entity_id", ctx.entityIds)
@@ -120,6 +120,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       term_months: number | null;
       interest_type: string;
       first_payment_date: string | null;
+      fee: string | null;
     } | null;
   }>;
 
@@ -151,15 +152,20 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       termMonths: Number(n.term_months),
       interestType: String(n.interest_type),
       firstPaymentDate: String(n.first_payment_date),
+      fee: n.fee === null ? 0 : Number(n.fee),
     });
     if (!sched.ok) continue;
     targetPrincipal += Number(r.invested_amount);
     for (const row of sched.rows) {
       const month = row.due_date.slice(0, 7);
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
+      // The one-time fee reduces the lender's INTEREST only (row 1 is the only
+      // row with fee_amount > 0); principal always pays out in whole. Net it
+      // from interest here and from the interest settle target (exactInterest).
+      const netInterest = (row.interest_amount - row.fee_amount) * myShare;
       cur.principal += row.principal_amount * myShare;
-      cur.interest += row.interest_amount * myShare;
-      exactInterest += row.interest_amount * myShare;
+      cur.interest += netInterest;
+      exactInterest += netInterest;
       byMonth.set(month, cur);
     }
   }
@@ -503,6 +509,7 @@ export type MyScheduleRow = {
   due_date: string;
   my_principal: number;
   my_interest: number;
+  my_fee: number; // this lender's pro-rata share of the one-time fee (row 1)
   my_balance: number;
   received_date: string | null;
 };
@@ -520,7 +527,9 @@ export async function getMyScheduleForNote(
   // Note params for the schedule.
   const { data: note } = await supabase
     .from("notes")
-    .select("principal, rate, term_months, interest_type, first_payment_date")
+    .select(
+      "principal, rate, term_months, interest_type, first_payment_date, fee",
+    )
     .eq("id", noteUuid)
     .maybeSingle();
   if (!note) return { ok: false, reason: "Note not found." };
@@ -568,6 +577,7 @@ export async function getMyScheduleForNote(
     termMonths: Number(note.term_months),
     interestType: String(note.interest_type),
     firstPaymentDate: String(note.first_payment_date),
+    fee: note.fee !== null ? Number(note.fee) : 0,
   });
   if (!result.ok) return { ok: false, reason: result.reason };
 
@@ -624,12 +634,17 @@ export async function getMyScheduleForNote(
     } else {
       myPrincipal = Math.round(row.principal_amount * myShare * 100) / 100;
     }
+    // The one-time fee reduces interest only, never principal, so it doesn't
+    // touch the settle above. Received rows already reflect the fee in the
+    // recorded payout; my_fee is only meaningful on projected (unpaid) rows.
+    const myFee = got ? 0 : Math.round(row.fee_amount * myShare * 100) / 100;
     runningBalance = Math.round((runningBalance - myPrincipal) * 100) / 100;
     return {
       payment_number: row.payment_number,
       due_date: row.due_date,
       my_principal: myPrincipal,
       my_interest: myInterest,
+      my_fee: myFee,
       my_balance: runningBalance < 0 ? 0 : runningBalance,
       received_date: got ? got.date : null,
     };

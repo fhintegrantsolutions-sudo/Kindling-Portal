@@ -155,6 +155,24 @@ export function DownloadScheduleButton({
     );
     doc.setTextColor(0);
 
+    // One-time fee note (only when the first payment carries a fee). Sits just
+    // below the note title / generated stamp and above the detailed schedule.
+    const firstFee = rows[0]?.my_fee ?? 0;
+    let scheduleStartY = afterSummaryY + 12;
+    if (firstFee > 0) {
+      const feeNoteY = afterSummaryY + 16;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text(
+        `First payment reduced by a one-time fee of ${formatCurrency(firstFee)}`,
+        margin,
+        feeNoteY,
+      );
+      doc.setTextColor(0);
+      scheduleStartY = feeNoteY + 12;
+    }
+
     // ============ Detailed schedule ============
     // Walk the rows once to build beginning balances + a running cumulative
     // interest. Beginning balance of payment 1 is the lender's invested
@@ -172,19 +190,21 @@ export function DownloadScheduleButton({
         formatCurrency(begin),
         formatCurrency(r.my_principal),
         formatCurrency(r.my_interest),
+        r.my_fee > 0 ? `-${formatCurrency(r.my_fee)}` : "",
         formatCurrency(end),
         formatCurrency(cumulativeInterest),
       ];
     });
 
     autoTable(doc, {
-      startY: afterSummaryY + 12,
+      startY: scheduleStartY,
       head: [[
         "PMT NO",
         "PAYMENT DATE",
         "BEGINNING BALANCE",
         "PRINCIPAL",
         "INTEREST",
+        "FEE",
         "ENDING BALANCE",
         "CUMULATIVE INTEREST",
       ]],
@@ -205,6 +225,7 @@ export function DownloadScheduleButton({
         4: { halign: "right" },
         5: { halign: "right" },
         6: { halign: "right" },
+        7: { halign: "right" },
       },
       margin: { left: margin, right: margin },
     });

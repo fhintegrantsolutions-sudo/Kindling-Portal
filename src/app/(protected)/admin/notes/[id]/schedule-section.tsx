@@ -63,6 +63,7 @@ export function ScheduleSection({
               "Add principal, rate, term, and first payment date above to generate the schedule."}
           </p>
         ) : (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -71,6 +72,8 @@ export function ScheduleSection({
                   <th className="py-2 pr-2 font-medium">Due</th>
                   <th className="py-2 pr-2 font-medium text-right">Principal</th>
                   <th className="py-2 pr-2 font-medium text-right">Interest</th>
+                  <th className="py-2 pr-2 font-medium text-right">Fee</th>
+                  <th className="py-2 pr-2 font-medium text-right">Net</th>
                   <th className="py-2 pr-2 font-medium text-right">Balance</th>
                   <th className="py-2 pr-2 font-medium text-right">Received</th>
                 </tr>
@@ -90,6 +93,12 @@ export function ScheduleSection({
               </tbody>
             </table>
           </div>
+          {schedule.some((r) => r.fee_amount > 0) ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              The first payment is reduced by a one-time fee.
+            </p>
+          ) : null}
+          </>
         )}
       </CardContent>
     </Card>
@@ -136,6 +145,14 @@ function ScheduleRowItem({
       </td>
       <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(row.interest_amount)}
+      </td>
+      <td className="py-2 pr-2 text-right tabular-nums">
+        {row.fee_amount > 0 ? `−${formatCurrency(row.fee_amount)}` : ""}
+      </td>
+      <td className="py-2 pr-2 text-right tabular-nums">
+        {formatCurrency(
+          row.principal_amount + row.interest_amount - row.fee_amount,
+        )}
       </td>
       <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">
         {formatCurrency(row.ending_balance)}

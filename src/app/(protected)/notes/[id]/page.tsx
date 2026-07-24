@@ -80,7 +80,10 @@ export default async function MyNoteDetailPage({
     scheduleRows.map((r) => ({
       date: r.due_date,
       principal: r.my_principal,
-      interest: r.my_interest,
+      // Net the one-time fee out of interest (row 1 only) so the annual
+      // interest matches what the lender actually receives — and stays
+      // consistent with the dashboard's fee-netted annual summary.
+      interest: r.my_interest - r.my_fee,
     })),
   );
   const yearStatus = new Map<number, YearStatus>();
@@ -209,6 +212,12 @@ export default async function MyNoteDetailPage({
                         Interest
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
+                        Fee
+                      </th>
+                      <th className="py-2 pr-2 font-medium text-right">
+                        Net
+                      </th>
+                      <th className="py-2 pr-2 font-medium text-right">
                         Balance
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
@@ -236,6 +245,16 @@ export default async function MyNoteDetailPage({
                         <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(r.my_interest)}
                         </td>
+                        <td className="py-2 pr-2 text-right tabular-nums">
+                          {r.my_fee > 0
+                            ? `−${formatCurrency(r.my_fee)}`
+                            : ""}
+                        </td>
+                        <td className="py-2 pr-2 text-right tabular-nums">
+                          {formatCurrency(
+                            r.my_principal + r.my_interest - r.my_fee,
+                          )}
+                        </td>
                         <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">
                           {formatCurrency(r.my_balance)}
                         </td>
@@ -253,6 +272,11 @@ export default async function MyNoteDetailPage({
                   </tbody>
                 </table>
               </div>
+              {scheduleRows.some((r) => r.my_fee > 0) ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Your first payment is reduced by a one-time fee.
+                </p>
+              ) : null}
             </>
           )}
         </CardContent>

@@ -7,6 +7,7 @@ export type ScheduleRow = {
   due_date: string; // YYYY-MM-DD
   principal_amount: number;
   interest_amount: number;
+  fee_amount: number; // one-time fee on this row (row 1 only); 0 otherwise
   ending_balance: number;
 };
 
@@ -16,6 +17,7 @@ export type ScheduleInput = {
   termMonths: number;
   interestType: string; // "Amortized" or "Interest only"
   firstPaymentDate: string; // YYYY-MM-DD
+  fee?: number; // one-time fee subtracted from the first payment; default 0
 };
 
 export type ScheduleResult =
@@ -59,7 +61,7 @@ export function computeMonthlyPayment(input: {
 }
 
 export function generateSchedule(input: ScheduleInput): ScheduleResult {
-  const { principal, annualRatePct, termMonths, interestType, firstPaymentDate } =
+  const { principal, annualRatePct, termMonths, interestType, firstPaymentDate, fee } =
     input;
 
   if (!Number.isFinite(principal) || principal <= 0) {
@@ -74,6 +76,10 @@ export function generateSchedule(input: ScheduleInput): ScheduleResult {
   if (!firstPaymentDate || !/^\d{4}-\d{2}-\d{2}$/.test(firstPaymentDate)) {
     return { ok: false, reason: "First payment date is required." };
   }
+
+  // One-time fee lands entirely on the first scheduled payment. Clamp to >= 0;
+  // the admin form guarantees it never exceeds the first payment.
+  const feeAmount = Number.isFinite(fee) && (fee ?? 0) > 0 ? round2(fee as number) : 0;
 
   const monthlyRate = annualRatePct / 100 / 12;
   const rows: ScheduleRow[] = [];
@@ -92,6 +98,7 @@ export function generateSchedule(input: ScheduleInput): ScheduleResult {
         due_date: addMonths(firstPaymentDate, n - 1),
         principal_amount: principalPart,
         interest_amount: interestPart,
+        fee_amount: n === 1 ? feeAmount : 0,
         ending_balance: balance,
       });
     }
@@ -121,6 +128,7 @@ export function generateSchedule(input: ScheduleInput): ScheduleResult {
       due_date: addMonths(firstPaymentDate, n - 1),
       principal_amount: principalPart,
       interest_amount: interestPart,
+      fee_amount: n === 1 ? feeAmount : 0,
       ending_balance: balance < 0 ? 0 : balance,
     });
   }

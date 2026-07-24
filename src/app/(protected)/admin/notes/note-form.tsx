@@ -23,6 +23,7 @@ export type NoteDefaults = {
   is_private: boolean;
   has_profit_bonus: boolean;
   principal: string | null;
+  fee: string | null;
   rate: string;
   term_months: string;
   min_investment: string | null;
@@ -244,6 +245,15 @@ export function NoteForm({
             step="0.01"
             min="0"
             defaultValue={defaults.target_raise}
+          />
+          <Field
+            name="fee"
+            label="One-time fee"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={defaults.fee ?? ""}
+            error={fe.fee}
           />
         </div>
       </Section>
