@@ -128,7 +128,7 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
             {data.map((d) => {
               const total = d.principal + d.interest;
               // Cap the tallest bar at 92% so there's headroom above it for the
-              // selection dot (the scroll container clips vertically).
+              // selection dot + outline (the scroll container clips vertically).
               const totalHeightPct = (total / maxTotal) * 92;
               const principalFrac = total > 0 ? d.principal / total : 0;
               const isJan = d.month.endsWith("-01");
@@ -159,7 +159,12 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
                       />
                     ) : null}
                     <div
-                      className="flex w-full flex-col justify-end rounded-[3px]"
+                      className={
+                        "flex w-full flex-col justify-end rounded-[3px] " +
+                        (isSelected
+                          ? "outline outline-2 outline-offset-2 outline-foreground/60"
+                          : "outline-none")
+                      }
                       style={{ height: `${totalHeightPct}%` }}
                     >
                       <div
