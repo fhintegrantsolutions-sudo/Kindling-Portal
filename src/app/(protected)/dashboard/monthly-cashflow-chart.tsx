@@ -142,7 +142,7 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
                       <div
                         className="pointer-events-none absolute left-1/2 z-10 size-1.5 -translate-x-1/2 rounded-full shadow-sm ring-2 ring-card"
                         style={{
-                          bottom: `calc(${totalHeightPct}% + 11px)`,
+                          bottom: `calc(${totalHeightPct}% + 9px)`,
                           backgroundColor: INTEREST_COLOR,
                         }}
                         aria-hidden
