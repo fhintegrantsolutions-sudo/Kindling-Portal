@@ -115,12 +115,17 @@ export function ParticipationDocuments({
         >
           <div className="flex flex-col gap-2">
             <Label htmlFor="type">Document type</Label>
-            <Input
+            <select
               id="type"
               name="type"
-              defaultValue="Loan agreement"
-              placeholder="Loan agreement"
-            />
+              defaultValue="Acknowledgment Letter"
+              className="h-9 rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="Acknowledgment Letter">
+                Acknowledgment Letter
+              </option>
+              <option value="Amendment">Amendment</option>
+            </select>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="file">PDF file (max 25 MB)</Label>
