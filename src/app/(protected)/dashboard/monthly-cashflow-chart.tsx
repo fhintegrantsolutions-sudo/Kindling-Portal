@@ -140,8 +140,11 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
                   <div className="relative flex h-56 w-full flex-col justify-end">
                     {isSelected ? (
                       <div
-                        className="pointer-events-none absolute left-1/2 z-10 size-2 -translate-x-1/2 rounded-full bg-foreground shadow-sm ring-2 ring-card"
-                        style={{ bottom: `calc(${totalHeightPct}% + 5px)` }}
+                        className="pointer-events-none absolute left-1/2 z-10 size-1.5 -translate-x-1/2 rounded-full shadow-sm ring-2 ring-card"
+                        style={{
+                          bottom: `calc(${totalHeightPct}% + 11px)`,
+                          backgroundColor: INTEREST_COLOR,
+                        }}
                         aria-hidden
                       />
                     ) : null}
