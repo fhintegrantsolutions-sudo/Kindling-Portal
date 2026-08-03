@@ -60,6 +60,10 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
     data.some((d) => d.month === currentMonth) ? currentMonth : null,
   );
   const currentRef = useRef<HTMLButtonElement>(null);
+  // Hovering a bar previews that month in the detail row below; the row falls
+  // back to the selected month when nothing is hovered. (A floating tooltip
+  // above the bars would be clipped by the horizontal scroll container.)
+  const [hovered, setHovered] = useState<string | null>(null);
 
   // Bring the current month into view on mount (the timeline scrolls
   // horizontally and the current month is usually mid-range). inline:"center"
@@ -91,7 +95,9 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
   const maxTotal = Math.max(...data.map((d) => d.principal + d.interest), 1);
   const totalPrincipal = data.reduce((s, d) => s + d.principal, 0);
   const totalInterest = data.reduce((s, d) => s + d.interest, 0);
-  const selectedPoint = data.find((d) => d.month === selected) ?? null;
+  // The detail row shows the hovered month if any, otherwise the selected one.
+  const detailPoint =
+    data.find((d) => d.month === (hovered ?? selected)) ?? null;
 
   return (
     <Card>
@@ -99,8 +105,8 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
         <div>
           <CardTitle className="text-base">Projected monthly income</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Principal and interest scheduled to you each month. Click a bar for
-            its split.
+            Principal and interest scheduled to you each month. Hover or click a
+            bar for its split.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -133,6 +139,10 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
                   ref={d.month === currentMonth ? currentRef : undefined}
                   type="button"
                   onClick={() => setSelected(d.month)}
+                  onMouseEnter={() => setHovered(d.month)}
+                  onMouseLeave={() => setHovered(null)}
+                  onFocus={() => setHovered(d.month)}
+                  onBlur={() => setHovered(null)}
                   aria-label={`${fmtMonth(d.month)}: ${formatCurrency(total)}`}
                   aria-pressed={isSelected}
                   className="group flex w-3 shrink-0 cursor-pointer flex-col items-center focus:outline-none"
@@ -148,18 +158,6 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
                         aria-hidden
                       />
                     ) : null}
-                    <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-card px-2.5 py-1.5 text-xs shadow-md group-hover:block">
-                      <p className="font-medium">{fmtMonth(d.month)}</p>
-                      <p className="text-muted-foreground tabular-nums">
-                        {formatCurrency(d.principal)} principal
-                      </p>
-                      <p className="text-muted-foreground tabular-nums">
-                        {formatCurrency(d.interest)} interest
-                      </p>
-                      <p className="mt-0.5 tabular-nums">
-                        {formatCurrency(total)} total
-                      </p>
-                    </div>
                     <div
                       className={
                         "flex w-full flex-col justify-end rounded-[3px] " +
@@ -203,33 +201,34 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
         </div>
 
         <div className="mt-3 min-h-[2.75rem] rounded-md border bg-muted/30 px-3 py-2 text-sm">
-          {selectedPoint ? (
+          {detailPoint ? (
             <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
               <span className="font-medium">
-                {fmtMonth(selectedPoint.month)}
+                {fmtMonth(detailPoint.month)}
               </span>
               <Swatch
                 color={PRINCIPAL_COLOR}
                 label="Principal"
-                value={formatCurrency(selectedPoint.principal)}
+                value={formatCurrency(detailPoint.principal)}
               />
               <Swatch
                 color={INTEREST_COLOR}
                 label="Interest"
-                value={formatCurrency(selectedPoint.interest)}
+                value={formatCurrency(detailPoint.interest)}
               />
               <span className="text-muted-foreground">
                 Total{" "}
                 <span className="font-medium tabular-nums text-foreground">
                   {formatCurrency(
-                    selectedPoint.principal + selectedPoint.interest,
+                    detailPoint.principal + detailPoint.interest,
                   )}
                 </span>
               </span>
             </div>
           ) : (
             <span className="text-muted-foreground">
-              Click a bar to see that month&apos;s principal / interest split.
+              Hover or click a bar to see that month&apos;s principal / interest
+              split.
             </span>
           )}
         </div>
