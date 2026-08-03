@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatCurrency } from "@/lib/format";
 import {
   Card,
@@ -43,8 +43,34 @@ export type MonthlyPoint = {
 // Monthly cash-flow chart: one bar per calendar month, stacked into the
 // principal + interest scheduled to be received that month across all the
 // lender's funded notes. Click a bar for its month + principal/interest split.
+// Current calendar month as "YYYY-MM". Computed at render — the selection is a
+// cosmetic default, and the whole app already sets suppressHydrationWarning, so
+// a rare month-boundary/timezone difference between server and client is benign.
+function thisMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const currentMonth = thisMonth();
+  // Default the selection to the current month so its split shows on load,
+  // instead of waiting for a click. Falls back to no selection if the schedule
+  // doesn't cover the current month (all notes matured, or none paying yet).
+  const [selected, setSelected] = useState<string | null>(
+    data.some((d) => d.month === currentMonth) ? currentMonth : null,
+  );
+  const currentRef = useRef<HTMLButtonElement>(null);
+
+  // Bring the current month into view on mount (the timeline scrolls
+  // horizontally and the current month is usually mid-range). inline:"center"
+  // centers it in the scroll container; block:"nearest" avoids a vertical page
+  // jump. DOM-only, so it doesn't trip the set-state-in-effect lint.
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({
+      inline: "center",
+      block: "nearest",
+    });
+  }, []);
 
   if (data.length === 0) {
     return (
@@ -104,6 +130,7 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
               return (
                 <button
                   key={d.month}
+                  ref={d.month === currentMonth ? currentRef : undefined}
                   type="button"
                   onClick={() => setSelected(d.month)}
                   aria-label={`${fmtMonth(d.month)}: ${formatCurrency(total)}`}
