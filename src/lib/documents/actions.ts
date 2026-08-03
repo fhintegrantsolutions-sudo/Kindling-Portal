@@ -48,7 +48,8 @@ export async function uploadParticipationDocument(
   const profile = await requireParticipationsAccess();
   const admin = createAdminClient();
 
-  const type = String(formData.get("type") ?? "").trim() || "Loan agreement";
+  const type =
+    String(formData.get("type") ?? "").trim() || "Acknowledgment Letter";
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { error: "Choose a PDF to upload." };
