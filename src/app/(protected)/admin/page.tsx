@@ -13,7 +13,11 @@ import {
   Users,
 } from "lucide-react";
 import { requireAdmin } from "@/lib/dal";
-import { getAdminStats, getUsersByState } from "@/lib/db/admin-queries";
+import {
+  getAdminStats,
+  getUsersByState,
+  getUserCounts,
+} from "@/lib/db/admin-queries";
 import { formatCurrency } from "@/lib/format";
 import {
   Card,
@@ -25,9 +29,10 @@ import { UserHeatMap } from "@/components/admin/user-heat-map";
 
 export default async function AdminDashboardPage() {
   await requireAdmin();
-  const [stats, statesData] = await Promise.all([
+  const [stats, statesData, userCounts] = await Promise.all([
     getAdminStats(),
     getUsersByState(),
+    getUserCounts(),
   ]);
 
   return (
@@ -104,8 +109,8 @@ export default async function AdminDashboardPage() {
         <h2 className="text-sm font-medium">Portfolio</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Stat
-            label="Users"
-            value={String(stats.totalUsers)}
+            label="Lenders"
+            value={String(userCounts.byPosition)}
             icon={<Users className="size-4" />}
             href="/admin/users"
           />
