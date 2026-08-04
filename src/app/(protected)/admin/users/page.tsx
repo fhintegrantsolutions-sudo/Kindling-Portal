@@ -159,9 +159,9 @@ export default async function AdminUsersPage({
                       <p className="text-sm text-muted-foreground">
                         {u.email}
                       </p>
-                      {/* Only surface entities for people who own more than
-                          one — the ~174 single-entity lenders stay clean. */}
-                      {u.entity_count >= 2 ? (
+                      {/* Show each lender's entity name(s) beneath their email
+                          — single-entity people show their one entity too. */}
+                      {u.entity_names.length > 0 ? (
                         <div className="mt-2 flex flex-wrap items-center gap-1">
                           {u.entity_names.map((name) => (
                             <span
