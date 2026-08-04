@@ -124,10 +124,12 @@ export async function getAdminStats(): Promise<AdminStats> {
       .select("*, notes!inner(funding_archived_at)", { count: "exact", head: true })
       .eq("funding_cleared", true)
       .is("notes.funding_archived_at", null),
-    // Portfolio
+    // Portfolio. Exclude merged/banned logins so this matches the users list
+    // (which hides them) — otherwise the stat over-counts absorbed duplicates.
     supabase
       .from("profiles")
-      .select("*", { count: "exact", head: true }),
+      .select("*", { count: "exact", head: true })
+      .is("merged_into", null),
     // "Active" participations = the row is Active AND the lender's funding
     // has cleared — un-cleared rows are still in the funding workflow, not
     // actually deployed capital.
