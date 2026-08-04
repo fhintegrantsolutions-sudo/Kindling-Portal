@@ -1019,6 +1019,72 @@ export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
   });
 }
 
+export type ReferralPartnerDetail = {
+  partner: { user_id: string; name: string; email: string | null; code: string | null } | null;
+  referrals: {
+    referred_name: string | null;
+    referred_email: string | null;
+    referred_user_id: string | null;
+    status: string;
+    first_investment_amount: string | null;
+    first_investment_date: string | null;
+    created_at: string;
+  }[];
+  totalVolume: number;
+};
+
+// One referral partner's detail: who they referred + amounts. Powers the
+// per-partner referral stats page (clicked from the referrals roster).
+export async function getReferralPartnerDetail(
+  userId: string,
+): Promise<ReferralPartnerDetail> {
+  const supabase = await createClient();
+  const [profRes, codeRes, refsRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .eq("id", userId)
+      .maybeSingle(),
+    supabase
+      .from("referral_codes")
+      .select("code")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("referrals")
+      .select(
+        "referred_name, referred_email, referred_user_id, status, first_investment_amount, first_investment_date, created_at",
+      )
+      .eq("referrer_id", userId)
+      .order("first_investment_amount", { ascending: false, nullsFirst: false }),
+  ]);
+
+  const prof = profRes.data as {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+  } | null;
+  const referrals = (refsRes.data ?? []) as ReferralPartnerDetail["referrals"];
+  const totalVolume = referrals.reduce(
+    (s, r) => s + Number(r.first_investment_amount ?? 0),
+    0,
+  );
+
+  return {
+    partner: prof
+      ? {
+          user_id: prof.id,
+          name: [prof.first_name, prof.last_name].filter(Boolean).join(" ") || "—",
+          email: prof.email,
+          code: (codeRes.data as { code: string } | null)?.code ?? null,
+        }
+      : null,
+    referrals,
+    totalVolume,
+  };
+}
+
 export type ExternalReferralPartner = {
   id: string;
   first_name: string;
