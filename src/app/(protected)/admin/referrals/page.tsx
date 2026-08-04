@@ -3,6 +3,7 @@ import {
   getAllReferralCodes,
   getExternalReferralPartners,
 } from "@/lib/db/admin-queries";
+import { formatCurrency } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -179,16 +180,34 @@ function Section({
                     </code>
                   </div>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3 text-sm">
-                  <Field label="Total" value={String(c.total_referrals)} />
-                  <Field
-                    label="Signed up"
-                    value={String(c.signed_up_referrals)}
-                  />
-                  <Field
-                    label="Invested"
-                    value={String(c.invested_referrals)}
-                  />
+                <CardContent className="flex flex-col gap-3 text-sm">
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                    <Field label="Total" value={String(c.total_referrals)} />
+                    <Field
+                      label="Signed up"
+                      value={String(c.signed_up_referrals)}
+                    />
+                    <Field
+                      label="Invested"
+                      value={String(c.invested_referrals)}
+                    />
+                    <Field
+                      label="Volume"
+                      value={formatCurrency(c.total_volume)}
+                    />
+                  </div>
+                  {c.referred_names.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {c.referred_names.map((name, i) => (
+                        <span
+                          key={`${name}-${i}`}
+                          className="rounded-full border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </Link>

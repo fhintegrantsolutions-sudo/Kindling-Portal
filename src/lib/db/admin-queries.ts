@@ -972,12 +972,14 @@ export type ReferralCodeListItem = {
   total_referrals: number;
   signed_up_referrals: number;
   invested_referrals: number;
+  total_volume: number;
+  referred_names: string[];
 };
 
 export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
   const supabase = await createClient();
 
-  const [codesRes, statsRes, profilesRes] = await Promise.all([
+  const [codesRes, statsRes, profilesRes, refsRes] = await Promise.all([
     supabase
       .from("referral_codes")
       .select("id, user_id, code, is_active, created_at")
@@ -985,9 +987,13 @@ export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
     supabase
       .from("referral_stats")
       .select(
-        "user_id, total_referrals, signed_up_referrals, invested_referrals",
+        "user_id, total_referrals, signed_up_referrals, invested_referrals, total_investment_volume",
       ),
     supabase.from("profiles").select("id, first_name, last_name, email"),
+    supabase
+      .from("referrals")
+      .select("referrer_id, referred_name, first_investment_amount")
+      .order("first_investment_amount", { ascending: false, nullsFirst: false }),
   ]);
 
   const codes = codesRes.data ?? [];
@@ -997,6 +1003,16 @@ export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
   const profilesById = new Map(
     (profilesRes.data ?? []).map((p) => [p.id as string, p]),
   );
+  // Referred names per partner, ordered by amount (query is already sorted).
+  const namesByReferrer = new Map<string, string[]>();
+  for (const r of (refsRes.data ?? []) as Array<{
+    referrer_id: string;
+    referred_name: string | null;
+  }>) {
+    if (!namesByReferrer.has(r.referrer_id))
+      namesByReferrer.set(r.referrer_id, []);
+    if (r.referred_name) namesByReferrer.get(r.referrer_id)!.push(r.referred_name);
+  }
 
   return codes.map((c) => {
     const s = statsByUser.get(c.user_id as string);
@@ -1015,6 +1031,8 @@ export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
       total_referrals: (s?.total_referrals as number) ?? 0,
       signed_up_referrals: (s?.signed_up_referrals as number) ?? 0,
       invested_referrals: (s?.invested_referrals as number) ?? 0,
+      total_volume: Number(s?.total_investment_volume ?? 0),
+      referred_names: namesByReferrer.get(c.user_id as string) ?? [],
     };
   });
 }
