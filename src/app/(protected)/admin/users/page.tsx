@@ -107,13 +107,6 @@ export default async function AdminUsersPage({
             aria-label="Jump to letter"
             className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-center gap-0.5 rounded-md bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80"
           >
-            <a
-              href="#users-top"
-              aria-label="Back to top"
-              className="flex size-6 items-center justify-center rounded text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-            >
-              <ArrowUp className="size-3.5" />
-            </a>
             {ALPHABET.map((L) =>
               presentLetters.has(L) ? (
                 <a
@@ -141,13 +134,6 @@ export default async function AdminUsersPage({
                 #
               </a>
             ) : null}
-            <a
-              href="#users-bottom"
-              aria-label="Jump to bottom"
-              className="flex size-6 items-center justify-center rounded text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
-            >
-              <ArrowDown className="size-3.5" />
-            </a>
           </nav>
 
           <div className="grid gap-4">
@@ -206,6 +192,25 @@ export default async function AdminUsersPage({
             })}
           </div>
           <div id="users-bottom" aria-hidden />
+
+          {/* Floating jump control — fixed to the viewport corner so it stays
+              reachable no matter how far down the list you've scrolled. */}
+          <div className="fixed bottom-6 right-6 z-20 flex flex-col gap-2">
+            <a
+              href="#users-top"
+              aria-label="Back to top"
+              className="flex size-10 items-center justify-center rounded-full border bg-card text-foreground shadow-md transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <ArrowUp className="size-4" />
+            </a>
+            <a
+              href="#users-bottom"
+              aria-label="Jump to bottom"
+              className="flex size-10 items-center justify-center rounded-full border bg-card text-foreground shadow-md transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <ArrowDown className="size-4" />
+            </a>
+          </div>
         </>
       )}
     </div>
