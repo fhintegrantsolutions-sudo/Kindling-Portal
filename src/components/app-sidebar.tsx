@@ -175,6 +175,12 @@ export function AppSidebar({
             Sign out
           </Button>
         </form>
+        <Link
+          href="/portal-privacy"
+          className="text-xs text-sidebar-foreground/50 underline-offset-4 hover:text-sidebar-foreground hover:underline"
+        >
+          Privacy Policy
+        </Link>
       </div>
     </aside>
   );

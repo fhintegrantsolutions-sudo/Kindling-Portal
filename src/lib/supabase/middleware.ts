@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_PATHS = [
   "/",
   "/privacy",
+  "/portal-privacy",
   "/request-access",
   "/login",
   "/forgot-password",
