@@ -7,6 +7,61 @@ import { requireAdmin } from "@/lib/dal";
 import { countAdmins } from "@/lib/db/admin-queries";
 import { normalizeEmail, toProperCase } from "@/lib/text";
 
+export type DeleteUserState = { error?: string };
+
+// Delete a login (auth user + profile + its empty entities). Guarded: never
+// yourself, never the last admin, and never a user who still holds
+// participations — participations.user_id is ON DELETE SET NULL, so deleting
+// such a user would silently ORPHAN their positions instead of blocking.
+// Dependents that reference an entity_id (beneficiaries, registrations,
+// documents) are cleared first so the entity cascade can't hit a restrict.
+export async function deleteUser(userId: string): Promise<DeleteUserState> {
+  const me = await requireAdmin();
+  if (userId === me.id) {
+    return { error: "You can't delete your own account." };
+  }
+
+  const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from("profiles")
+    .select("id, role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target) return { error: "User not found." };
+
+  if (target.role === "admin") {
+    const totalAdmins = await countAdmins();
+    if (totalAdmins <= 1) {
+      return { error: "Can't delete the last admin." };
+    }
+  }
+
+  const { count: partCount } = await admin
+    .from("participations")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if ((partCount ?? 0) > 0) {
+    return {
+      error: `This user still holds ${partCount} participation(s). Reassign or remove them before deleting.`,
+    };
+  }
+
+  // Clear entity-referencing children before the entity cascade runs.
+  await admin.from("beneficiaries").delete().eq("user_id", userId);
+  await admin.from("note_registrations").delete().eq("user_id", userId);
+  await admin.from("documents").delete().eq("user_id", userId);
+  await admin.from("investor_entities").delete().eq("owner_user_id", userId);
+
+  // Deleting the auth user cascades the profile (and referral_codes, etc.).
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
+  return {};
+}
+
 export async function updateUserRole(
   userId: string,
   newRole: "admin" | "lender",
