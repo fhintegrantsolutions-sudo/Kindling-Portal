@@ -26,6 +26,17 @@ export default async function AdminUsersPage({
     q: query || undefined,
   });
 
+  // A-Z index. The list is sorted by first name, so we bucket by the first
+  // name's initial (falling back to email); anything non-alphabetic goes to "#".
+  const letterOf = (u: (typeof users)[number]) => {
+    const c = ((u.first_name || u.email || "#").trim().charAt(0) || "#").toUpperCase();
+    return c >= "A" && c <= "Z" ? c : "#";
+  };
+  const anchorId = (letter: string) =>
+    letter === "#" ? "letter-hash" : `letter-${letter}`;
+  const presentLetters = new Set(users.map(letterOf));
+  const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
       <header className="flex items-start justify-between gap-4">
@@ -87,13 +98,51 @@ export default async function AdminUsersPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {users.map((u) => (
-            <Link
-              key={u.id}
-              href={`/admin/users/${u.id}`}
-              className="block rounded-lg transition-colors hover:bg-muted/40"
-            >
+        <>
+          <nav
+            aria-label="Jump to letter"
+            className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-0.5 rounded-md bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+          >
+            {ALPHABET.map((L) =>
+              presentLetters.has(L) ? (
+                <a
+                  key={L}
+                  href={`#${anchorId(L)}`}
+                  className="flex size-6 items-center justify-center rounded text-xs font-medium text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+                >
+                  {L}
+                </a>
+              ) : (
+                <span
+                  key={L}
+                  aria-disabled
+                  className="flex size-6 items-center justify-center rounded text-xs text-muted-foreground/30"
+                >
+                  {L}
+                </span>
+              ),
+            )}
+            {presentLetters.has("#") ? (
+              <a
+                href={`#${anchorId("#")}`}
+                className="flex size-6 items-center justify-center rounded text-xs font-medium text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                #
+              </a>
+            ) : null}
+          </nav>
+
+          <div className="grid gap-4">
+            {users.map((u, i) => {
+              const isFirstOfLetter =
+                i === 0 || letterOf(users[i - 1]) !== letterOf(u);
+              return (
+                <Link
+                  key={u.id}
+                  id={isFirstOfLetter ? anchorId(letterOf(u)) : undefined}
+                  href={`/admin/users/${u.id}`}
+                  className="block scroll-mt-14 rounded-lg transition-colors hover:bg-muted/40"
+                >
               <Card>
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
@@ -133,10 +182,12 @@ export default async function AdminUsersPage({
                     </div>
                   </div>
                 </CardHeader>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );
