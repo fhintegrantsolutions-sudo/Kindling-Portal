@@ -20,6 +20,7 @@ import { EntitiesPanel } from "./entities-panel";
 import { ReferralsPanel } from "./referrals-panel";
 import { RoleChange } from "./role-change";
 import { ChangeLoginEmail } from "./change-login-email";
+import { DeleteUser } from "./delete-user";
 import { UserSiblingNav } from "./user-sibling-nav";
 
 export default async function AdminUserDetailPage({
@@ -322,6 +323,18 @@ export default async function AdminUserDetailPage({
         currentRole={p.role}
         isSelf={isSelf}
         isLastAdmin={isLastAdmin}
+      />
+
+      <DeleteUser
+        userId={p.id}
+        userLabel={
+          [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+          p.email ||
+          "this user"
+        }
+        isSelf={isSelf}
+        isLastAdmin={isLastAdmin}
+        participationCount={participationCount}
       />
     </div>
   );
