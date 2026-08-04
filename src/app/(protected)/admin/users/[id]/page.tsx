@@ -61,8 +61,13 @@ export default async function AdminUserDetailPage({
       .map((r) => r.note?.note_id)
       .filter((x): x is string => Boolean(x)),
   );
-  const firstNote = detail.participations[detail.participations.length - 1]?.note ?? null;
-  const lastNote = detail.participations[0]?.note ?? null;
+  const participationCount = detail.participations.length;
+  // First / latest by NOTE chronology, not participation creation time.
+  // note_id sorts chronologically (year + sequence: K25002 < K25004 < K26001),
+  // so positions entered out of order still report the right first/latest note.
+  const sortedNoteIds = [...uniqueNoteIds].sort();
+  const firstNoteId = sortedNoteIds[0] ?? null;
+  const latestNoteId = sortedNoteIds[sortedNoteIds.length - 1] ?? null;
 
   // A single login can own several legally-separate entities, so group the
   // participations under each entity and subtotal per group — a blended
@@ -181,7 +186,7 @@ export default async function AdminUserDetailPage({
           <CardHeader>
             <CardTitle className="text-base">Investment summary</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Field
               label="Total invested"
               value={formatCurrency(totalInvested)}
@@ -193,16 +198,20 @@ export default async function AdminUserDetailPage({
               }
             />
             <Field
+              label="Participations"
+              value={String(participationCount)}
+            />
+            <Field
               label={`Notes (${uniqueNoteIds.size})`}
               value={String(uniqueNoteIds.size)}
             />
             <Field
               label="First note"
-              value={firstNote?.note_id ?? "—"}
+              value={firstNoteId ?? "—"}
             />
             <Field
               label="Latest note"
-              value={lastNote?.note_id ?? "—"}
+              value={latestNoteId ?? "—"}
             />
           </CardContent>
         </Card>
