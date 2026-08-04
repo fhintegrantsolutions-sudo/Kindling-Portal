@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { getUsers } from "@/lib/db/admin-queries";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,10 @@ export default async function AdminUsersPage({
   const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
+    <div
+      id="users-top"
+      className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8"
+    >
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -101,8 +105,15 @@ export default async function AdminUsersPage({
         <>
           <nav
             aria-label="Jump to letter"
-            className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center gap-0.5 rounded-md bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+            className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-center gap-0.5 rounded-md bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80"
           >
+            <a
+              href="#users-top"
+              aria-label="Back to top"
+              className="flex size-6 items-center justify-center rounded text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <ArrowUp className="size-3.5" />
+            </a>
             {ALPHABET.map((L) =>
               presentLetters.has(L) ? (
                 <a
@@ -130,6 +141,13 @@ export default async function AdminUsersPage({
                 #
               </a>
             ) : null}
+            <a
+              href="#users-bottom"
+              aria-label="Jump to bottom"
+              className="flex size-6 items-center justify-center rounded text-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+            >
+              <ArrowDown className="size-3.5" />
+            </a>
           </nav>
 
           <div className="grid gap-4">
@@ -187,6 +205,7 @@ export default async function AdminUsersPage({
               );
             })}
           </div>
+          <div id="users-bottom" aria-hidden />
         </>
       )}
     </div>
