@@ -591,6 +591,46 @@ async function getEntityStatsByOwner(
   return stats;
 }
 
+export type UserCounts = {
+  all: number;
+  admins: number;
+  lenders: number;
+  // Distinct people who hold at least one participation, regardless of role —
+  // the true lender count. Exceeds the role='lender' count because some admins
+  // are also lenders (role is single-valued).
+  byPosition: number;
+  adminLenders: number;
+};
+
+export async function getUserCounts(): Promise<UserCounts> {
+  const supabase = await createClient();
+  const { data: profs } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .is("merged_into", null);
+  const rows = (profs ?? []) as Array<{ id: string; role: string }>;
+  const roleById = new Map(rows.map((r) => [r.id, r.role]));
+
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("user_id");
+  const withPosition = new Set(
+    (parts ?? [])
+      .map((p) => (p as { user_id: string | null }).user_id)
+      .filter((id): id is string => Boolean(id) && roleById.has(id!)),
+  );
+
+  return {
+    all: rows.length,
+    admins: rows.filter((r) => r.role === "admin").length,
+    lenders: rows.filter((r) => r.role === "lender").length,
+    byPosition: withPosition.size,
+    adminLenders: [...withPosition].filter(
+      (id) => roleById.get(id) !== "lender",
+    ).length,
+  };
+}
+
 export async function getUsers(filter?: {
   role?: "admin" | "lender";
   q?: string;

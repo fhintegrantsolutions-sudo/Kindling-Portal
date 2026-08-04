@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { getUsers } from "@/lib/db/admin-queries";
+import { getUsers, getUserCounts } from "@/lib/db/admin-queries";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,10 +22,13 @@ export default async function AdminUsersPage({
   const sp = await searchParams;
   const filter = sp.role ?? "all";
   const query = (sp.q ?? "").trim();
-  const users = await getUsers({
-    role: filter === "all" ? undefined : filter,
-    q: query || undefined,
-  });
+  const [users, counts] = await Promise.all([
+    getUsers({
+      role: filter === "all" ? undefined : filter,
+      q: query || undefined,
+    }),
+    getUserCounts(),
+  ]);
 
   // A-Z index. The list is sorted by first name, so we bucket by the first
   // name's initial (falling back to email); anything non-alphabetic goes to "#".
@@ -62,11 +65,38 @@ export default async function AdminUsersPage({
         </div>
       </header>
 
-      <nav className="flex gap-1 border-b">
-        <FilterTab label="All" value="all" current={filter} query={query} />
-        <FilterTab label="Admins" value="admin" current={filter} query={query} />
-        <FilterTab label="Lenders" value="lender" current={filter} query={query} />
-      </nav>
+      <div>
+        <nav className="flex gap-1 border-b">
+          <FilterTab
+            label={`All (${counts.all})`}
+            value="all"
+            current={filter}
+            query={query}
+          />
+          <FilterTab
+            label={`Admins (${counts.admins})`}
+            value="admin"
+            current={filter}
+            query={query}
+          />
+          <FilterTab
+            label={`Lenders (${counts.lenders})`}
+            value="lender"
+            current={filter}
+            query={query}
+          />
+        </nav>
+        <p className="mt-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {counts.byPosition}
+          </span>{" "}
+          people hold a lender position
+          {counts.adminLenders > 0
+            ? ` (includes ${counts.adminLenders} admin${counts.adminLenders === 1 ? "" : "s"} who are also lenders)`
+            : ""}
+          . The Lenders tab above counts only role = lender.
+        </p>
+      </div>
 
       <form
         className="flex flex-1 items-center gap-2"
