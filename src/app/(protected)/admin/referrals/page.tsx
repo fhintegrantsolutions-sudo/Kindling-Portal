@@ -162,7 +162,7 @@ function Section({
           {codes.map((c) => (
             <Link
               key={c.id}
-              href={`/admin/users/${c.user_id}`}
+              href={`/admin/referrals/${c.user_id}`}
               className="block rounded-lg transition-colors hover:bg-muted/40"
             >
               <Card>
