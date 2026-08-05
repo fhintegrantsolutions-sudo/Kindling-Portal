@@ -36,10 +36,10 @@ export function PublicTopbar({
               >
                 Sign in
               </Link>
-              {/* New participants request access here — this flow captures
-                  whether they're a CoSpark member. */}
+              {/* New participants join here — this flow (request-access)
+                  captures whether they're a CoSpark member. */}
               <Link href="/request-access">
-                <Button size="sm">Request access</Button>
+                <Button size="sm">Join</Button>
               </Link>
             </>
           )}
