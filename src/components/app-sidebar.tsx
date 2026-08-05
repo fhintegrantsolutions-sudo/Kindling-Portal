@@ -97,7 +97,7 @@ export function AppSidebar({
         mode={entityMode}
       />
       <Separator className="bg-sidebar-border" />
-      <nav className="flex flex-1 flex-col gap-1 p-4">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-4">
         {role !== "participations_admin"
           ? NAV.map((item) => (
               <NavLink
