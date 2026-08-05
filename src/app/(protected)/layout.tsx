@@ -12,7 +12,7 @@ export default async function ProtectedLayout({
   const entityCtx = await getCurrentEntityContext();
 
   return (
-    <div className="flex min-h-svh">
+    <div className="flex h-svh overflow-hidden">
       <AppSidebar
         email={session.email}
         firstName={(profile?.first_name as string | null) ?? null}
