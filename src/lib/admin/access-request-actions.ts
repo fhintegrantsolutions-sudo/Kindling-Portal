@@ -11,6 +11,25 @@ export type ApproveFormState = {
   setupUrl?: string;
 };
 
+// Toggle whether an access request's submitter is a CoSpark member. Lets an
+// admin correct the answer (e.g. a lead who is a member but answered "no", or
+// records imported without the flag set).
+export async function setAccessRequestCoSparkMember(
+  requestId: string,
+  isMember: boolean,
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("access_requests")
+    .update({ is_tcc_member: isMember })
+    .eq("id", requestId);
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/access-requests/${requestId}`);
+  revalidatePath("/admin/access-requests");
+  return {};
+}
+
 const SETUP_TOKEN_TTL_DAYS = 14;
 
 /**
