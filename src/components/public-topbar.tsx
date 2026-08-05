@@ -29,9 +29,19 @@ export function PublicTopbar({
               <Button size="sm">Go to dashboard</Button>
             </Link>
           ) : (
-            <Link href="/login">
-              <Button size="sm">Sign in</Button>
-            </Link>
+            <>
+              <Link
+                href="/login"
+                className="text-sm font-medium text-foreground/70 transition-colors hover:text-foreground"
+              >
+                Sign in
+              </Link>
+              {/* New participants request access here — this flow captures
+                  whether they're a CoSpark member. */}
+              <Link href="/request-access">
+                <Button size="sm">Request access</Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
