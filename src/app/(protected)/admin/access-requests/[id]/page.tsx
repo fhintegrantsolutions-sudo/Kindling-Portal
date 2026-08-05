@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { ApproveForm } from "./approve-form";
 import { CopyLink } from "./copy-link";
+import { CoSparkToggle } from "./cospark-toggle";
 
 export default async function AdminAccessRequestDetailPage({
   params,
@@ -150,10 +151,7 @@ export default async function AdminAccessRequestDetailPage({
           <CardTitle className="text-base">Submission details</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3 text-sm">
-          <Field
-            label="CoSpark member?"
-            value={r.is_tcc_member ? "Yes" : "No"}
-          />
+          <CoSparkToggle requestId={r.id} isMember={r.is_tcc_member} />
           <Field label="Referral code" value={r.referral_code ?? "—"} />
           <Field
             label="Note assigned"
