@@ -7,16 +7,17 @@ export default function RequestAccessPage() {
       <div className="mx-auto grid max-w-6xl gap-12 px-4 md:grid-cols-2 md:px-8">
         <div className="flex flex-col gap-4">
           <h1 className="font-serif text-4xl font-bold tracking-tight">
-            Request access
+            Join Kindling
           </h1>
           <p className="text-base text-muted-foreground">
-            Tell us a bit about yourself. We&apos;ll review your request and
-            reach out to start onboarding.
+            Kindling is the platform that supports note administration for the
+            CoSpark community. Tell us a bit about yourself and we&apos;ll review
+            your request and help you get set up.
           </p>
           <ul className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-            <li>• Quick verification process — typically a few business days</li>
-            <li>• Direct access to vetted private note opportunities</li>
-            <li>• Modern portal for tracking your portfolio</li>
+            <li>• Built exclusively for CoSpark members</li>
+            <li>• Secure access to your note information and documents</li>
+            <li>• A quick review, then we&apos;ll help you get started</li>
           </ul>
         </div>
         <div>
