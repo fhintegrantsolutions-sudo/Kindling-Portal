@@ -93,34 +93,18 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
   }
 
   const maxTotal = Math.max(...data.map((d) => d.principal + d.interest), 1);
-  const totalPrincipal = data.reduce((s, d) => s + d.principal, 0);
-  const totalInterest = data.reduce((s, d) => s + d.interest, 0);
   // The detail row shows the hovered month if any, otherwise the selected one.
   const detailPoint =
     data.find((d) => d.month === (hovered ?? selected)) ?? null;
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle className="text-base">Projected monthly income</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Principal and interest scheduled to you each month. Hover or click a
-            bar for its split.
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <Swatch
-            color={PRINCIPAL_COLOR}
-            label="Principal"
-            value={formatCurrency(totalPrincipal)}
-          />
-          <Swatch
-            color={INTEREST_COLOR}
-            label="Interest"
-            value={formatCurrency(totalInterest)}
-          />
-        </div>
+      <CardHeader>
+        <CardTitle className="text-base">Projected monthly income</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Principal and interest scheduled to you each month. Tap a bar to see
+          its split.
+        </p>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto pb-1">
@@ -227,8 +211,7 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
             </div>
           ) : (
             <span className="text-muted-foreground">
-              Hover or click a bar to see that month&apos;s principal / interest
-              split.
+              Tap a bar to see that month&apos;s principal and interest split.
             </span>
           )}
         </div>
