@@ -32,6 +32,17 @@ export type ParticipationWithNote = {
   } | null;
 };
 
+// The current entity context's registration on an opportunity, if any. When a
+// login owns several entities and is viewing "all", this aggregates across
+// them: invested is the sum, and the funding flags collapse the whole set to a
+// single stage (cleared only if every position cleared).
+export type OpportunityRegistration = {
+  invested_amount: string;
+  funding_received: boolean;
+  funding_deposited: boolean;
+  funding_cleared: boolean;
+};
+
 export type Opportunity = {
   id: string;
   note_id: string;
@@ -45,6 +56,8 @@ export type Opportunity = {
   funding_end_date: string | null;
   description: string | null;
   borrower: { business_name: string } | null;
+  // null when the current entity context has not registered on this note.
+  registration: OpportunityRegistration | null;
 };
 
 export async function getMyParticipations() {
@@ -358,7 +371,46 @@ export async function getOpportunities() {
     supabase,
     ctx?.entityIds ?? [],
   );
-  return rows.filter((n) => !n.is_private || accessible.has(n.id)) as Opportunity[];
+  const visible = rows.filter((n) => !n.is_private || accessible.has(n.id));
+
+  // Mark which of these the current entity context has already registered on,
+  // so the page can show status instead of a Register button. Keyed by the
+  // note UUID; a login viewing "all" may match on any owned entity.
+  const regByNote = new Map<string, OpportunityRegistration>();
+  const entityIds = ctx?.entityIds ?? [];
+  const noteIds = visible.map((n) => n.id);
+  if (entityIds.length > 0 && noteIds.length > 0) {
+    const { data: parts } = await supabase
+      .from("participations")
+      .select(
+        "note_id, invested_amount, funding_received, funding_deposited, funding_cleared",
+      )
+      .in("entity_id", entityIds)
+      .in("note_id", noteIds);
+
+    const groups = new Map<string, typeof parts>();
+    for (const p of parts ?? []) {
+      const arr = groups.get(p.note_id) ?? [];
+      arr.push(p);
+      groups.set(p.note_id, arr);
+    }
+    for (const [id, arr] of groups) {
+      const rowsForNote = arr ?? [];
+      regByNote.set(id, {
+        invested_amount: rowsForNote
+          .reduce((sum, p) => sum + Number(p.invested_amount ?? 0), 0)
+          .toFixed(2),
+        funding_received: rowsForNote.some((p) => p.funding_received),
+        funding_deposited: rowsForNote.some((p) => p.funding_deposited),
+        funding_cleared: rowsForNote.every((p) => p.funding_cleared),
+      });
+    }
+  }
+
+  return visible.map((n) => ({
+    ...n,
+    registration: regByNote.get(n.id) ?? null,
+  })) as Opportunity[];
 }
 
 export type NoteDetail = {

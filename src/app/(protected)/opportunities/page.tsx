@@ -1,9 +1,23 @@
 import Link from "next/link";
-import { getNextUpcomingNote, getOpportunities } from "@/lib/db/queries";
+import { Check } from "lucide-react";
+import {
+  getNextUpcomingNote,
+  getOpportunities,
+  type OpportunityRegistration,
+} from "@/lib/db/queries";
 import { formatCurrency, formatDate, formatPercent, formatNoteLabel } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Countdown } from "./countdown";
+
+// Short status shown in place of the Register button once the current entity
+// has a position on the note.
+function registrationLabel(reg: OpportunityRegistration): string {
+  if (reg.funding_cleared) return "Registered · Funded";
+  if (reg.funding_received || reg.funding_deposited)
+    return "Registered · Funding received";
+  return "Registered · Pending funding";
+}
 
 export default async function OpportunitiesPage() {
   const [notes, upcoming] = await Promise.all([
@@ -114,9 +128,21 @@ export default async function OpportunitiesPage() {
                       />
                     </div>
                     <div className="relative z-10">
-                      <Link href={`/opportunities/${n.note_id}`}>
-                        <Button size="sm">Register</Button>
-                      </Link>
+                      {n.registration ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-medium text-primary"
+                          title={`You registered ${formatCurrency(
+                            n.registration.invested_amount,
+                          )}`}
+                        >
+                          <Check className="size-3" />
+                          {registrationLabel(n.registration)}
+                        </span>
+                      ) : (
+                        <Link href={`/opportunities/${n.note_id}`}>
+                          <Button size="sm">Register</Button>
+                        </Link>
+                      )}
                     </div>
                   </div>
                   {n.description ? (
