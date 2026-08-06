@@ -11,12 +11,6 @@ export default async function ProfileLayout({
   const tabs: ProfileTab[] = [
     { label: "Profile info", href: "/profile", exact: true },
     { label: "Beneficiaries", href: "/profile/beneficiaries", exact: false },
-    { label: "Tax forms", href: "/profile/tax-forms", exact: false },
-    {
-      label: "Loan agreement",
-      href: "/profile/loan-agreement",
-      exact: false,
-    },
   ];
   if (referralCode?.is_active) {
     tabs.push({
