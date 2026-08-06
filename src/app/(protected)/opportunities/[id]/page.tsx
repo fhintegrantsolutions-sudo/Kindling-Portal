@@ -168,7 +168,11 @@ function ExistingParticipationPanel({
           : "You're already a participant in this note."}
       </p>
       <Link href={`/notes/${noteHumanId}`}>
-        <Button variant="outline">View your participation →</Button>
+        <Button variant="outline">
+          {isAwaitingFunding
+            ? "View or edit participation →"
+            : "View your participation →"}
+        </Button>
       </Link>
     </div>
   );
