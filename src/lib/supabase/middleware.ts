@@ -9,6 +9,9 @@ const PUBLIC_PATHS = [
   "/request-access",
   "/login",
   "/forgot-password",
+  // Auto-generated share-card image — must be fetchable by link-preview
+  // crawlers (iMessage, Slack, social), which have no session.
+  "/opengraph-image",
 ];
 
 // Path *prefixes* reachable without a session (any sub-path).
