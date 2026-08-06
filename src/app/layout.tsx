@@ -13,10 +13,30 @@ const libreBaskerville = Libre_Baskerville({
   subsets: ["latin"],
 });
 
+const SITE_DESCRIPTION =
+  "The operating platform behind a modern note experience — secure note administration for the CoSpark community.";
+
 export const metadata: Metadata = {
-  title: "Kindling Portal",
-  description: "Kindling lender portal",
+  // Makes the auto-generated opengraph-image URL absolute in link previews.
+  metadataBase: new URL("https://kindling.network"),
+  title: {
+    default: "Kindling",
+    template: "%s · Kindling",
+  },
+  description: SITE_DESCRIPTION,
   icons: { icon: "/favicon.svg" },
+  openGraph: {
+    type: "website",
+    siteName: "Kindling",
+    url: "https://kindling.network",
+    title: "Kindling",
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kindling",
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
