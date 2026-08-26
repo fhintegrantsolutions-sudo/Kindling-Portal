@@ -9,6 +9,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/phone-input";
+import { StateSelect } from "@/components/state-select";
+import { ZipInput } from "@/components/zip-input";
 import { Label } from "@/components/ui/label";
 
 export type BorrowerDefaults = {
@@ -93,7 +96,7 @@ export function BorrowerForm({
           <Field
             name="phone"
             label="Phone"
-            type="tel"
+            phone
             defaultValue={defaults.phone}
             error={fe.phone}
             required
@@ -110,8 +113,18 @@ export function BorrowerForm({
             className="sm:col-span-2"
           />
           <Field name="city" label="City" defaultValue={defaults.city} />
-          <Field name="state" label="State" defaultValue={defaults.state} />
-          <Field name="zip_code" label="ZIP" defaultValue={defaults.zip_code} />
+          <Field
+            name="state"
+            label="State"
+            stateSelect
+            defaultValue={defaults.state}
+          />
+          <Field
+            name="zip_code"
+            label="ZIP"
+            zip
+            defaultValue={defaults.zip_code}
+          />
         </div>
       </Section>
 
@@ -169,6 +182,9 @@ function Field({
   error,
   className,
   required,
+  phone,
+  stateSelect,
+  zip,
 }: {
   name: string;
   label: string;
@@ -178,6 +194,9 @@ function Field({
   error?: string;
   className?: string;
   required?: boolean;
+  phone?: boolean;
+  stateSelect?: boolean;
+  zip?: boolean;
 }) {
   return (
     <div className={`flex flex-col gap-2 ${className ?? ""}`}>
@@ -185,14 +204,37 @@ function Field({
         {label}
         {required ? " *" : ""}
       </Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        defaultValue={defaultValue ?? undefined}
-        placeholder={placeholder}
-        aria-invalid={Boolean(error) || undefined}
-      />
+      {phone ? (
+        <PhoneInput
+          name={name}
+          defaultValue={defaultValue}
+          required={required}
+          ariaInvalid={Boolean(error)}
+        />
+      ) : stateSelect ? (
+        <StateSelect
+          name={name}
+          defaultValue={defaultValue}
+          required={required}
+          ariaInvalid={Boolean(error)}
+        />
+      ) : zip ? (
+        <ZipInput
+          name={name}
+          defaultValue={defaultValue}
+          required={required}
+          ariaInvalid={Boolean(error)}
+        />
+      ) : (
+        <Input
+          id={name}
+          name={name}
+          type={type}
+          defaultValue={defaultValue ?? undefined}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error) || undefined}
+        />
+      )}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );

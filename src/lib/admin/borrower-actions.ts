@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
 import { normalizeEmail, toProperCase } from "@/lib/text";
+import { formatPhone, phoneDigits } from "@/lib/phone";
+import { formatZip, isValidZip, normalizeState } from "@/lib/address";
 
 export type BorrowerFormState = {
   error?: string;
@@ -64,11 +66,11 @@ function parseFields(formData: FormData) {
     first_name: toProperCase(text(formData, "first_name")),
     last_name: toProperCase(text(formData, "last_name")) || null,
     email: normalizeEmail(text(formData, "email")),
-    phone: text(formData, "phone"),
+    phone: formatPhone(text(formData, "phone")),
     address: textOrNull(formData, "address"),
-    city: textOrNull(formData, "city"),
-    state: textOrNull(formData, "state"),
-    zip_code: textOrNull(formData, "zip_code"),
+    city: toProperCase(text(formData, "city")) || null,
+    state: normalizeState(text(formData, "state")) || null,
+    zip_code: formatZip(text(formData, "zip_code")) || null,
     tax_id: textOrNull(formData, "tax_id"),
     business_type: textOrNull(formData, "business_type"),
     notes: textOrNull(formData, "notes"),
@@ -83,6 +85,10 @@ function validate(fields: Fields): Record<string, string> {
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.email))
     errors.email = "Enter a valid email";
   if (!fields.phone) errors.phone = "Required";
+  else if (phoneDigits(fields.phone).length !== 10)
+    errors.phone = "Enter a valid 10-digit phone number";
+  if (fields.zip_code && !isValidZip(fields.zip_code))
+    errors.zip_code = "Enter a valid 5-digit ZIP code";
   return errors;
 }
 

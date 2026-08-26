@@ -9,6 +9,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/phone-input";
 import { Label } from "@/components/ui/label";
 import {
   Sheet,
@@ -75,13 +76,7 @@ export function AddExternalPartnerForm() {
             error={fe.email}
             required
           />
-          <Field
-            name="phone"
-            label="Phone"
-            type="tel"
-            error={fe.phone}
-            required
-          />
+          <Field name="phone" label="Phone" phone error={fe.phone} required />
           <Field
             name="business_name"
             label="Business (optional)"
@@ -131,12 +126,14 @@ function Field({
   type = "text",
   error,
   required,
+  phone,
 }: {
   name: string;
   label: string;
   type?: string;
   error?: string;
   required?: boolean;
+  phone?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -144,7 +141,11 @@ function Field({
         {label}
         {required ? " *" : ""}
       </Label>
-      <Input id={name} name={name} type={type} required={required} />
+      {phone ? (
+        <PhoneInput name={name} required={required} ariaInvalid={Boolean(error)} />
+      ) : (
+        <Input id={name} name={name} type={type} required={required} />
+      )}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );

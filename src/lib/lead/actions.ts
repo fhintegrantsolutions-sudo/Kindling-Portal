@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { toProperCase } from "@/lib/text";
+import { formatZip, isValidZip, normalizeState } from "@/lib/address";
 
 export type LeadFormState = {
   error?: string;
@@ -79,9 +81,9 @@ export async function submitLeadParticipationForm(
     business_name: text(formData, "business_name"),
     name_for_agreement: text(formData, "name_for_agreement"),
     mailing_address: text(formData, "mailing_address"),
-    city: text(formData, "city"),
-    state: text(formData, "state"),
-    zip_code: text(formData, "zip_code"),
+    city: toProperCase(text(formData, "city")),
+    state: normalizeState(text(formData, "state")),
+    zip_code: formatZip(text(formData, "zip_code")),
     acknowledge_lender: formData.get("acknowledge_lender") === "on",
   };
 
@@ -99,6 +101,8 @@ export async function submitLeadParticipationForm(
   if (!fields.city) fieldErrors.city = "Required";
   if (!fields.state) fieldErrors.state = "Required";
   if (!fields.zip_code) fieldErrors.zip_code = "Required";
+  else if (!isValidZip(fields.zip_code))
+    fieldErrors.zip_code = "Enter a valid 5-digit ZIP code";
   if (!fields.acknowledge_lender)
     fieldErrors.acknowledge_lender = "You must acknowledge to submit";
 

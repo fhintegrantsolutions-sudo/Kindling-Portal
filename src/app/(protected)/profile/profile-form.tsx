@@ -12,6 +12,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/phone-input";
+import { StateSelect } from "@/components/state-select";
+import { ZipInput } from "@/components/zip-input";
 
 type ProfileDefaults = {
   first_name: string | null;
@@ -80,16 +82,20 @@ export function ProfileForm({
               label="City"
               defaultValue={defaults.address_city}
             />
-            <FieldInput
-              name="address_state"
-              label="State"
-              defaultValue={defaults.address_state}
-            />
-            <FieldInput
-              name="address_zip"
-              label="ZIP"
-              defaultValue={defaults.address_zip}
-            />
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="address_state">State</Label>
+              <StateSelect
+                name="address_state"
+                defaultValue={defaults.address_state}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="address_zip">ZIP</Label>
+              <ZipInput
+                name="address_zip"
+                defaultValue={defaults.address_zip}
+              />
+            </div>
           </div>
         </div>
       </section>

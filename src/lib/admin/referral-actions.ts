@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/dal";
 import { normalizeEmail, toProperCase } from "@/lib/text";
+import { formatPhone, phoneDigits } from "@/lib/phone";
 
 const CODE_LEN = 6;
 const CODE_ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I
@@ -150,7 +151,7 @@ function parsePartnerFields(formData: FormData): PartnerFields {
     first_name: toProperCase(String(formData.get("first_name") ?? "")),
     last_name: toProperCase(String(formData.get("last_name") ?? "")),
     email: normalizeEmail(String(formData.get("email") ?? "")),
-    phone: String(formData.get("phone") ?? "").trim(),
+    phone: formatPhone(String(formData.get("phone") ?? "")),
     business_name: String(formData.get("business_name") ?? "").trim() || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
   };
@@ -164,6 +165,8 @@ function validatePartnerFields(f: PartnerFields): Record<string, string> {
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email))
     errors.email = "Enter a valid email";
   if (!f.phone) errors.phone = "Required";
+  else if (phoneDigits(f.phone).length !== 10)
+    errors.phone = "Enter a valid 10-digit phone number";
   return errors;
 }
 

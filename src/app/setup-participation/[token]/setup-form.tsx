@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StateSelect } from "@/components/state-select";
+import { ZipInput } from "@/components/zip-input";
 
 const ENTITY_TYPES = [
   "Individual",
@@ -145,8 +147,8 @@ export function SetupForm({
           className="sm:col-span-2"
         />
         <Field name="city" label="City" error={fe.city} />
-        <Field name="state" label="State" error={fe.state} />
-        <Field name="zip_code" label="ZIP" error={fe.zip_code} />
+        <Field name="state" label="State" error={fe.state} stateSelect />
+        <Field name="zip_code" label="ZIP" error={fe.zip_code} zip />
       </div>
 
       <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
@@ -208,9 +210,13 @@ function Field({
   type,
   step,
   min,
+  stateSelect,
+  zip,
 }: {
   name: string;
   label: string;
+  stateSelect?: boolean;
+  zip?: boolean;
   placeholder?: string;
   error?: string;
   className?: string;
@@ -223,15 +229,21 @@ function Field({
       <Label htmlFor={name}>
         {label} <span className="text-destructive">*</span>
       </Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        step={step}
-        min={min}
-        placeholder={placeholder}
-        aria-invalid={Boolean(error) || undefined}
-      />
+      {stateSelect ? (
+        <StateSelect name={name} required ariaInvalid={Boolean(error)} />
+      ) : zip ? (
+        <ZipInput name={name} required ariaInvalid={Boolean(error)} />
+      ) : (
+        <Input
+          id={name}
+          name={name}
+          type={type}
+          step={step}
+          min={min}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error) || undefined}
+        />
+      )}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );

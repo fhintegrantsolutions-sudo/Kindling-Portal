@@ -5,6 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { formatPhone, phoneDigits } from "@/lib/phone";
+import { formatZip, isValidZip, normalizeState } from "@/lib/address";
+import { toProperCase } from "@/lib/text";
 
 export type ProfileFormState = {
   error?: string;
@@ -36,11 +38,16 @@ export async function updateProfile(
     return { error: "Enter a valid 10-digit phone number." };
   }
   const phone = phoneRaw.length === 10 ? formatPhone(phoneRaw) : null;
+  const zipRaw = String(formData.get("address_zip") ?? "");
+  if (!isValidZip(zipRaw)) {
+    return { error: "Enter a valid 5-digit ZIP code." };
+  }
   const address = {
     address_street: String(formData.get("address_street") ?? "").trim() || null,
-    address_city: String(formData.get("address_city") ?? "").trim() || null,
-    address_state: String(formData.get("address_state") ?? "").trim() || null,
-    address_zip: String(formData.get("address_zip") ?? "").trim() || null,
+    address_city: toProperCase(String(formData.get("address_city") ?? "")) || null,
+    address_state:
+      normalizeState(String(formData.get("address_state") ?? "")) || null,
+    address_zip: formatZip(zipRaw) || null,
   };
 
   // The address belongs to the SELECTED entity — never the primary one. Writing
