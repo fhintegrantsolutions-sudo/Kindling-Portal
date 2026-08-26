@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/phone-input";
 
 type ProfileDefaults = {
   first_name: string | null;
@@ -55,7 +56,10 @@ export function ProfileForm({
           defaultValue={defaults.last_name}
           disabled
         />
-        <FieldInput name="phone" label="Phone" defaultValue={defaults.phone} type="tel" />
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="phone">Phone</Label>
+          <PhoneInput name="phone" defaultValue={defaults.phone} />
+        </div>
       </section>
 
       <section>

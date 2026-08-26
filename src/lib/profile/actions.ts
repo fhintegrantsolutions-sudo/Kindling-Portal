@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentEntityContext } from "@/lib/entities/context";
+import { formatPhone, phoneDigits } from "@/lib/phone";
 
 export type ProfileFormState = {
   error?: string;
@@ -28,7 +29,13 @@ export async function updateProfile(
   // first_name / last_name are intentionally NOT writable here — they're locked
   // (greyed out) on the lender's profile UI. entity_type and loan_agreement_title
   // are likewise admin-only (shown read-only on the Loan agreement tab).
-  const phone = String(formData.get("phone") ?? "").trim() || null;
+  // Phone is optional, but if present it must be a complete US number. Store
+  // it in the canonical (XXX) XXX-XXXX form so every record looks the same.
+  const phoneRaw = phoneDigits(String(formData.get("phone") ?? ""));
+  if (phoneRaw.length > 0 && phoneRaw.length !== 10) {
+    return { error: "Enter a valid 10-digit phone number." };
+  }
+  const phone = phoneRaw.length === 10 ? formatPhone(phoneRaw) : null;
   const address = {
     address_street: String(formData.get("address_street") ?? "").trim() || null,
     address_city: String(formData.get("address_city") ?? "").trim() || null,

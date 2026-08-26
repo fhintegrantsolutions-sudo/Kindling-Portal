@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { normalizeEmail, toProperCase } from "@/lib/text";
+import { formatPhone, phoneDigits } from "@/lib/phone";
 import { notifyAccessRequestSubmitted } from "@/lib/ghl/notify-access-request";
 
 export type AccessRequestFormState = {
@@ -32,10 +33,15 @@ export async function submitAccessRequest(
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.email))
     fieldErrors.email = "Enter a valid email address";
   if (!fields.phone) fieldErrors.phone = "Required";
+  else if (phoneDigits(fields.phone).length !== 10)
+    fieldErrors.phone = "Enter a valid 10-digit phone number";
   if (tcc !== "yes" && tcc !== "no")
     fieldErrors.is_tcc_member = "Please select yes or no";
 
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
+
+  // Store the phone in the canonical (XXX) XXX-XXXX form.
+  fields.phone = formatPhone(fields.phone);
 
   const supabase = await createClient();
   const { error } = await supabase.from("access_requests").insert(fields);

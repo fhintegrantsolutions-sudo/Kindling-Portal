@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/phone-input";
 
 export function RequestAccessForm() {
   const searchParams = useSearchParams();
@@ -88,13 +89,7 @@ export function RequestAccessForm() {
           error={fe.email}
           required
         />
-        <Field
-          name="phone"
-          label="Phone"
-          type="tel"
-          error={fe.phone}
-          required
-        />
+        <Field name="phone" label="Phone" error={fe.phone} required phone />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -152,12 +147,14 @@ function Field({
   type = "text",
   error,
   required,
+  phone,
 }: {
   name: string;
   label: string;
   type?: string;
   error?: string;
   required?: boolean;
+  phone?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -165,13 +162,21 @@ function Field({
         {label}
         {required ? " *" : ""}
       </Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        required={required}
-        aria-invalid={Boolean(error) || undefined}
-      />
+      {phone ? (
+        <PhoneInput
+          name={name}
+          required={required}
+          ariaInvalid={Boolean(error)}
+        />
+      ) : (
+        <Input
+          id={name}
+          name={name}
+          type={type}
+          required={required}
+          aria-invalid={Boolean(error) || undefined}
+        />
+      )}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
