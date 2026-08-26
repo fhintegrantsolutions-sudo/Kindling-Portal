@@ -21,9 +21,6 @@ export default function PublicLayout({
               Privacy Policy
             </Link>
           </div>
-          <p className="text-xs">
-            Investments in private notes are not FDIC-insured and may lose value.
-          </p>
         </div>
       </footer>
     </div>
