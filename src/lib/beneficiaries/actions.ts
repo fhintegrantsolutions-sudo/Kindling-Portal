@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getWriteEntityId } from "@/lib/entities/context";
+import { formatPhone, phoneDigits } from "@/lib/phone";
 
 export type BeneficiaryFormState = {
   error?: string;
@@ -177,7 +178,10 @@ function parseFields(formData: FormData): Fields {
     percentage: Number(formData.get("percentage") ?? 0),
     type: String(formData.get("type") ?? "Primary").trim() || "Primary",
     dob: textOrNull(formData, "dob"),
-    phone: textOrNull(formData, "phone"),
+    // Standardize to (XXX) XXX-XXXX; validate() rejects incomplete numbers.
+    phone: ((raw) => (raw ? formatPhone(raw) : null))(
+      String(formData.get("phone") ?? "").trim(),
+    ),
     address: textOrNull(formData, "address"),
     ssn_last4: textOrNull(formData, "ssn_last4"),
   };
@@ -194,6 +198,9 @@ function validate(fields: Fields): Record<string, string> {
   }
   if (fields.type !== "Primary" && fields.type !== "Contingent") {
     errors.type = "Must be Primary or Contingent";
+  }
+  if (fields.phone !== null && phoneDigits(fields.phone).length !== 10) {
+    errors.phone = "Enter a valid 10-digit phone number";
   }
   if (fields.ssn_last4 !== null && !/^[0-9]{4}$/.test(fields.ssn_last4)) {
     errors.ssn_last4 = "Enter the last 4 digits (numbers only)";

@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/phone-input";
 
 export type BeneficiaryDefaults = {
   name: string | null;
@@ -101,8 +102,9 @@ export function BeneficiaryForm({
         <FieldInput
           name="phone"
           label="Phone"
-          type="tel"
+          phone
           defaultValue={defaults.phone}
+          error={fe.phone}
         />
         <FieldInput
           name="ssn_last4"
@@ -151,6 +153,7 @@ function FieldInput({
   max,
   inputMode,
   maxLength,
+  phone,
 }: {
   name: string;
   label: string;
@@ -163,22 +166,31 @@ function FieldInput({
   max?: string;
   inputMode?: "numeric";
   maxLength?: number;
+  phone?: boolean;
 }) {
   return (
     <div className={`flex flex-col gap-2 ${className ?? ""}`}>
       <Label htmlFor={name}>{label}</Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        defaultValue={defaultValue ?? undefined}
-        placeholder={placeholder}
-        min={min}
-        max={max}
-        inputMode={inputMode}
-        maxLength={maxLength}
-        aria-invalid={Boolean(error) || undefined}
-      />
+      {phone ? (
+        <PhoneInput
+          name={name}
+          defaultValue={defaultValue}
+          ariaInvalid={Boolean(error)}
+        />
+      ) : (
+        <Input
+          id={name}
+          name={name}
+          type={type}
+          defaultValue={defaultValue ?? undefined}
+          placeholder={placeholder}
+          min={min}
+          max={max}
+          inputMode={inputMode}
+          maxLength={maxLength}
+          aria-invalid={Boolean(error) || undefined}
+        />
+      )}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
