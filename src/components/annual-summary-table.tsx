@@ -11,12 +11,18 @@ export function AnnualSummaryTable({
   summary,
   statusByYear,
   highlightYear,
+  bonusYears,
 }: {
   summary: AnnualSummary;
   statusByYear?: Map<number, YearStatus>;
   highlightYear?: number;
+  // Years a profit bonus was paid — marked with a "*" next to that year's
+  // interest, with a footnote below the table.
+  bonusYears?: Set<number>;
 }) {
   const showStatus = statusByYear !== undefined;
+  const hasBonusFootnote =
+    !!bonusYears && summary.rows.some((r) => bonusYears.has(r.year));
   const statusClass: Record<YearStatus, string> = {
     Paid: "text-green-700",
     "In progress": "text-amber-600",
@@ -51,6 +57,14 @@ export function AnnualSummaryTable({
               </td>
               <td className="py-2 pr-2 text-right tabular-nums">
                 {formatCurrency(r.interest)}
+                {bonusYears?.has(r.year) ? (
+                  <span
+                    className="text-primary"
+                    title="Profit bonus paid this year"
+                  >
+                    *
+                  </span>
+                ) : null}
               </td>
               <td className="py-2 pr-2 text-right tabular-nums font-medium">
                 {formatCurrency(r.total)}
@@ -81,6 +95,12 @@ export function AnnualSummaryTable({
           </tr>
         </tfoot>
       </table>
+      {hasBonusFootnote ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          <span className="text-primary">*</span> A profit bonus was paid this
+          year, in addition to scheduled interest.
+        </p>
+      ) : null}
     </div>
   );
 }

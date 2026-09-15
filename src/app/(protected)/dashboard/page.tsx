@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarClock, DollarSign, PieChart, TrendingUp } from "lucide-react";
 import { getCurrentProfile } from "@/lib/dal";
 import {
+  getMyBonusYears,
   getMyMonthlyCashflow,
   getMyParticipations,
   getMyTotalMonthlyPayment,
@@ -20,15 +21,23 @@ import { AnnualSummaryTable } from "@/components/annual-summary-table";
 import { rollupByYear } from "@/lib/notes/annual-summary";
 
 export default async function DashboardPage() {
-  const [profile, participations, totalMonthly, monthlyCashflow, ctx, byEntity] =
-    await Promise.all([
-      getCurrentProfile(),
-      getMyParticipations(),
-      getMyTotalMonthlyPayment(),
-      getMyMonthlyCashflow(),
-      getCurrentEntityContext(),
-      getMyTotalsByEntity(),
-    ]);
+  const [
+    profile,
+    participations,
+    totalMonthly,
+    monthlyCashflow,
+    ctx,
+    byEntity,
+    bonusYears,
+  ] = await Promise.all([
+    getCurrentProfile(),
+    getMyParticipations(),
+    getMyTotalMonthlyPayment(),
+    getMyMonthlyCashflow(),
+    getCurrentEntityContext(),
+    getMyTotalsByEntity(),
+    getMyBonusYears(),
+  ]);
 
   // Only in "All entities" mode, and only for logins that actually own more than
   // one entity — single-entity lenders see no breakdown at all.
@@ -151,6 +160,7 @@ export default async function DashboardPage() {
                 <AnnualSummaryTable
                   summary={annual}
                   highlightYear={currentYear}
+                  bonusYears={bonusYears}
                 />
               </CardContent>
             </Card>

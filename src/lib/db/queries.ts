@@ -103,6 +103,40 @@ export type MonthlyCashflowPoint = {
   interest: number;
 };
 
+// Calendar years in which a profit bonus was actually PAID (status "received")
+// to any of the current entity context's participations. Drives the "*" marker
+// on the dashboard annual summary. Scoped by the entity switcher like the rest
+// of the dashboard.
+export async function getMyBonusYears(): Promise<Set<number>> {
+  const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return new Set();
+
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("id")
+    .in("entity_id", ctx.entityIds);
+  const partIds = (parts ?? []).map((p) => p.id as string);
+  if (partIds.length === 0) return new Set();
+
+  const { data: payouts } = await supabase
+    .from("participation_bonus_payouts")
+    .select("bonus:note_bonuses ( paid_date, status )")
+    .in("participation_id", partIds);
+
+  const years = new Set<number>();
+  for (const row of payouts ?? []) {
+    const bonus = row.bonus as unknown as {
+      paid_date: string | null;
+      status: string | null;
+    } | null;
+    if (bonus?.status !== "received" || !bonus.paid_date) continue;
+    const y = Number(String(bonus.paid_date).slice(0, 4));
+    if (Number.isFinite(y)) years.add(y);
+  }
+  return years;
+}
+
 // Aggregate the lender's projected monthly payments (principal + interest,
 // pro-rated to their share) across all funded notes, keyed by calendar month.
 // Returns a continuous month-by-month timeline from the first scheduled payment
