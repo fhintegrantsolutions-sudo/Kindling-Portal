@@ -97,8 +97,8 @@ export function AnnualSummaryTable({
       </table>
       {hasBonusFootnote ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          <span className="text-primary">*</span> A profit bonus was paid this
-          year, in addition to scheduled interest.
+          <span className="text-primary">*</span> Interest includes a profit
+          bonus paid this year.
         </p>
       ) : null}
     </div>

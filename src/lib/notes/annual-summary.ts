@@ -45,6 +45,10 @@ export function rollupByYear(months: MonthlyPI[]): AnnualSummary {
       total: cents(v.principal + v.interest),
     }));
 
+  return withTotals(rows);
+}
+
+function withTotals(rows: AnnualSummaryRow[]): AnnualSummary {
   const totals = rows.reduce(
     (acc, r) => ({
       principal: cents(acc.principal + r.principal),
@@ -53,6 +57,33 @@ export function rollupByYear(months: MonthlyPI[]): AnnualSummary {
     }),
     { principal: 0, interest: 0, total: 0 },
   );
-
   return { rows, totals };
+}
+
+// Fold actual profit-bonus dollars into each year's INTEREST (and total). Any
+// bonus year missing from the projection gets its own row. Returns a fresh
+// summary; the caller marks these years with a "*". Bonuses are one-time actual
+// payments layered on top of the scheduled interest projection.
+export function foldBonuses(
+  summary: AnnualSummary,
+  bonusByYear: Map<number, number>,
+): AnnualSummary {
+  if (bonusByYear.size === 0) return summary;
+  const byYear = new Map<number, AnnualSummaryRow>(
+    summary.rows.map((r) => [r.year, { ...r }]),
+  );
+  for (const [year, amount] of bonusByYear) {
+    if (!Number.isFinite(year) || amount === 0) continue;
+    const cur = byYear.get(year) ?? {
+      year,
+      principal: 0,
+      interest: 0,
+      total: 0,
+    };
+    cur.interest = cents(cur.interest + amount);
+    cur.total = cents(cur.total + amount);
+    byYear.set(year, cur);
+  }
+  const rows = [...byYear.values()].sort((a, b) => a.year - b.year);
+  return withTotals(rows);
 }

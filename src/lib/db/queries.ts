@@ -103,28 +103,28 @@ export type MonthlyCashflowPoint = {
   interest: number;
 };
 
-// Calendar years in which a profit bonus was actually PAID (status "received")
-// to any of the current entity context's participations. Drives the "*" marker
-// on the dashboard annual summary. Scoped by the entity switcher like the rest
-// of the dashboard.
-export async function getMyBonusYears(): Promise<Set<number>> {
+// Total profit-bonus dollars actually PAID (status "received") per calendar
+// year to the current entity context's participations. Folded into the
+// dashboard annual summary's interest (and marked with "*"). Scoped by the
+// entity switcher like the rest of the dashboard.
+export async function getMyBonusByYear(): Promise<Map<number, number>> {
   const supabase = await createClient();
   const ctx = await getCurrentEntityContext();
-  if (!ctx || ctx.entityIds.length === 0) return new Set();
+  const byYear = new Map<number, number>();
+  if (!ctx || ctx.entityIds.length === 0) return byYear;
 
   const { data: parts } = await supabase
     .from("participations")
     .select("id")
     .in("entity_id", ctx.entityIds);
   const partIds = (parts ?? []).map((p) => p.id as string);
-  if (partIds.length === 0) return new Set();
+  if (partIds.length === 0) return byYear;
 
   const { data: payouts } = await supabase
     .from("participation_bonus_payouts")
-    .select("bonus:note_bonuses ( paid_date, status )")
+    .select("amount, bonus:note_bonuses ( paid_date, status )")
     .in("participation_id", partIds);
 
-  const years = new Set<number>();
   for (const row of payouts ?? []) {
     const bonus = row.bonus as unknown as {
       paid_date: string | null;
@@ -132,9 +132,10 @@ export async function getMyBonusYears(): Promise<Set<number>> {
     } | null;
     if (bonus?.status !== "received" || !bonus.paid_date) continue;
     const y = Number(String(bonus.paid_date).slice(0, 4));
-    if (Number.isFinite(y)) years.add(y);
+    if (!Number.isFinite(y)) continue;
+    byYear.set(y, (byYear.get(y) ?? 0) + Number(row.amount ?? 0));
   }
-  return years;
+  return byYear;
 }
 
 // Aggregate the lender's projected monthly payments (principal + interest,

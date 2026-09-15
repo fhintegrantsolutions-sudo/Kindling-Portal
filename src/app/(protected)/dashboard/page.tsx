@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CalendarClock, DollarSign, PieChart, TrendingUp } from "lucide-react";
 import { getCurrentProfile } from "@/lib/dal";
 import {
-  getMyBonusYears,
+  getMyBonusByYear,
   getMyMonthlyCashflow,
   getMyParticipations,
   getMyTotalMonthlyPayment,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/card";
 import { MonthlyCashflowChart } from "./monthly-cashflow-chart";
 import { AnnualSummaryTable } from "@/components/annual-summary-table";
-import { rollupByYear } from "@/lib/notes/annual-summary";
+import { foldBonuses, rollupByYear } from "@/lib/notes/annual-summary";
 
 export default async function DashboardPage() {
   const [
@@ -28,7 +28,7 @@ export default async function DashboardPage() {
     monthlyCashflow,
     ctx,
     byEntity,
-    bonusYears,
+    bonusByYear,
   ] = await Promise.all([
     getCurrentProfile(),
     getMyParticipations(),
@@ -36,7 +36,7 @@ export default async function DashboardPage() {
     getMyMonthlyCashflow(),
     getCurrentEntityContext(),
     getMyTotalsByEntity(),
-    getMyBonusYears(),
+    getMyBonusByYear(),
   ]);
 
   // Only in "All entities" mode, and only for logins that actually own more than
@@ -59,13 +59,19 @@ export default async function DashboardPage() {
 
   // Calendar-year rollup of projected principal + interest across all funded
   // notes. Pure aggregation of the monthly cashflow already computed above.
-  const annual = rollupByYear(
-    monthlyCashflow.map((m) => ({
-      date: m.month,
-      principal: m.principal,
-      interest: m.interest,
-    })),
+  // Project scheduled P&I, then fold in any profit bonuses actually paid so a
+  // bonus year's interest reflects the extra dollars (marked with a "*").
+  const annual = foldBonuses(
+    rollupByYear(
+      monthlyCashflow.map((m) => ({
+        date: m.month,
+        principal: m.principal,
+        interest: m.interest,
+      })),
+    ),
+    bonusByYear,
   );
+  const bonusYears = new Set(bonusByYear.keys());
   const currentYear = new Date().getFullYear();
 
   return (
