@@ -16,7 +16,17 @@ export type NoteFormState = {
   fieldErrors?: Record<string, string>;
 };
 
-const STATUS_OPTIONS = ["Active", "Funded", "Closed"] as const;
+// Note lifecycle: Draft (setup) -> Open (accepting funding) -> Funded (funding
+// closed, servicing/paying lenders) -> Completed (repaid). Defaulted/Cancelled
+// are exception states. "Open" is the only status that accepts new funding.
+const STATUS_OPTIONS = [
+  "Draft",
+  "Open",
+  "Funded",
+  "Completed",
+  "Defaulted",
+  "Cancelled",
+] as const;
 const CLIENT_STATUS_OPTIONS = ["Available", "Closed"] as const;
 const INTEREST_TYPE_OPTIONS = ["Amortized", "Interest only"] as const;
 
@@ -212,7 +222,7 @@ function parseFields(formData: FormData) {
     funding_end_date: text(formData, "funding_end_date") || null,
     description: text(formData, "description") || null,
     admin_notes: text(formData, "admin_notes") || null,
-    status: text(formData, "status") || "Active",
+    status: text(formData, "status") || "Open",
     client_status: text(formData, "client_status") || "Available",
   };
 }

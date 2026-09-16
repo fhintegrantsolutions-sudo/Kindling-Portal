@@ -32,14 +32,14 @@ export type StateUserCount = {
 export async function getUsersByState(): Promise<StateUserCount[]> {
   const supabase = await createClient();
 
-  // Only count users who have at least one cleared participation on a note
-  // whose status is "Active" — admins/lenders without any active position
-  // don't represent capital deployed and shouldn't show on the heat map.
+  // Only count users who have at least one cleared participation on a live note
+  // (Open or Funded) — admins/lenders without any active position don't
+  // represent capital deployed and shouldn't show on the heat map.
   const { data: activeParts } = await supabase
     .from("participations")
     .select("user_id, note:notes!inner(status)")
     .eq("funding_cleared", true)
-    .eq("note.status", "Active");
+    .in("note.status", ["Open", "Funded"]);
 
   const activeUserIds = new Set(
     ((activeParts ?? []) as Array<{ user_id: string | null }>)

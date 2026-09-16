@@ -333,7 +333,7 @@ export async function getNextUpcomingNote(): Promise<UpcomingNote | null> {
   const { data } = await supabase
     .from("notes")
     .select("id, note_id, title, funding_start_date, funding_end_date")
-    .eq("status", "Active")
+    .eq("status", "Open")
     .eq("client_status", "Available")
     .gt("funding_start_date", today)
     .order("funding_start_date", { ascending: true })
@@ -388,7 +388,7 @@ export async function getOpportunities() {
       )
       `,
     )
-    .eq("status", "Active")
+    .eq("status", "Open")
     .eq("client_status", "Available")
     .or(`funding_start_date.is.null,funding_start_date.lte.${today}`)
     .or(`funding_end_date.is.null,funding_end_date.gte.${today}`)

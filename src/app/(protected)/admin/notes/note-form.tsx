@@ -261,16 +261,19 @@ export function NoteForm({
       <Section title="Status">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="status">Note Status</Label>
             <select
               id="status"
               name="status"
               defaultValue={defaults.status}
               className="h-9 rounded-md border bg-background px-3 text-sm"
             >
-              <option value="Active">Active</option>
+              <option value="Draft">Draft</option>
+              <option value="Open">Open</option>
               <option value="Funded">Funded</option>
-              <option value="Closed">Closed</option>
+              <option value="Completed">Completed</option>
+              <option value="Defaulted">Defaulted</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
           </div>
           <div className="flex flex-col gap-2">

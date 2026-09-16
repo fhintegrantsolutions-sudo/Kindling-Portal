@@ -29,8 +29,8 @@ export default async function NoteSettingsPage({
   // archived panel and ignores them.
   const warnings: string[] = [];
   if (!note.funding_archived_at) {
-    if (note.status !== "Active") {
-      warnings.push(`Note status is "${note.status}", not Active.`);
+    if (note.status !== "Funded" && note.status !== "Open") {
+      warnings.push(`Note status is "${note.status}", not Open/Funded.`);
     }
     if (archiveSummary.uncleared > 0) {
       warnings.push(

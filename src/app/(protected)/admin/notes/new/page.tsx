@@ -50,7 +50,7 @@ export default async function NewNotePage() {
           funding_end_date: null,
           description: null,
           admin_notes: null,
-          status: "Active",
+          status: "Open",
           client_status: "Available",
         }}
       />
