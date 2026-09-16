@@ -29,10 +29,24 @@ function fundingLabel(p: ParticipationWithNote, bucket: Bucket): string {
   return bucket === "closed" ? "Closed" : "Pending";
 }
 
-const TABS: { key: Bucket; label: string }[] = [
-  { key: "active", label: "Active" },
-  { key: "pending", label: "Pending" },
-  { key: "closed", label: "Closed" },
+const TABS: { key: Bucket; label: string; description: string }[] = [
+  {
+    key: "active",
+    label: "Active",
+    description: "Notes you've funded — earning interest through the term.",
+  },
+  {
+    key: "pending",
+    label: "Pending",
+    description:
+      "You've committed to these notes but haven't sent funds yet. You can still fund them while the note is open.",
+  },
+  {
+    key: "closed",
+    label: "Closed",
+    description:
+      "The funding window closed before these were funded, or the note has finished. No action is needed.",
+  },
 ];
 
 export function NotesTabs({
@@ -76,6 +90,10 @@ export function NotesTabs({
           );
         })}
       </nav>
+
+      <p className="text-sm text-muted-foreground">
+        {TABS.find((t) => t.key === tab)?.description}
+      </p>
 
       {shown.length === 0 ? (
         <Card>
