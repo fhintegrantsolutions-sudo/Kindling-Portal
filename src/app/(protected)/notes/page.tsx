@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getMyParticipations } from "@/lib/db/queries";
-import { formatCurrency, formatPercent } from "@/lib/format";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { NotesTabs } from "./notes-tabs";
 
 export default async function MyNotesPage() {
   const participations = await getMyParticipations();
@@ -21,80 +21,17 @@ export default async function MyNotesPage() {
             <p className="text-sm text-muted-foreground">
               No participations yet.
             </p>
-            <a
+            <Link
               href="/opportunities"
               className="text-sm font-medium underline underline-offset-4"
             >
               Browse opportunities →
-            </a>
+            </Link>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {participations.map((p) => {
-            const note = p.note;
-            const href = note ? `/notes/${note.note_id}` : "#";
-            return (
-              <Link
-                key={p.id}
-                href={href}
-                className="block rounded-lg transition-colors hover:bg-muted/40"
-              >
-                <Card>
-                  <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                        {note?.note_id}
-                      </p>
-                      <CardTitle>{note?.title}</CardTitle>
-                    </div>
-                    <span className="rounded-full border px-2 py-0.5 text-xs">
-                      {p.status}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Field
-                    label="Invested"
-                    value={formatCurrency(p.invested_amount)}
-                  />
-                  <Field
-                    label="Rate"
-                    value={note ? formatPercent(note.rate) : "—"}
-                  />
-                  <Field
-                    label="Term"
-                    value={note ? `${note.term_months} mo` : "—"}
-                  />
-                  <Field
-                    label="Funding"
-                    value={
-                      p.funding_cleared
-                        ? "Cleared"
-                        : p.funding_deposited
-                          ? "Deposited"
-                          : p.funding_received
-                            ? "Received"
-                            : "Pending"
-                    }
-                  />
-                </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+        <NotesTabs participations={participations} />
       )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{value}</p>
     </div>
   );
 }
