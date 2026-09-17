@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AdminNotesCard } from "./admin-notes-card";
 
 export default async function NoteOverviewPage({
   params,
@@ -127,6 +128,8 @@ export default async function NoteOverviewPage({
           <Stat label="Bonus gross" value={formatCurrency(bonusGross)} />
         </CardContent>
       </Card>
+
+      <AdminNotesCard noteUuid={note.id} initial={note.admin_notes} />
 
       <Card>
         <CardHeader>

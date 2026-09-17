@@ -110,6 +110,29 @@ export async function updateNote(
 }
 
 /**
+ * Save a note's internal admin notes. Edited on the note Overview tab (not the
+ * main note form). Admin-only, never surfaced to lenders. Returns {error} on
+ * failure so the client editor can show it.
+ */
+export async function updateNoteAdminNotes(
+  noteUuid: string,
+  adminNotes: string,
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const trimmed = adminNotes.trim();
+  const { error } = await supabase
+    .from("notes")
+    .update({ admin_notes: trimmed || null })
+    .eq("id", noteUuid);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/notes/[id]", "layout");
+  return {};
+}
+
+/**
  * Archive a note's funding round (per-note, one-way). Stamps funding_archived_at
  * so the note's participations drop out of the active admin funding workflow.
  * Does NOT touch notes.status or any lender-facing view. Idempotent: re-archiving
