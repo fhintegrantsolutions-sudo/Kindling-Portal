@@ -68,6 +68,73 @@ export async function getUsersByState(): Promise<StateUserCount[]> {
   );
 }
 
+export type NoteParticipationRow = {
+  noteUuid: string;
+  noteId: string;
+  status: string;
+  awaiting: number;
+  received: number;
+  deposited: number;
+  cleared: number;
+  total: number;
+  clearedInvested: number;
+};
+
+// Per-note breakdown of participations by funding stage, for the admin overview
+// table. Cleared invested = actual money in the note. Newest notes first.
+export async function getParticipationsByNote(): Promise<
+  NoteParticipationRow[]
+> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("participations")
+    .select(
+      `invested_amount, funding_received, funding_deposited, funding_cleared,
+       note:notes ( id, note_id, status )`,
+    );
+
+  const byNote = new Map<string, NoteParticipationRow>();
+  for (const raw of data ?? []) {
+    const p = raw as unknown as {
+      invested_amount: string | null;
+      funding_received: boolean;
+      funding_deposited: boolean;
+      funding_cleared: boolean;
+      note: { id: string; note_id: string; status: string } | null;
+    };
+    if (!p.note) continue;
+    const row =
+      byNote.get(p.note.id) ??
+      ({
+        noteUuid: p.note.id,
+        noteId: p.note.note_id,
+        status: p.note.status,
+        awaiting: 0,
+        received: 0,
+        deposited: 0,
+        cleared: 0,
+        total: 0,
+        clearedInvested: 0,
+      } satisfies NoteParticipationRow);
+    row.total += 1;
+    if (p.funding_cleared) {
+      row.cleared += 1;
+      row.clearedInvested += Number(p.invested_amount ?? 0);
+    } else if (p.funding_deposited) {
+      row.deposited += 1;
+    } else if (p.funding_received) {
+      row.received += 1;
+    } else {
+      row.awaiting += 1;
+    }
+    byNote.set(p.note.id, row);
+  }
+
+  return Array.from(byNote.values()).sort((a, b) =>
+    b.noteId.localeCompare(a.noteId),
+  );
+}
+
 export async function getAdminStats(): Promise<AdminStats> {
   const supabase = await createClient();
 

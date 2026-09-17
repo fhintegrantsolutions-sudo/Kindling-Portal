@@ -1,11 +1,7 @@
 import Link from "next/link";
 import {
-  Banknote,
-  CheckCircle2,
-  CircleDashed,
   ClipboardList,
   DollarSign,
-  Hourglass,
   Inbox,
   PieChart,
   TrendingUp,
@@ -15,6 +11,7 @@ import {
 import { requireAdmin } from "@/lib/dal";
 import {
   getAdminStats,
+  getParticipationsByNote,
   getUsersByState,
   getUserCounts,
 } from "@/lib/db/admin-queries";
@@ -29,11 +26,32 @@ import { UserHeatMap } from "@/components/admin/user-heat-map";
 
 export default async function AdminDashboardPage() {
   await requireAdmin();
-  const [stats, statesData, userCounts] = await Promise.all([
-    getAdminStats(),
-    getUsersByState(),
-    getUserCounts(),
-  ]);
+  const [stats, statesData, userCounts, participationsByNote] =
+    await Promise.all([
+      getAdminStats(),
+      getUsersByState(),
+      getUserCounts(),
+      getParticipationsByNote(),
+    ]);
+
+  const totals = participationsByNote.reduce(
+    (acc, r) => ({
+      awaiting: acc.awaiting + r.awaiting,
+      received: acc.received + r.received,
+      deposited: acc.deposited + r.deposited,
+      cleared: acc.cleared + r.cleared,
+      total: acc.total + r.total,
+      clearedInvested: acc.clearedInvested + r.clearedInvested,
+    }),
+    {
+      awaiting: 0,
+      received: 0,
+      deposited: 0,
+      cleared: 0,
+      total: 0,
+      clearedInvested: 0,
+    },
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-8">
@@ -76,32 +94,93 @@ export default async function AdminDashboardPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">Participations</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat
-            label="Awaiting funding"
-            value={String(stats.participationsAwaitingFunding)}
-            icon={<Hourglass className="size-4" />}
-            href="/admin/participations?funding=awaiting_funding"
-          />
-          <Stat
-            label="Received"
-            value={String(stats.participationsReceived)}
-            icon={<Banknote className="size-4" />}
-            href="/admin/participations?funding=received"
-          />
-          <Stat
-            label="Deposited"
-            value={String(stats.participationsDeposited)}
-            icon={<CircleDashed className="size-4" />}
-            href="/admin/participations?funding=deposited"
-          />
-          <Stat
-            label="Cleared"
-            value={String(stats.participationsCleared)}
-            icon={<CheckCircle2 className="size-4" />}
-            href="/admin/participations?funding=cleared"
-          />
+        <h2 className="text-sm font-medium">Participations by note</h2>
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <table className="w-full min-w-[42rem] text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-2.5 font-medium">Note</th>
+                <th className="px-3 py-2.5 font-medium">Status</th>
+                <th className="px-3 py-2.5 text-right font-medium">Awaiting</th>
+                <th className="px-3 py-2.5 text-right font-medium">Received</th>
+                <th className="px-3 py-2.5 text-right font-medium">Deposited</th>
+                <th className="px-3 py-2.5 text-right font-medium">Cleared</th>
+                <th className="px-3 py-2.5 text-right font-medium">Total</th>
+                <th className="px-4 py-2.5 text-right font-medium">Invested</th>
+              </tr>
+            </thead>
+            <tbody>
+              {participationsByNote.map((r) => (
+                <tr key={r.noteUuid} className="border-b last:border-b-0">
+                  <td className="px-4 py-2.5 font-medium">
+                    <Link
+                      href={`/admin/notes/${r.noteUuid}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {r.noteId}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">
+                    {r.status}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {r.awaiting || "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {r.received || "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {r.deposited || "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {r.cleared || "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-medium tabular-nums">
+                    {r.total}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {formatCurrency(r.clearedInvested)}
+                  </td>
+                </tr>
+              ))}
+              {participationsByNote.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-8 text-center text-muted-foreground"
+                  >
+                    No participations yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+            {participationsByNote.length > 0 ? (
+              <tfoot>
+                <tr className="border-t-2 font-semibold">
+                  <td className="px-4 py-2.5">Total</td>
+                  <td className="px-3 py-2.5" />
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {totals.awaiting}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {totals.received}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {totals.deposited}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {totals.cleared}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {totals.total}
+                  </td>
+                  <td className="px-4 py-2.5 text-right tabular-nums">
+                    {formatCurrency(totals.clearedInvested)}
+                  </td>
+                </tr>
+              </tfoot>
+            ) : null}
+          </table>
         </div>
       </section>
 
