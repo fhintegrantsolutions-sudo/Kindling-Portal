@@ -160,7 +160,15 @@ export function FundingForm({
       </fieldset>
 
       <fieldset className="rounded-lg border bg-card p-6">
-        <legend className="px-1 text-sm font-semibold">Notes</legend>
+        <legend className="flex items-center gap-2 px-1 text-sm font-semibold">
+          Notes
+          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
+            Admin only
+          </span>
+        </legend>
+        <p className="text-xs text-muted-foreground">
+          Internal — not visible to the lender.
+        </p>
         <textarea
           rows={3}
           value={values.funding_notes ?? ""}

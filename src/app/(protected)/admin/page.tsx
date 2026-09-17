@@ -74,12 +74,7 @@ export default async function AdminDashboardPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium">Current note funding</h2>
-          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
-            Admin only
-          </span>
-        </div>
+        <h2 className="text-sm font-medium">Current note funding</h2>
         {latestNote ? (
           <div className="overflow-x-auto rounded-lg border bg-card">
             <table className="w-full min-w-[42rem] text-sm">
