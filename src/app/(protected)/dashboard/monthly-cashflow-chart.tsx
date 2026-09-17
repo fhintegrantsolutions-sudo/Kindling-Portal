@@ -60,10 +60,6 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
     data.some((d) => d.month === currentMonth) ? currentMonth : null,
   );
   const currentRef = useRef<HTMLButtonElement>(null);
-  // Hovering a bar previews that month in the detail row below; the row falls
-  // back to the selected month when nothing is hovered. (A floating tooltip
-  // above the bars would be clipped by the horizontal scroll container.)
-  const [hovered, setHovered] = useState<string | null>(null);
 
   // Bring the current month into view on mount (the timeline scrolls
   // horizontally and the current month is usually mid-range). inline:"center"
@@ -93,9 +89,9 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
   }
 
   const maxTotal = Math.max(...data.map((d) => d.principal + d.interest), 1);
-  // The detail row shows the hovered month if any, otherwise the selected one.
-  const detailPoint =
-    data.find((d) => d.month === (hovered ?? selected)) ?? null;
+  // The detail row shows the clicked (selected) month only — hovering a bar
+  // does not change it.
+  const detailPoint = data.find((d) => d.month === selected) ?? null;
 
   return (
     <Card>
@@ -123,10 +119,6 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
                   ref={d.month === currentMonth ? currentRef : undefined}
                   type="button"
                   onClick={() => setSelected(d.month)}
-                  onMouseEnter={() => setHovered(d.month)}
-                  onMouseLeave={() => setHovered(null)}
-                  onFocus={() => setHovered(d.month)}
-                  onBlur={() => setHovered(null)}
                   aria-label={`${fmtMonth(d.month)}: ${formatCurrency(total)}`}
                   aria-pressed={isSelected}
                   className="group flex w-3 shrink-0 cursor-pointer flex-col items-center focus:outline-none"
