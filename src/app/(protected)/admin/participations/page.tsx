@@ -118,9 +118,17 @@ export default async function AdminParticipationsPage({
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
           Admin · Participations
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Funding workflow
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Funding workflow
+          </h1>
+          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
+            Admin only
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Lenders never see this — each lender sees only their own participation.
+        </p>
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7">
