@@ -588,6 +588,10 @@ export function NoteForm({
             defaultValue={defaults.admin_notes ?? undefined}
             className="w-full rounded-md border bg-background p-2 text-sm"
           />
+          <p className="text-xs text-muted-foreground">
+            Internal — not visible to the lender. Also editable on the note&apos;s
+            Overview tab during the term.
+          </p>
         </div>
       </Section>
       </TabPanel>
