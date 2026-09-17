@@ -246,15 +246,6 @@ export function NoteForm({
             min="0"
             defaultValue={defaults.target_raise}
           />
-          <Field
-            name="fee"
-            label="One-time fee"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={defaults.fee ?? ""}
-            error={fe.fee}
-          />
         </div>
       </Section>
 
@@ -427,6 +418,15 @@ export function NoteForm({
               <option value="Interest only">Interest only</option>
             </select>
           </div>
+          <Field
+            name="fee"
+            label="One-time fee"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={defaults.fee ?? ""}
+            error={fe.fee}
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor="principal">Principal (USD)</Label>
             <div className="relative">
