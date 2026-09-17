@@ -80,42 +80,40 @@ export type NoteParticipationRow = {
   clearedInvested: number;
 };
 
-// Per-note breakdown of participations by funding stage, for the admin overview
-// table. Cleared invested = actual money in the note. Newest notes first.
-export async function getParticipationsByNote(): Promise<
-  NoteParticipationRow[]
-> {
+// Funding-stage breakdown for the LATEST note currently being funded — the most
+// recent note whose funding has started (window opened) and hasn't been archived
+// yet. Excludes upcoming notes whose window hasn't opened. Cleared invested =
+// actual money in. Returns null if there's no such note.
+export async function getLatestNoteParticipations(): Promise<NoteParticipationRow | null> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("participations")
-    .select(
-      `invested_amount, funding_received, funding_deposited, funding_cleared,
-       note:notes ( id, note_id, status )`,
-    );
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: note } = await supabase
+    .from("notes")
+    .select("id, note_id, status")
+    .is("funding_archived_at", null)
+    .or(`funding_start_date.is.null,funding_start_date.lte.${today}`)
+    .order("note_id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!note) return null;
 
-  const byNote = new Map<string, NoteParticipationRow>();
-  for (const raw of data ?? []) {
-    const p = raw as unknown as {
-      invested_amount: string | null;
-      funding_received: boolean;
-      funding_deposited: boolean;
-      funding_cleared: boolean;
-      note: { id: string; note_id: string; status: string } | null;
-    };
-    if (!p.note) continue;
-    const row =
-      byNote.get(p.note.id) ??
-      ({
-        noteUuid: p.note.id,
-        noteId: p.note.note_id,
-        status: p.note.status,
-        awaiting: 0,
-        received: 0,
-        deposited: 0,
-        cleared: 0,
-        total: 0,
-        clearedInvested: 0,
-      } satisfies NoteParticipationRow);
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("invested_amount, funding_received, funding_deposited, funding_cleared")
+    .eq("note_id", note.id);
+
+  const row: NoteParticipationRow = {
+    noteUuid: note.id,
+    noteId: note.note_id,
+    status: note.status,
+    awaiting: 0,
+    received: 0,
+    deposited: 0,
+    cleared: 0,
+    total: 0,
+    clearedInvested: 0,
+  };
+  for (const p of parts ?? []) {
     row.total += 1;
     if (p.funding_cleared) {
       row.cleared += 1;
@@ -127,12 +125,8 @@ export async function getParticipationsByNote(): Promise<
     } else {
       row.awaiting += 1;
     }
-    byNote.set(p.note.id, row);
   }
-
-  return Array.from(byNote.values()).sort((a, b) =>
-    b.noteId.localeCompare(a.noteId),
-  );
+  return row;
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
