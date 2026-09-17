@@ -178,16 +178,12 @@ export default async function NoteOverviewPage({
                 );
                 return (
                   <li key={p.participation_id}>
-                    {p.user_id ? (
-                      <Link
-                        href={`/admin/users/${p.user_id}`}
-                        className="block rounded-md hover:bg-muted/40"
-                      >
-                        {inner}
-                      </Link>
-                    ) : (
-                      inner
-                    )}
+                    <Link
+                      href={`/admin/participations/${p.participation_id}`}
+                      className="block rounded-md hover:bg-muted/40"
+                    >
+                      {inner}
+                    </Link>
                   </li>
                 );
               })}
