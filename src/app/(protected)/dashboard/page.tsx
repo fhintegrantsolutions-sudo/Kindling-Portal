@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CalendarClock, DollarSign, PieChart, TrendingUp } from "lucide-react";
 import { getCurrentProfile } from "@/lib/dal";
 import {
-  getMyBonusByYear,
   getMyMonthlyCashflow,
   getMyParticipations,
   getMyTotalMonthlyPayment,
@@ -17,8 +16,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MonthlyCashflowChart } from "./monthly-cashflow-chart";
-import { AnnualSummaryTable } from "@/components/annual-summary-table";
-import { foldBonuses, rollupByYear } from "@/lib/notes/annual-summary";
 
 export default async function DashboardPage() {
   const [
@@ -28,7 +25,6 @@ export default async function DashboardPage() {
     monthlyCashflow,
     ctx,
     byEntity,
-    bonusByYear,
   ] = await Promise.all([
     getCurrentProfile(),
     getMyParticipations(),
@@ -36,7 +32,6 @@ export default async function DashboardPage() {
     getMyMonthlyCashflow(),
     getCurrentEntityContext(),
     getMyTotalsByEntity(),
-    getMyBonusByYear(),
   ]);
 
   // Only in "All entities" mode, and only for logins that actually own more than
@@ -56,23 +51,6 @@ export default async function DashboardPage() {
   const noteCount = new Set(active.map((p) => p.note_id)).size;
 
   const firstName = profile?.first_name ?? "there";
-
-  // Calendar-year rollup of projected principal + interest across all funded
-  // notes. Pure aggregation of the monthly cashflow already computed above.
-  // Project scheduled P&I, then fold in any profit bonuses actually paid so a
-  // bonus year's interest reflects the extra dollars (marked with a "*").
-  const annual = foldBonuses(
-    rollupByYear(
-      monthlyCashflow.map((m) => ({
-        date: m.month,
-        principal: m.principal,
-        interest: m.interest,
-      })),
-    ),
-    bonusByYear,
-  );
-  const bonusYears = new Set(bonusByYear.keys());
-  const currentYear = new Date().getFullYear();
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-8">
@@ -149,29 +127,7 @@ export default async function DashboardPage() {
           </p>
         </section>
       ) : (
-        <>
-          <MonthlyCashflowChart data={monthlyCashflow} />
-          {annual.rows.length > 0 ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Annual summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-3 text-sm text-muted-foreground">
-                  Projected principal and interest by calendar year across all
-                  your funded notes.
-                </p>
-                <AnnualSummaryTable
-                  summary={annual}
-                  highlightYear={currentYear}
-                  bonusYears={bonusYears}
-                />
-              </CardContent>
-            </Card>
-          ) : null}
-        </>
+        <MonthlyCashflowChart data={monthlyCashflow} />
       )}
     </div>
   );
