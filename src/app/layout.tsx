@@ -24,7 +24,6 @@ export const metadata: Metadata = {
     template: "%s · Kindling",
   },
   description: SITE_DESCRIPTION,
-  icons: { icon: "/favicon.svg" },
   openGraph: {
     type: "website",
     siteName: "Kindling",
