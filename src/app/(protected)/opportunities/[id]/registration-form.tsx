@@ -78,6 +78,7 @@ export function RegistrationForm({
   const [selectedEntityId, setSelectedEntityId] = useState(initialEntityId);
   const selected =
     entities.find((e) => e.id === selectedEntityId) ?? null;
+  const [differentSender, setDifferentSender] = useState<"" | "yes" | "no">("");
 
   // Everything on the loan agreement comes from the SELECTED entity, so the
   // summary and this warning track the dropdown without a reload. Entity type is
@@ -191,6 +192,81 @@ export function RegistrationForm({
         {fe.investment_amount ? (
           <p className="text-xs text-destructive">{fe.investment_amount}</p>
         ) : null}
+      </section>
+
+      <section className="flex flex-col gap-5">
+        <h2 className="text-sm font-semibold">Funding</h2>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">
+            How will you send your funds?{" "}
+            <span className="text-destructive">*</span>
+          </span>
+          <div className="flex gap-6 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="funding_type" value="wire" /> Wire
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="funding_type" value="check" /> Check
+            </label>
+          </div>
+          {fe.funding_type ? (
+            <p className="text-xs text-destructive">{fe.funding_type}</p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">
+            Will the funds be sent under a different name than the one(s) listed
+            above? <span className="text-destructive">*</span>
+          </span>
+          <p className="text-xs text-muted-foreground">
+            For example, from your entity&apos;s account rather than your personal
+            account, or from another person. If so, tell us the name so we can
+            match your incoming funds.
+          </p>
+          <div className="flex gap-6 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="different_sender"
+                value="no"
+                checked={differentSender === "no"}
+                onChange={() => setDifferentSender("no")}
+              />{" "}
+              No
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="different_sender"
+                value="yes"
+                checked={differentSender === "yes"}
+                onChange={() => setDifferentSender("yes")}
+              />{" "}
+              Yes
+            </label>
+          </div>
+          {fe.different_sender ? (
+            <p className="text-xs text-destructive">{fe.different_sender}</p>
+          ) : null}
+          {differentSender === "yes" ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="funding_sender_name">
+                Name the funds will be sent from
+              </Label>
+              <Input
+                id="funding_sender_name"
+                name="funding_sender_name"
+                aria-invalid={Boolean(fe.funding_sender_name) || undefined}
+              />
+              {fe.funding_sender_name ? (
+                <p className="text-xs text-destructive">
+                  {fe.funding_sender_name}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </section>
 
       <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">

@@ -121,6 +121,11 @@ export async function submitRegistration(
     formData.get("investment_amount") ?? "",
   ).trim();
   const acknowledge_lender = formData.get("acknowledge_lender") === "on";
+  const funding_type = String(formData.get("funding_type") ?? "").trim();
+  const different_sender = String(formData.get("different_sender") ?? "").trim();
+  const funding_sender_name = String(
+    formData.get("funding_sender_name") ?? "",
+  ).trim();
 
   // Enforce the note's minimum investment server-side. The form shows it as
   // a label hint, but `min` on the input only blocks at the HTML level if
@@ -144,6 +149,13 @@ export async function submitRegistration(
   if (!acknowledge_lender)
     fieldErrors.acknowledge_lender =
       "You must acknowledge to submit your registration";
+  if (funding_type !== "wire" && funding_type !== "check")
+    fieldErrors.funding_type = "Select wire or check";
+  if (different_sender !== "yes" && different_sender !== "no")
+    fieldErrors.different_sender = "Please answer this question";
+  if (different_sender === "yes" && !funding_sender_name)
+    fieldErrors.funding_sender_name =
+      "Enter the name the funds will be sent from";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
   // Login-level identity still lives on the profile.
@@ -260,12 +272,18 @@ export async function submitRegistration(
   });
   if (regErr) return { error: regErr.message };
 
+  const senderNote =
+    different_sender === "yes" && funding_sender_name
+      ? `⚠ Funds may arrive under a different name: ${funding_sender_name}`
+      : null;
   const { error: partErr } = await supabase.from("participations").insert({
     user_id: user.id,
     entity_id: entityId,
     note_id: noteUuid,
     invested_amount: investment_amount,
     submitted_amount: investment_amount,
+    funding_type,
+    funding_notes: senderNote,
     status: "Active",
   });
   if (partErr) {
