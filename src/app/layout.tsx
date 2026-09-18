@@ -14,7 +14,7 @@ const libreBaskerville = Libre_Baskerville({
 });
 
 const SITE_DESCRIPTION =
-  "The operating platform behind a modern note experience — secure note administration for the CoSpark community.";
+  "The operating platform behind a modern note experience — secure administration for private promissory notes.";
 
 export const metadata: Metadata = {
   // Makes the auto-generated opengraph-image URL absolute in link previews.
