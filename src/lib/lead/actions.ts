@@ -84,6 +84,9 @@ export async function submitLeadParticipationForm(
     city: toProperCase(text(formData, "city")),
     state: normalizeState(text(formData, "state")),
     zip_code: formatZip(text(formData, "zip_code")),
+    funding_type: text(formData, "funding_type"),
+    different_sender: text(formData, "different_sender"),
+    funding_sender_name: text(formData, "funding_sender_name"),
     acknowledge_lender: formData.get("acknowledge_lender") === "on",
   };
 
@@ -103,6 +106,13 @@ export async function submitLeadParticipationForm(
   if (!fields.zip_code) fieldErrors.zip_code = "Required";
   else if (!isValidZip(fields.zip_code))
     fieldErrors.zip_code = "Enter a valid 5-digit ZIP code";
+  if (fields.funding_type !== "wire" && fields.funding_type !== "check")
+    fieldErrors.funding_type = "Select wire or check";
+  if (fields.different_sender !== "yes" && fields.different_sender !== "no")
+    fieldErrors.different_sender = "Please answer this question";
+  if (fields.different_sender === "yes" && !fields.funding_sender_name)
+    fieldErrors.funding_sender_name =
+      "Enter the name the funds will be sent from";
   if (!fields.acknowledge_lender)
     fieldErrors.acknowledge_lender = "You must acknowledge to submit";
 
@@ -153,12 +163,18 @@ export async function submitLeadParticipationForm(
   }
 
   // 4. Insert the participation (awaiting funding)
+  const senderNote =
+    fields.different_sender === "yes" && fields.funding_sender_name
+      ? `⚠ Funds may arrive under a different name: ${fields.funding_sender_name}`
+      : null;
   const { error: partErr } = await supabase.from("participations").insert({
     user_id: null,
     note_id: ar.note_id,
     access_request_id: ar.id,
     invested_amount: amountStr,
     submitted_amount: amountStr,
+    funding_type: fields.funding_type,
+    funding_notes: senderNote,
     status: "Active",
   });
   if (partErr) {

@@ -44,6 +44,8 @@ export function SetupForm({
   >(action, undefined);
   const fe = state?.fieldErrors ?? {};
   const [entityChoice, setEntityChoice] = useState<string>("");
+  const [showAgreementHelp, setShowAgreementHelp] = useState(false);
+  const [differentSender, setDifferentSender] = useState<"" | "yes" | "no">("");
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -57,22 +59,6 @@ export function SetupForm({
           <Readonly label="Phone" value={defaults.phone} />
         </div>
       </fieldset>
-
-      <h2 className="text-sm font-semibold">Investment</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          name="investment_amount"
-          label={
-            defaults.min_investment
-              ? `Amount (USD) — min $${Number(defaults.min_investment).toLocaleString()}`
-              : "Amount (USD)"
-          }
-          type="number"
-          step="0.01"
-          min="0"
-          error={fe.investment_amount}
-        />
-      </div>
 
       <h2 className="text-sm font-semibold">Legal information</h2>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -120,13 +106,23 @@ export function SetupForm({
           <Label htmlFor="name_for_agreement" className="flex items-center gap-1.5">
             Exact name for the loan agreement{" "}
             <span className="text-destructive">*</span>
-            <span
-              title="This is the formal name used for documentation. Use the exact legal name (e.g. 'Jane Q. Doe Revocable Trust' or 'Acme Capital LLC')."
-              className="inline-flex cursor-help text-muted-foreground"
+            <button
+              type="button"
+              onClick={() => setShowAgreementHelp((v) => !v)}
+              aria-expanded={showAgreementHelp}
+              aria-label="What is this?"
+              className="inline-flex text-muted-foreground hover:text-foreground"
             >
               <Info className="size-3.5" />
-            </span>
+            </button>
           </Label>
+          {showAgreementHelp ? (
+            <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+              This is the formal name used for documentation. Use the exact legal
+              name — for example, &ldquo;Jane Q. Doe Revocable Trust&rdquo; or
+              &ldquo;Acme Capital LLC.&rdquo;
+            </p>
+          ) : null}
           <Input
             id="name_for_agreement"
             name="name_for_agreement"
@@ -139,6 +135,11 @@ export function SetupForm({
       </div>
 
       <h2 className="text-sm font-semibold">Mailing address</h2>
+      <p className="-mt-1 text-xs text-muted-foreground">
+        Your 1099 is delivered electronically whenever possible. If it can&apos;t
+        be delivered electronically, it will be mailed to the address you provide
+        here.
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           name="mailing_address"
@@ -151,7 +152,92 @@ export function SetupForm({
         <Field name="zip_code" label="ZIP" error={fe.zip_code} zip />
       </div>
 
-      <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+      <h2 className="text-sm font-semibold">Investment</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          name="investment_amount"
+          label={
+            defaults.min_investment
+              ? `Amount (USD) — min $${Number(defaults.min_investment).toLocaleString()}`
+              : "Amount (USD)"
+          }
+          type="number"
+          step="0.01"
+          min="0"
+          error={fe.investment_amount}
+        />
+      </div>
+
+      <h2 className="text-sm font-semibold">Funding</h2>
+      <p className="-mt-1 text-xs text-muted-foreground">
+        This helps us anticipate your incoming funds. You can change your mind
+        later — just let us know.
+      </p>
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">
+            How will you send your funds?{" "}
+            <span className="text-destructive">*</span>
+          </span>
+          <div className="flex gap-6 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="funding_type" value="wire" /> Wire
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="funding_type" value="check" /> Check
+            </label>
+          </div>
+          {fe.funding_type ? (
+            <p className="text-xs text-destructive">{fe.funding_type}</p>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">
+            Will the funds be sent under a different name than the one(s) listed
+            above? <span className="text-destructive">*</span>
+          </span>
+          <p className="text-xs text-muted-foreground">
+            For example, from your entity&apos;s account rather than your personal
+            account, or from another person. If so, tell us the name so we can
+            match your incoming funds.
+          </p>
+          <div className="flex gap-6 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="different_sender"
+                value="no"
+                checked={differentSender === "no"}
+                onChange={() => setDifferentSender("no")}
+              />{" "}
+              No
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="different_sender"
+                value="yes"
+                checked={differentSender === "yes"}
+                onChange={() => setDifferentSender("yes")}
+              />{" "}
+              Yes
+            </label>
+          </div>
+          {fe.different_sender ? (
+            <p className="text-xs text-destructive">{fe.different_sender}</p>
+          ) : null}
+          {differentSender === "yes" ? (
+            <Field
+              name="funding_sender_name"
+              label="Name the funds will be sent from"
+              error={fe.funding_sender_name}
+            />
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-2 rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
         After you submit, we&apos;ll follow up with wire / check / ACH
         instructions. We do <em>not</em> store any banking information in this
         portal.
