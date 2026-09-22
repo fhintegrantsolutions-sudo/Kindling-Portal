@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import {
   Banknote,
   Building2,
+  ExternalLink,
+  FileCheck,
   FileText,
   Handshake,
   Inbox,
@@ -192,6 +194,12 @@ function SidebarBody({
                 onNavigate={onNavigate}
               />
             ))}
+            <ExternalNavLink
+              href="https://kindling-network.web.app/admin-forms.html"
+              label="W9 Forms"
+              Icon={FileCheck}
+              onNavigate={onNavigate}
+            />
           </>
         ) : role === "participations_admin" ? (
           // Scoped admin — only the participations link is visible. The
@@ -278,5 +286,36 @@ function NavLink({
       <Icon className="size-4" />
       {label}
     </Link>
+  );
+}
+
+// Opens an external tool in a new tab. Never "active"; shows an external-link
+// affordance so it's clear this leaves the portal.
+function ExternalNavLink({
+  href,
+  label,
+  Icon,
+  onNavigate,
+}: {
+  href: string;
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  onNavigate?: () => void;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onNavigate}
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+        "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+      )}
+    >
+      <Icon className="size-4" />
+      <span className="flex-1">{label}</span>
+      <ExternalLink className="size-3.5 opacity-60" />
+    </a>
   );
 }
