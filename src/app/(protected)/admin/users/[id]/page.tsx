@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import {
   getUserById,
   countAdmins,
@@ -16,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { EntitiesPanel } from "./entities-panel";
 import { ReferralsPanel } from "./referrals-panel";
 import { RoleChange } from "./role-change";
@@ -315,6 +317,26 @@ export default async function AdminUserDetailPage({
       </Card>
 
       <ReferralsPanel userId={p.id} referralCode={referralCode} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">W9 Forms</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Opens the W-9 forms admin console in a new tab.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <a
+            href="https://kindling-network.web.app/admin-forms.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants()}
+          >
+            Open W9 Forms
+            <ExternalLink className="ml-2 size-4" />
+          </a>
+        </CardContent>
+      </Card>
 
       <ChangeLoginEmail userId={p.id} currentEmail={p.email} />
 
