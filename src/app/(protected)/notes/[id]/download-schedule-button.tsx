@@ -190,7 +190,6 @@ export function DownloadScheduleButton({
         formatCurrency(begin),
         formatCurrency(r.my_principal),
         formatCurrency(r.my_interest),
-        r.my_fee > 0 ? `-${formatCurrency(r.my_fee)}` : "",
         formatCurrency(end),
         formatCurrency(cumulativeInterest),
       ];
@@ -204,7 +203,6 @@ export function DownloadScheduleButton({
         "BEGINNING BALANCE",
         "PRINCIPAL",
         "INTEREST",
-        "FEE",
         "ENDING BALANCE",
         "CUMULATIVE INTEREST",
       ]],
@@ -225,7 +223,6 @@ export function DownloadScheduleButton({
         4: { halign: "right" },
         5: { halign: "right" },
         6: { halign: "right" },
-        7: { halign: "right" },
       },
       margin: { left: margin, right: margin },
     });

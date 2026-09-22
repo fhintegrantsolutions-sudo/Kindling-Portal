@@ -188,7 +188,6 @@ export function DownloadNoteScheduleButton({
         formatCurrency(begin),
         formatCurrency(r.principal_amount),
         formatCurrency(r.interest_amount),
-        r.fee_amount > 0 ? `-${formatCurrency(r.fee_amount)}` : "",
         formatCurrency(end),
         formatCurrency(cumulativeInterest),
       ];
@@ -202,7 +201,6 @@ export function DownloadNoteScheduleButton({
         "BEGINNING BALANCE",
         "PRINCIPAL",
         "INTEREST",
-        "FEE",
         "ENDING BALANCE",
         "CUMULATIVE INTEREST",
       ]],
@@ -223,7 +221,6 @@ export function DownloadNoteScheduleButton({
         4: { halign: "right" },
         5: { halign: "right" },
         6: { halign: "right" },
-        7: { halign: "right" },
       },
       margin: { left: margin, right: margin },
     });
