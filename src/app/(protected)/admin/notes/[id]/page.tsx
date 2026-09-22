@@ -173,6 +173,11 @@ export default async function NoteOverviewPage({
                           ? ` · ${formatCurrency(p.monthly_payment)}/mo`
                           : ""}
                       </p>
+                      {p.fee > 0 ? (
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          Fee: −{formatCurrency(p.fee)}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 );

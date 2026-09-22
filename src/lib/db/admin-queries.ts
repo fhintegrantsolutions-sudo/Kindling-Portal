@@ -1982,6 +1982,9 @@ export type FundedParticipantRow = {
   invested_amount: string;
   share_pct: number;
   monthly_payment: number | null;
+  // This lender's pro-rata share of the note's one-time fee (0 when the note
+  // has no fee). Same distribution basis as monthly_payment.
+  fee: number;
 };
 
 export async function getFundedParticipantsForNote(
@@ -1990,7 +1993,7 @@ export async function getFundedParticipantsForNote(
   const supabase = await createClient();
   const { data: note } = await supabase
     .from("notes")
-    .select("principal, rate, term_months, interest_type")
+    .select("principal, rate, term_months, interest_type, fee")
     .eq("id", noteUuid)
     .maybeSingle();
   // business_name comes from the entity holding the position; name/email stay
@@ -2039,6 +2042,7 @@ export async function getFundedParticipantsForNote(
   }
 
   const total = rows.reduce((s, r) => s + Number(r.invested_amount ?? 0), 0);
+  const noteFee = note?.fee !== null && note?.fee !== undefined ? Number(note.fee) : 0;
 
   // Compute the note's monthly payment once; per-row monthly is the
   // lender's pro-rata of that.
@@ -2064,6 +2068,10 @@ export async function getFundedParticipantsForNote(
         noteMonthly !== null && total > 0
           ? Math.round(((invested / total) * noteMonthly) * 100) / 100
           : null;
+      const fee =
+        noteFee > 0 && total > 0
+          ? Math.round(((invested / total) * noteFee) * 100) / 100
+          : 0;
       return {
         participation_id: r.id,
         user_id: r.user_id,
@@ -2073,6 +2081,7 @@ export async function getFundedParticipantsForNote(
         invested_amount: r.invested_amount,
         share_pct: total > 0 ? (invested / total) * 100 : 0,
         monthly_payment: monthly,
+        fee,
       };
     })
     .sort((a, b) => {
