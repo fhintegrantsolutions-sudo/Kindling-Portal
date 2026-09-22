@@ -179,7 +179,7 @@ export default async function NoteOverviewPage({
                 return (
                   <li key={p.participation_id}>
                     <Link
-                      href={`/admin/participations/${p.participation_id}`}
+                      href={`/admin/participations/${p.participation_id}?from=note`}
                       className="block rounded-md hover:bg-muted/40"
                     >
                       {inner}

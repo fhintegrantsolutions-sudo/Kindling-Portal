@@ -16,14 +16,27 @@ import { ParticipationDocuments } from "./documents-section";
 
 export default async function AdminParticipationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
+  const { from } = await searchParams;
   const p = await getParticipationById(id);
   if (!p) notFound();
 
   const documents = await listParticipationDocuments(id);
+
+  // When the admin drilled in from a note's funded-participants list, send them
+  // back to that note instead of the flat participations list.
+  const cameFromNote = from === "note" && p.note?.id;
+  const backHref = cameFromNote
+    ? `/admin/notes/${p.note!.id}`
+    : "/admin/participations";
+  const backLabel = cameFromNote
+    ? `← Back to note ${p.note!.note_id}`
+    : "← Back to participations";
 
   const isNewLead = p.user_id === null;
   const inviteDisabled = !p.funding_cleared || !isNewLead;
@@ -36,10 +49,10 @@ export default async function AdminParticipationDetailPage({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-8">
       <Link
-        href="/admin/participations"
+        href={backHref}
         className="text-sm text-muted-foreground underline-offset-4 hover:underline"
       >
-        ← Back to participations
+        {backLabel}
       </Link>
 
       <header className="flex items-start justify-between gap-4">
