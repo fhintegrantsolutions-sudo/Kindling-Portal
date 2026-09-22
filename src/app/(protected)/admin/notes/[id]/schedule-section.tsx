@@ -41,6 +41,7 @@ export function ScheduleSection({
   headerAction?: React.ReactNode;
 }) {
   const receivedByNumber = new Map(received.map((r) => [r.payment_number, r]));
+  const totalFee = (schedule ?? []).reduce((s, r) => s + r.fee_amount, 0);
 
   return (
     <Card>
@@ -52,6 +53,17 @@ export function ScheduleSection({
               Generated from the note&apos;s principal, rate, term, interest
               type, and first payment date. Check a row to record receipt.
             </p>
+            {totalFee > 0 ? (
+              <p className="mt-1 text-sm">
+                <span className="text-muted-foreground">One-time fee:</span>{" "}
+                <span className="font-medium tabular-nums">
+                  −{formatCurrency(totalFee)}
+                </span>{" "}
+                <span className="text-muted-foreground">
+                  (reduces the first payment)
+                </span>
+              </p>
+            ) : null}
           </div>
           {headerAction}
         </div>
@@ -72,7 +84,6 @@ export function ScheduleSection({
                   <th className="py-2 pr-2 font-medium">Due</th>
                   <th className="py-2 pr-2 font-medium text-right">Principal</th>
                   <th className="py-2 pr-2 font-medium text-right">Interest</th>
-                  <th className="py-2 pr-2 font-medium text-right">Fee</th>
                   <th className="py-2 pr-2 font-medium text-right">Net</th>
                   <th className="py-2 pr-2 font-medium text-right">Balance</th>
                   <th className="py-2 pr-2 font-medium text-right">Received</th>
@@ -93,11 +104,6 @@ export function ScheduleSection({
               </tbody>
             </table>
           </div>
-          {schedule.some((r) => r.fee_amount > 0) ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              The first payment is reduced by a one-time fee.
-            </p>
-          ) : null}
           </>
         )}
       </CardContent>
@@ -145,9 +151,6 @@ function ScheduleRowItem({
       </td>
       <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(row.interest_amount)}
-      </td>
-      <td className="py-2 pr-2 text-right tabular-nums">
-        {row.fee_amount > 0 ? `−${formatCurrency(row.fee_amount)}` : ""}
       </td>
       <td className="py-2 pr-2 text-right tabular-nums">
         {formatCurrency(

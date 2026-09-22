@@ -72,6 +72,9 @@ export default async function MyNoteDetailPage({
   );
   const totalInterest = receivedRows.reduce((s, r) => s + r.my_interest, 0);
   const totalReceived = totalPrincipal + totalInterest;
+  // One-time fee for this participation (charged on the first payment).
+  const totalFee = scheduleRows.reduce((s, r) => s + r.my_fee, 0);
+  const hasFee = totalFee > 0;
 
   // Calendar-year rollup of this participation's schedule. Each year is tagged
   // from received_date: Paid = every payment that year received, In progress =
@@ -181,7 +184,11 @@ export default async function MyNoteDetailPage({
             <p className="text-sm text-muted-foreground">{schedule.reason}</p>
           ) : (
             <>
-              <div className="mb-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+              <div
+                className={`mb-3 grid grid-cols-2 gap-3 text-sm ${
+                  hasFee ? "sm:grid-cols-5" : "sm:grid-cols-4"
+                }`}
+              >
                 <Field
                   label="Received to date"
                   value={formatCurrency(totalReceived)}
@@ -194,6 +201,12 @@ export default async function MyNoteDetailPage({
                   label="Interest"
                   value={formatCurrency(totalInterest)}
                 />
+                {hasFee ? (
+                  <Field
+                    label="Fee (one-time)"
+                    value={`−${formatCurrency(totalFee)}`}
+                  />
+                ) : null}
                 <Field
                   label="Payments left"
                   value={`${scheduleRows.length - receivedRows.length} of ${scheduleRows.length}`}
@@ -210,9 +223,6 @@ export default async function MyNoteDetailPage({
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
                         Interest
-                      </th>
-                      <th className="py-2 pr-2 font-medium text-right">
-                        Fee
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
                         Net
@@ -244,11 +254,6 @@ export default async function MyNoteDetailPage({
                         </td>
                         <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(r.my_interest)}
-                        </td>
-                        <td className="py-2 pr-2 text-right tabular-nums">
-                          {r.my_fee > 0
-                            ? `−${formatCurrency(r.my_fee)}`
-                            : ""}
                         </td>
                         <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(
