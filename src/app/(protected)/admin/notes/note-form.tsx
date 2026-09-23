@@ -7,7 +7,7 @@ import {
   type NoteFormState,
 } from "@/lib/admin/note-actions";
 import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
-import { formatDate } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -418,15 +418,26 @@ export function NoteForm({
               <option value="Interest only">Interest only</option>
             </select>
           </div>
-          <Field
-            name="fee"
-            label="One-time fee"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={defaults.fee ?? ""}
-            error={fe.fee}
-          />
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="service_fee_enabled"
+                defaultChecked={
+                  defaults.fee != null && Number(defaults.fee) > 0
+                }
+                className="size-4"
+              />
+              One-time service fee
+            </label>
+            <p className="text-xs text-muted-foreground">
+              0.91% of the note&apos;s total projected interest, deducted from
+              the first payment. Calculated automatically when you save.
+              {defaults.fee != null && Number(defaults.fee) > 0
+                ? ` Current: ${formatCurrency(defaults.fee)}.`
+                : ""}
+            </p>
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="principal">Principal (USD)</Label>
             <div className="relative">
