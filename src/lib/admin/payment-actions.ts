@@ -16,7 +16,9 @@ export async function recordScheduledPayment(
   // exactly what the admin saw on screen (deterministic).
   const { data: note, error: noteErr } = await supabase
     .from("notes")
-    .select("principal, rate, term_months, interest_type, first_payment_date")
+    .select(
+      "principal, rate, term_months, interest_type, first_payment_date, fee",
+    )
     .eq("id", noteUuid)
     .maybeSingle();
   if (noteErr || !note) throw new Error("Note not found");
@@ -37,6 +39,7 @@ export async function recordScheduledPayment(
     termMonths: Number(note.term_months),
     interestType: String(note.interest_type),
     firstPaymentDate: String(note.first_payment_date),
+    fee: note.fee !== null ? Number(note.fee) : 0,
   });
   if (!result.ok) throw new Error(result.reason);
 
@@ -99,14 +102,25 @@ export async function recordScheduledPayment(
   };
   const principalShares = split(row.principal_amount);
   const interestShares = split(row.interest_amount);
+  // The one-time service fee (row 1 only) is Kindling's cut: the borrower's
+  // note_payment above is recorded in FULL, but each lender's payout OUT is
+  // reduced by their pro-rata share of the fee. Take it from interest first,
+  // then any remainder from principal, so neither goes negative.
+  const feeShares = split(row.fee_amount);
 
-  const payoutInsert = rows.map((p, i) => ({
-    note_payment_id: payment.id,
-    participation_id: p.id,
-    principal_amount: principalShares[i],
-    interest_amount: interestShares[i],
-    share_basis: Number(p.invested_amount),
-  }));
+  const payoutInsert = rows.map((p, i) => {
+    const feeFromInterest = Math.min(feeShares[i], interestShares[i]);
+    const feeFromPrincipal = Math.max(0, feeShares[i] - interestShares[i]);
+    return {
+      note_payment_id: payment.id,
+      participation_id: p.id,
+      principal_amount:
+        Math.round((principalShares[i] - feeFromPrincipal) * 100) / 100,
+      interest_amount:
+        Math.round((interestShares[i] - feeFromInterest) * 100) / 100,
+      share_basis: Number(p.invested_amount),
+    };
+  });
   const { error: poErr } = await supabase
     .from("participation_payment_payouts")
     .insert(payoutInsert);
