@@ -233,7 +233,7 @@ function parseFields(formData: FormData) {
     has_profit_bonus: formData.get("has_profit_bonus") === "on",
     visible_entity_ids: formData.getAll("visible_entity_ids").map(String),
     principal: money(formData, "principal"),
-    fee: money(formData, "fee"),
+    service_fee_enabled: formData.get("service_fee_enabled") === "on",
     rate: text(formData, "rate"),
     term_months: text(formData, "term_months"),
     min_investment: text(formData, "min_investment") || null,
@@ -285,39 +285,6 @@ function validate(fields: Fields): Record<string, string> {
     errors.interest_type = "Invalid";
   }
 
-  if (fields.fee !== null) {
-    const fee = Number(fields.fee);
-    if (!Number.isFinite(fee) || fee < 0) {
-      errors.fee = "Must be zero or greater";
-    } else if (
-      fee > 0 &&
-      fields.principal !== null &&
-      fields.rate &&
-      fields.term_months &&
-      fields.first_payment_date
-    ) {
-      // The fee is subtracted from the first payment, so it must be smaller than
-      // it — the net first payment can never be negative.
-      const sched = generateSchedule({
-        principal: Number(fields.principal),
-        annualRatePct: Number(fields.rate),
-        termMonths: parseInt(fields.term_months, 10),
-        interestType: fields.interest_type,
-        firstPaymentDate: fields.first_payment_date,
-      });
-      if (sched.ok) {
-        const firstPayment =
-          sched.rows[0].principal_amount + sched.rows[0].interest_amount;
-        if (fee >= firstPayment) {
-          errors.fee = `Must be less than the first month's payment ($${firstPayment.toLocaleString(
-            undefined,
-            { minimumFractionDigits: 2, maximumFractionDigits: 2 },
-          )})`;
-        }
-      }
-    }
-  }
-
   return errors;
 }
 
@@ -333,12 +300,42 @@ async function buildInsert(
     interestType: fields.interest_type,
   });
 
+  // One-time service fee = 0.91% of the note's total projected interest,
+  // deducted from the first payment. Computed from the amortization (the fee
+  // is date-independent, so a placeholder first-payment date is fine when the
+  // note doesn't have one set yet). Null when the fee is toggled off.
+  const SERVICE_FEE_RATE = 0.0091;
+  let fee: string | null = null;
+  if (
+    fields.service_fee_enabled &&
+    fields.principal !== null &&
+    fields.rate !== "" &&
+    fields.term_months !== ""
+  ) {
+    const sched = generateSchedule({
+      principal: Number(fields.principal),
+      annualRatePct: Number(fields.rate),
+      termMonths: parseInt(fields.term_months, 10),
+      interestType: fields.interest_type,
+      firstPaymentDate: fields.first_payment_date || "2020-01-01",
+    });
+    if (sched.ok) {
+      const totalInterest = sched.rows.reduce(
+        (s, r) => s + r.interest_amount,
+        0,
+      );
+      fee = (Math.round(totalInterest * SERVICE_FEE_RATE * 100) / 100).toFixed(
+        2,
+      );
+    }
+  }
+
   return {
     note_id: fields.note_id,
     borrower_id: fields.borrower_id,
     title: fields.title,
     principal: fields.principal,
-    fee: fields.fee,
+    fee,
     rate: fields.rate,
     term_months: parseInt(fields.term_months, 10),
     project_type: fields.project_type,
