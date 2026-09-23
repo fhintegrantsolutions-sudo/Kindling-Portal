@@ -76,13 +76,13 @@ export default async function PaymentLedgerPage({
               />
               <Link
                 href={ledgerHref(prev, borrowerId)}
-                className="rounded-md border px-3 py-1 hover:bg-muted/40"
+                className="inline-flex min-w-[9.5rem] items-center justify-center rounded-md border px-3 py-1 hover:bg-muted/40"
               >
                 ← {formatYearMonth(prev)}
               </Link>
               <Link
                 href={ledgerHref(next, borrowerId)}
-                className="rounded-md border px-3 py-1 hover:bg-muted/40"
+                className="inline-flex min-w-[9.5rem] items-center justify-center rounded-md border px-3 py-1 hover:bg-muted/40"
               >
                 {formatYearMonth(next)} →
               </Link>
