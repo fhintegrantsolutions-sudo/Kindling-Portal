@@ -17,6 +17,7 @@ export function DownloadScheduleButton({
   termMonths,
   interestType,
   startDate,
+  oneTimeFee,
 }: {
   rows: MyScheduleRow[];
   noteId: string;
@@ -27,6 +28,7 @@ export function DownloadScheduleButton({
   termMonths: number;
   interestType: string;
   startDate: string | null;
+  oneTimeFee: number;
 }) {
   const onClick = () => {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -70,6 +72,11 @@ export function DownloadScheduleButton({
     const rightRows: Array<[string, string]> = [
       ["Scheduled payment", scheduled === null ? "—" : formatCurrency(scheduled)],
       ["Scheduled number of payments", String(termMonths || rows.length)],
+      ...(oneTimeFee > 0
+        ? ([
+            ["One-time service fee", `−${formatCurrency(oneTimeFee)}`],
+          ] as Array<[string, string]>)
+        : []),
       ["Lender name", lenderName],
     ];
 
@@ -155,9 +162,10 @@ export function DownloadScheduleButton({
     );
     doc.setTextColor(0);
 
-    // One-time fee note (only when the first payment carries a fee). Sits just
-    // below the note title / generated stamp and above the detailed schedule.
-    const firstFee = rows[0]?.my_fee ?? 0;
+    // One-time fee note (only when the note carries a fee). Uses the
+    // participation's one-time fee so it shows even after the first payment is
+    // received (when per-row my_fee is already baked into the recorded payout).
+    const firstFee = oneTimeFee;
     let scheduleStartY = afterSummaryY + 12;
     if (firstFee > 0) {
       const feeNoteY = afterSummaryY + 16;
