@@ -72,8 +72,10 @@ export default async function MyNoteDetailPage({
   );
   const totalInterest = receivedRows.reduce((s, r) => s + r.my_interest, 0);
   const totalReceived = totalPrincipal + totalInterest;
-  // One-time fee for this participation (charged on the first payment).
-  const totalFee = scheduleRows.reduce((s, r) => s + r.my_fee, 0);
+  // One-time fee for this participation (charged on the first payment). Comes
+  // from the schedule result so it shows even after the first payment is
+  // received (when per-row my_fee is already baked into the recorded payout).
+  const totalFee = schedule.ok ? schedule.one_time_fee : 0;
   const hasFee = totalFee > 0;
 
   // Calendar-year rollup of this participation's schedule. Each year is tagged

@@ -602,7 +602,7 @@ export type MyScheduleRow = {
 };
 
 export type MyScheduleResult =
-  | { ok: true; rows: MyScheduleRow[] }
+  | { ok: true; rows: MyScheduleRow[]; one_time_fee: number }
   | { ok: false; reason: string };
 
 export async function getMyScheduleForNote(
@@ -737,7 +737,15 @@ export async function getMyScheduleForNote(
     };
   });
 
-  return { ok: true, rows };
+  // The lender's one-time fee (pro-rata of the note fee), independent of whether
+  // the first payment has been received yet — so it can be shown even after the
+  // fee has been baked into the recorded first payout.
+  const oneTimeFee =
+    Math.round(
+      result.rows.reduce((s, r) => s + r.fee_amount, 0) * myShare * 100,
+    ) / 100;
+
+  return { ok: true, rows, one_time_fee: oneTimeFee };
 }
 
 export type MyDocument = {
