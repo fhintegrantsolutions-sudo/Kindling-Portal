@@ -74,7 +74,7 @@ export function DownloadScheduleButton({
       ["Scheduled number of payments", String(termMonths || rows.length)],
       ...(oneTimeFee > 0
         ? ([
-            ["One-time service fee", `−${formatCurrency(oneTimeFee)}`],
+            ["One-time service fee", formatCurrency(oneTimeFee)],
           ] as Array<[string, string]>)
         : []),
       ["Lender name", lenderName],
