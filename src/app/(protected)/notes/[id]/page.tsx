@@ -178,6 +178,7 @@ export default async function MyNoteDetailPage({
                 termMonths={Number(note.term_months ?? 0)}
                 interestType={String(note.interest_type ?? "")}
                 startDate={note.first_payment_date ?? null}
+                oneTimeFee={totalFee}
               />
             ) : null}
           </div>
