@@ -101,6 +101,8 @@ export type MonthlyCashflowPoint = {
   month: string; // "YYYY-MM"
   principal: number;
   interest: number;
+  // The notes paying into this month (human note IDs), for the chart detail.
+  noteIds: string[];
 };
 
 // Total profit-bonus dollars actually PAID (status "received") per calendar
@@ -153,7 +155,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     .select(
       `
       invested_amount, funding_cleared,
-      note:notes ( principal, rate, term_months, interest_type, first_payment_date, fee )
+      note:notes ( note_id, principal, rate, term_months, interest_type, first_payment_date, fee )
       `,
     )
     .in("entity_id", ctx.entityIds)
@@ -163,6 +165,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     invested_amount: string;
     funding_cleared: boolean;
     note: {
+      note_id: string;
       principal: string | null;
       rate: string | null;
       term_months: number | null;
@@ -174,6 +177,8 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
 
   const { generateSchedule, addMonths } = await import("@/lib/notes/schedule");
   const byMonth = new Map<string, { principal: number; interest: number }>();
+  // Distinct notes paying into each month (human note IDs), for the chart detail.
+  const notesByMonth = new Map<string, Set<string>>();
   // A note returns exactly its invested principal over the term, so this is the
   // exact target the rounded monthly series must sum to. Interest has no clean
   // target, so we track its unrounded total and settle to that.
@@ -215,6 +220,9 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       cur.interest += netInterest;
       exactInterest += netInterest;
       byMonth.set(month, cur);
+      const set = notesByMonth.get(month) ?? new Set<string>();
+      set.add(n.note_id);
+      notesByMonth.set(month, set);
     }
   }
 
@@ -235,6 +243,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       month: m,
       principal: Math.round(v.principal * 100) / 100,
       interest: Math.round(v.interest * 100) / 100,
+      noteIds: Array.from(notesByMonth.get(m) ?? []).sort(),
     });
     cursor = addMonths(cursor, 1);
   }
