@@ -24,6 +24,7 @@ import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
 import { EditInvestedAmount } from "./edit-invested-amount";
+import { MyNotesCard } from "./my-notes-card";
 import { DocumentDownloadButton } from "@/components/document-download-button";
 
 export default async function MyNoteDetailPage({
@@ -369,6 +370,11 @@ export default async function MyNoteDetailPage({
         </CardContent>
       </Card>
       ) : null}
+
+      <MyNotesCard
+        participationId={participation.id}
+        initial={participation.user_notes}
+      />
 
       {/* The note's total principal is the whole deal size — admin-only.
           A lender sees their own position in "Your participation" above. */}
