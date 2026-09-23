@@ -96,7 +96,7 @@ export function LedgerTable({
               <th className="py-2 pr-2 font-medium text-right">Principal</th>
               <th className="py-2 pr-2 font-medium text-right">Interest</th>
               <th className="py-2 pr-2 font-medium text-right">Total</th>
-              <th className="py-2 pr-2 font-medium">Received</th>
+              <th className="py-2 pl-6 pr-2 font-medium">Received</th>
             </tr>
           </thead>
           <tbody>
@@ -181,7 +181,7 @@ function Row({
       <td className="py-2 pr-2 text-right font-medium tabular-nums">
         {formatCurrency(total)}
       </td>
-      <td className="py-2 pr-2">
+      <td className="py-2 pl-6 pr-2">
         <div className="flex items-center gap-2">
           <label
             className={`inline-flex items-center gap-2 ${
@@ -202,7 +202,7 @@ function Row({
               disabled={pending || disabled}
               className="size-4 rounded border-muted-foreground/40"
             />
-            <span className="min-w-[5.5rem] text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {isReceived ? formatDate(row.received_date) : ""}
             </span>
           </label>
