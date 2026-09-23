@@ -38,6 +38,7 @@ export type MonthlyPoint = {
   month: string; // "YYYY-MM"
   principal: number;
   interest: number;
+  noteIds: string[];
 };
 
 // Monthly cash-flow chart: one bar per calendar month, stacked into the
@@ -199,6 +200,13 @@ export function MonthlyCashflowChart({ data }: { data: MonthlyPoint[] }) {
                     detailPoint.principal + detailPoint.interest,
                   )}
                 </span>
+              </span>
+              <span className="w-full text-xs text-muted-foreground">
+                {detailPoint.noteIds.length} note
+                {detailPoint.noteIds.length === 1 ? "" : "s"}
+                {detailPoint.noteIds.length > 0
+                  ? `: ${detailPoint.noteIds.join(", ")}`
+                  : ""}
               </span>
             </div>
           ) : (
