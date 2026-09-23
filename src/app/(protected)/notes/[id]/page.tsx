@@ -256,6 +256,9 @@ export default async function MyNoteDetailPage({
                         </td>
                         <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(r.my_interest)}
+                          {hasFee && r.payment_number === 1 ? (
+                            <span className="text-muted-foreground">*</span>
+                          ) : null}
                         </td>
                         <td className="py-2 pr-2 text-right tabular-nums">
                           {formatCurrency(
@@ -279,9 +282,10 @@ export default async function MyNoteDetailPage({
                   </tbody>
                 </table>
               </div>
-              {scheduleRows.some((r) => r.my_fee > 0) ? (
+              {hasFee ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Your first payment is reduced by a one-time fee.
+                  * Interest on your first payment is reduced by a one-time fee
+                  of {formatCurrency(totalFee)}.
                 </p>
               ) : null}
             </>
