@@ -11,7 +11,8 @@
 -- Interest-only notes are not touched. Borrower payments (note_payments) are
 -- not touched. Supersedes 2026-10-19-lender-own-amortization.sql.
 --
--- Run STEP 1 first and review it. Run STEP 2 only if every change is wanted.
+-- Run STEP 1 first and review it. To apply, run the separate file
+-- 2026-10-19-lender-ppmt-split-apply.sql (identical to STEP 2 below).
 
 -- =====================================================================
 -- STEP 1 - PREVIEW (read-only). Lists every payout that would change.
