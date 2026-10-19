@@ -51,6 +51,7 @@ export default async function NoteSchedulePage({
       check_number: p.check_number,
       wire_reference: p.wire_reference,
       notes: p.notes,
+      logged_at: p.created_at,
     }));
 
   // Borrower business name for the PDF header. Use "—" if the note has no

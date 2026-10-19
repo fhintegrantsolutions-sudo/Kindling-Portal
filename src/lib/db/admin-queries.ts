@@ -1739,6 +1739,8 @@ export type LedgerRow = {
   check_number: string | null;
   wire_reference: string | null;
   payment_notes: string | null;
+  // When the payment was recorded in the portal (note_payments.created_at).
+  logged_at: string | null;
   has_funded_participants: boolean;
 };
 
@@ -1811,7 +1813,7 @@ export async function getLedgerForMonth(
   const { data: receivedRows } = await supabase
     .from("note_payments")
     .select(
-      "id, note_id, payment_number, payment_date, payment_method, check_number, wire_reference, notes",
+      "id, note_id, payment_number, payment_date, payment_method, check_number, wire_reference, notes, created_at",
     )
     .gte("payment_date", monthStart)
     .lt("payment_date", monthEnd)
@@ -1825,6 +1827,7 @@ export async function getLedgerForMonth(
     check_number: string | null;
     wire_reference: string | null;
     notes: string | null;
+    created_at: string;
   };
   const receivedByKey = new Map<string, ReceivedRow>();
   for (const r of (receivedRows ?? []) as ReceivedRow[]) {
@@ -1878,6 +1881,7 @@ export async function getLedgerForMonth(
         check_number: got ? got.check_number : null,
         wire_reference: got ? got.wire_reference : null,
         payment_notes: got ? got.notes : null,
+        logged_at: got ? got.created_at : null,
         has_funded_participants: fundedSet.has(n.id),
       });
     }
