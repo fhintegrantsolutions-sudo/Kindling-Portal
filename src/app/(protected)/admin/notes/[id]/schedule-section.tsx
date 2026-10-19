@@ -33,18 +33,14 @@ export function ScheduleSection({
   scheduleError,
   received,
   headerAction,
-  cosparkFee = 0,
 }: {
   noteUuid: string;
   schedule: ScheduleRow[] | null;
   scheduleError: string | null;
   received: ReceivedPayment[];
   headerAction?: React.ReactNode;
-  // The CoSpark membership portion of the row-1 fee, itemized in the header.
-  cosparkFee?: number;
 }) {
   const receivedByNumber = new Map(received.map((r) => [r.payment_number, r]));
-  const totalFee = (schedule ?? []).reduce((s, r) => s + r.fee_amount, 0);
 
   return (
     <Card>
@@ -56,23 +52,6 @@ export function ScheduleSection({
               Generated from the note&apos;s principal, rate, term, interest
               type, and first payment date. Check a row to record receipt.
             </p>
-            {totalFee > 0 ? (
-              <p className="mt-1 text-sm">
-                <span className="text-muted-foreground">
-                  {cosparkFee > 0 ? "One-time fees:" : "One-time fee:"}
-                </span>{" "}
-                <span className="font-medium tabular-nums">
-                  −{formatCurrency(totalFee)}
-                </span>{" "}
-                <span className="text-muted-foreground">
-                  {cosparkFee > 0
-                    ? `(service fee ${formatCurrency(totalFee - cosparkFee)} + CoSpark membership ${formatCurrency(cosparkFee)})`
-                    : ""}{" "}
-                  — deducted from lenders&apos; first interest payment. The
-                  borrower pays the full amount.
-                </span>
-              </p>
-            ) : null}
           </div>
           {headerAction}
         </div>
@@ -93,7 +72,7 @@ export function ScheduleSection({
                   <th className="py-2 pr-2 font-medium">Due</th>
                   <th className="py-2 pr-2 font-medium text-right">Principal</th>
                   <th className="py-2 pr-2 font-medium text-right">Interest</th>
-                  <th className="py-2 pr-2 font-medium text-right">Net</th>
+                  <th className="py-2 pr-2 font-medium text-right">Total</th>
                   <th className="py-2 pr-2 font-medium text-right">Balance</th>
                   <th className="py-2 pr-2 font-medium text-right">Received</th>
                 </tr>

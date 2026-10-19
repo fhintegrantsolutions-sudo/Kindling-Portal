@@ -150,23 +150,8 @@ export function DownloadNoteScheduleButton({
     );
     doc.setTextColor(0);
 
-    // One-time fee note (only when the first payment carries a fee). Sits just
-    // below the note title / generated stamp and above the detailed schedule.
-    const firstFee = rows[0]?.fee_amount ?? 0;
-    let scheduleStartY = afterSummaryY + 12;
-    if (firstFee > 0) {
-      const feeNoteY = afterSummaryY + 16;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.text(
-        `Borrower pays in full. One-time fees of ${formatCurrency(firstFee)} are deducted from lenders' first interest payment.`,
-        margin,
-        feeNoteY,
-      );
-      doc.setTextColor(0);
-      scheduleStartY = feeNoteY + 12;
-    }
+    // Borrower-facing: no lender fees on this schedule.
+    const scheduleStartY = afterSummaryY + 12;
 
     // ============ Detailed schedule ============
     // Track beginning balance + cumulative interest as we walk the rows.
