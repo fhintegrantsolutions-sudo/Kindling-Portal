@@ -16,6 +16,7 @@ import { FundingForm } from "./funding-form";
 import { InviteButton } from "./invite-button";
 import { AmountReceivedEditor } from "./amount-received-editor";
 import { ParticipationDocuments } from "./documents-section";
+import { LenderSchedulePdfButton } from "./lender-schedule-pdf-button";
 
 export default async function AdminParticipationDetailPage({
   params,
@@ -122,8 +123,14 @@ export default async function AdminParticipationDetailPage({
 
       {p.note ? (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-base">Investment</CardTitle>
+            {p.funding_cleared ? (
+              <LenderSchedulePdfButton
+                participationId={p.id}
+                lenderLabel={p.lender?.name ?? p.lender?.email ?? "lender"}
+              />
+            ) : null}
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Field

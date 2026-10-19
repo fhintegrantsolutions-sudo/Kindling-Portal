@@ -36,11 +36,11 @@ export function LenderSchedulePdfButton({
       onClick={onClick}
       disabled={pending}
       aria-label={`Download ${lenderLabel}'s schedule PDF`}
-      title="Download this lender's schedule (PDF)"
-      className="h-8 shrink-0 gap-1 px-2 text-xs"
+      title="Download the schedule PDF this lender sees"
+      className="gap-1"
     >
       <Download className="size-3.5" />
-      {pending ? "…" : "PDF"}
+      {pending ? "Preparing…" : "Lender schedule PDF"}
     </Button>
   );
 }
