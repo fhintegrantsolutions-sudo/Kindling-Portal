@@ -20,6 +20,7 @@ import {
   type YearStatus,
 } from "@/components/annual-summary-table";
 import { rollupByYear } from "@/lib/notes/annual-summary";
+import { computeMonthlyPayment } from "@/lib/notes/schedule";
 import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
@@ -79,6 +80,17 @@ export default async function MyNoteDetailPage({
   // received (when per-row my_fee is already baked into the recorded payout).
   const totalFee = schedule.ok ? schedule.one_time_fee : 0;
   const hasFee = totalFee > 0;
+  // The lender's own monthly payment: their invested amount amortized at the
+  // note's rate and term (the same figure as every row of their schedule).
+  const monthlyPayment =
+    note.rate !== null && note.term_months
+      ? computeMonthlyPayment({
+          principal: Number(participation.invested_amount),
+          annualRatePct: Number(note.rate),
+          termMonths: Number(note.term_months),
+          interestType: String(note.interest_type ?? ""),
+        })
+      : null;
   const cosparkFee = schedule.ok ? schedule.cospark_fee : 0;
 
   // Calendar-year rollup of this participation's schedule. Each year is tagged
@@ -135,7 +147,7 @@ export default async function MyNoteDetailPage({
             </p>
           ) : null}
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-5">
           <div>
             <p className="text-xs text-muted-foreground">Invested</p>
             <EditInvestedAmount
@@ -145,6 +157,10 @@ export default async function MyNoteDetailPage({
               fundingReceived={Boolean(participation.funding_received)}
             />
           </div>
+          <Field
+            label="Monthly payment"
+            value={monthlyPayment !== null ? formatCurrency(monthlyPayment) : "—"}
+          />
           <Field label="Status" value={participation.status} />
           <Field
             label="Funding"
