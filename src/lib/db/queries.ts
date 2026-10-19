@@ -740,7 +740,14 @@ export async function getMyScheduleForNote(
     } else if (i === lastProjectedIdx) {
       myPrincipal = runningBalance > 0 ? runningBalance : 0;
     } else {
-      myPrincipal = Math.round(row.principal_amount * myShare * 100) / 100;
+      // Round the lender's TOTAL payment once and take principal as the
+      // remainder after interest. Rounding principal and interest separately
+      // made the monthly total wobble by a cent ($50.39 / $50.40).
+      const myTotal =
+        Math.round(
+          (row.principal_amount + row.interest_amount) * myShare * 100,
+        ) / 100;
+      myPrincipal = Math.round((myTotal - myInterest) * 100) / 100;
     }
     // The one-time fee reduces interest only, never principal, so it doesn't
     // touch the settle above. Received rows already reflect the fee in the
