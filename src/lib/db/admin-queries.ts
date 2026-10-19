@@ -1246,6 +1246,8 @@ export type AccessRequestListItem = {
   referral_code: string | null;
   created_at: string;
   archived_at: string | null;
+  // Other access requests (any status, archived or not) with the same email.
+  other_request_count: number;
   note: { note_id: string; title: string } | null;
 };
 
@@ -1302,10 +1304,51 @@ export async function getAccessRequests(filter?: {
     }
   }
 
+  // Count requests per email across the whole table so returning leads can be
+  // flagged. Case-insensitive: older rows predate email normalization.
+  const emailCounts = new Map<string, number>();
+  if (rows.length > 0) {
+    const { data: all } = await supabase.from("access_requests").select("email");
+    for (const a of (all ?? []) as Array<{ email: string | null }>) {
+      const e = (a.email ?? "").trim().toLowerCase();
+      if (e) emailCounts.set(e, (emailCounts.get(e) ?? 0) + 1);
+    }
+  }
+
   return rows.map((r) => ({
     ...r,
+    other_request_count: Math.max(
+      0,
+      (emailCounts.get(r.email.trim().toLowerCase()) ?? 1) - 1,
+    ),
     note: r.note_id ? (noteMap.get(r.note_id) ?? null) : null,
   }));
+}
+
+export type RelatedAccessRequest = {
+  id: string;
+  status: AccessRequestListItem["status"];
+  created_at: string;
+  archived_at: string | null;
+};
+
+// Other access requests from the same email (case-insensitive), newest first.
+export async function getRelatedAccessRequests(
+  id: string,
+  email: string,
+): Promise<RelatedAccessRequest[]> {
+  const trimmed = email.trim();
+  if (!trimmed) return [];
+  const supabase = await createClient();
+  // Escape LIKE wildcards so the ilike is an exact, case-insensitive match.
+  const pattern = trimmed.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const { data } = await supabase
+    .from("access_requests")
+    .select("id, status, created_at, archived_at")
+    .ilike("email", pattern)
+    .neq("id", id)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as RelatedAccessRequest[];
 }
 
 export type AccessRequestDetail = {

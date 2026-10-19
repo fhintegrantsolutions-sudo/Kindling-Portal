@@ -87,6 +87,14 @@ export default async function AdminAccessRequestsPage({
                       <span className="rounded-full border px-2 py-0.5">
                         {r.status}
                       </span>
+                      {r.other_request_count > 0 ? (
+                        <span
+                          className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400"
+                          title={`${r.other_request_count} other request${r.other_request_count === 1 ? "" : "s"} from this email`}
+                        >
+                          Returning
+                        </span>
+                      ) : null}
                       {r.archived_at ? (
                         <span className="rounded-full border bg-muted px-2 py-0.5 text-muted-foreground">
                           Archived {formatDate(r.archived_at)}
