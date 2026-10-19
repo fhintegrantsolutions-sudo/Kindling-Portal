@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getParticipationById } from "@/lib/db/admin-queries";
+import {
+  getFundedParticipantsForNote,
+  getParticipationById,
+} from "@/lib/db/admin-queries";
 import { listParticipationDocuments } from "@/lib/documents/actions";
 import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import {
@@ -26,7 +29,15 @@ export default async function AdminParticipationDetailPage({
   const p = await getParticipationById(id);
   if (!p) notFound();
 
-  const documents = await listParticipationDocuments(id);
+  // Pro-rata monthly payment and one-time fee, computed exactly as on the
+  // note's Funded participants card (only cleared participations get a share).
+  const [documents, funded] = await Promise.all([
+    listParticipationDocuments(id),
+    p.note?.id && p.funding_cleared
+      ? getFundedParticipantsForNote(p.note.id)
+      : Promise.resolve([]),
+  ]);
+  const share = funded.find((f) => f.participation_id === p.id) ?? null;
 
   // When the admin drilled in from a note's funded-participants list, send them
   // back to that note instead of the flat participations list.
@@ -125,6 +136,26 @@ export default async function AdminParticipationDetailPage({
               value={formatCurrency(p.note.principal)}
             />
             <Field label="Rate" value={formatPercent(p.note.rate)} />
+            {share ? (
+              <>
+                <Field
+                  label="Share"
+                  value={`${share.share_pct.toFixed(2)}%`}
+                />
+                <Field
+                  label="Monthly payment"
+                  value={
+                    share.monthly_payment !== null
+                      ? formatCurrency(share.monthly_payment)
+                      : "—"
+                  }
+                />
+                <Field
+                  label="Fee (one-time)"
+                  value={share.fee > 0 ? `−${formatCurrency(share.fee)}` : "—"}
+                />
+              </>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
