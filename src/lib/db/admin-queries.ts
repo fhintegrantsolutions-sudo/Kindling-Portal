@@ -3,6 +3,9 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { noteFirstPaymentFees } from "@/lib/notes/schedule";
 
+// Note statuses that count as active (funded, paying lenders).
+const ACTIVE_NOTE_STATUSES = ["Funded", "Active"];
+
 export type AdminStats = {
   // Leads
   pendingAccessRequests: number;
@@ -208,19 +211,21 @@ export async function getAdminStats(): Promise<AdminStats> {
       .select("invested_amount")
       .eq("status", "Active")
       .eq("funding_cleared", true),
+    // Active notes = funded and being serviced. The lifecycle status for that
+    // is "Funded" (older notes may still say "Active").
     supabase
       .from("notes")
       .select("*", { count: "exact", head: true })
-      .eq("status", "Active"),
+      .in("status", ACTIVE_NOTE_STATUSES),
     supabase
       .from("notes")
       .select("*", { count: "exact", head: true })
-      .eq("status", "Active")
+      .in("status", ACTIVE_NOTE_STATUSES)
       .eq("is_private", false),
     supabase
       .from("notes")
       .select("*", { count: "exact", head: true })
-      .eq("status", "Active")
+      .in("status", ACTIVE_NOTE_STATUSES)
       .eq("is_private", true),
   ]);
 
