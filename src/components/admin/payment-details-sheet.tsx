@@ -5,6 +5,7 @@ import {
   updatePaymentDetails,
   type UpdatePaymentDetailsState,
 } from "@/lib/admin/payment-actions";
+import { formatCurrency } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ export type PaymentDetailsInput = {
   check_number: string | null;
   wire_reference: string | null;
   notes: string | null;
+  total_amount?: number;
 };
 
 export function PaymentDetailsButton({ payment }: { payment: PaymentDetailsInput }) {
@@ -90,6 +92,15 @@ function PaymentDetailsForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-4 px-4 pb-4">
+      {payment.total_amount !== undefined ? (
+        <div className="flex items-baseline justify-between rounded-md border bg-muted/40 px-3 py-2">
+          <span className="text-sm text-muted-foreground">Total</span>
+          <span className="text-lg font-semibold tabular-nums">
+            {formatCurrency(payment.total_amount)}
+          </span>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="payment_date">Payment date</Label>
         <Input
