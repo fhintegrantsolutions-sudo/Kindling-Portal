@@ -8,7 +8,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type FilterValue = "pending" | "approved" | "converted" | "rejected";
+type FilterValue =
+  | "pending"
+  | "approved"
+  | "converted"
+  | "rejected"
+  | "archived";
 
 export default async function AdminAccessRequestsPage({
   searchParams,
@@ -17,7 +22,9 @@ export default async function AdminAccessRequestsPage({
 }) {
   const sp = await searchParams;
   const filter = sp.status ?? "pending";
-  const items = await getAccessRequests({ status: filter });
+  const items = await getAccessRequests(
+    filter === "archived" ? { archived: true } : { status: filter },
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
@@ -43,6 +50,7 @@ export default async function AdminAccessRequestsPage({
         />
         <FilterTab label="Converted" value="converted" current={filter} />
         <FilterTab label="Rejected" value="rejected" current={filter} />
+        <FilterTab label="Archived" value="archived" current={filter} />
       </nav>
 
       {items.length === 0 ? (
@@ -79,6 +87,11 @@ export default async function AdminAccessRequestsPage({
                       <span className="rounded-full border px-2 py-0.5">
                         {r.status}
                       </span>
+                      {r.archived_at ? (
+                        <span className="rounded-full border bg-muted px-2 py-0.5 text-muted-foreground">
+                          Archived {formatDate(r.archived_at)}
+                        </span>
+                      ) : null}
                       {r.is_tcc_member ? (
                         <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
                           CoSpark member

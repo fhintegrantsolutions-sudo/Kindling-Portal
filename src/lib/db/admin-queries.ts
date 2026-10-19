@@ -151,16 +151,19 @@ export async function getAdminStats(): Promise<AdminStats> {
     supabase
       .from("access_requests")
       .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
+      .eq("status", "pending")
+      .is("archived_at", null),
     // Approved lead with a setup token, lead hasn't submitted yet
     supabase
       .from("access_requests")
       .select("*", { count: "exact", head: true })
-      .eq("status", "approved"),
+      .eq("status", "approved")
+      .is("archived_at", null),
     supabase
       .from("access_requests")
       .select("*", { count: "exact", head: true })
-      .eq("status", "converted"),
+      .eq("status", "converted")
+      .is("archived_at", null),
     // Participations by funding stage
     supabase
       .from("participations")
@@ -1242,11 +1245,15 @@ export type AccessRequestListItem = {
   is_tcc_member: boolean;
   referral_code: string | null;
   created_at: string;
+  archived_at: string | null;
   note: { note_id: string; title: string } | null;
 };
 
+// Archived requests only appear when `archived: true`; every status tab
+// excludes them.
 export async function getAccessRequests(filter?: {
   status?: "pending" | "approved" | "rejected" | "converted";
+  archived?: boolean;
 }): Promise<AccessRequestListItem[]> {
   const supabase = await createClient();
   let q = supabase
@@ -1254,10 +1261,13 @@ export async function getAccessRequests(filter?: {
     .select(
       `
       id, status, first_name, last_name, email, phone, note_id,
-      investment_amount, is_tcc_member, referral_code, created_at
+      investment_amount, is_tcc_member, referral_code, created_at,
+      archived_at
       `,
     )
     .order("created_at", { ascending: false });
+  if (filter?.archived) q = q.not("archived_at", "is", null);
+  else q = q.is("archived_at", null);
   if (filter?.status) q = q.eq("status", filter.status);
   const { data } = await q;
   const rows = (data ?? []) as Array<{
@@ -1272,6 +1282,7 @@ export async function getAccessRequests(filter?: {
     is_tcc_member: boolean;
     referral_code: string | null;
     created_at: string;
+    archived_at: string | null;
   }>;
 
   const noteIds = Array.from(
@@ -1313,6 +1324,7 @@ export type AccessRequestDetail = {
   setup_token_expires_at: string | null;
   setup_completed_at: string | null;
   created_at: string;
+  archived_at: string | null;
   note: { id: string; note_id: string; title: string } | null;
 };
 

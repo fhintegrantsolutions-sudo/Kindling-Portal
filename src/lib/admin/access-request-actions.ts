@@ -107,3 +107,27 @@ export async function rejectAccessRequest(id: string): Promise<void> {
   revalidatePath(`/admin/access-requests/${id}`);
   revalidatePath("/admin");
 }
+
+// Archive / un-archive an access request. Archiving hides it from the working
+// tabs (and deactivates any outstanding setup link) without touching status,
+// so un-archiving puts it back exactly where it was.
+export async function setAccessRequestArchived(
+  id: string,
+  archived: boolean,
+): Promise<{ error?: string }> {
+  const admin = await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("access_requests")
+    .update(
+      archived
+        ? { archived_at: new Date().toISOString(), archived_by: admin.id }
+        : { archived_at: null, archived_by: null },
+    )
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/access-requests");
+  revalidatePath(`/admin/access-requests/${id}`);
+  revalidatePath("/admin");
+  return {};
+}
