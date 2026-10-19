@@ -161,6 +161,16 @@ export function NoteForm({
     return Math.round(interest * (pct / 100) * 100) / 100;
   }, [principalStr, rateStr, termStr, interestType, feeRateStr]);
 
+  const cosparkAmount = Number(cosparkStr.replace(/,/g, ""));
+  const totalFeesPreview =
+    Math.round(
+      ((feeEnabled ? (serviceFeePreview ?? 0) : 0) +
+        (Number.isFinite(cosparkAmount) && cosparkAmount > 0
+          ? cosparkAmount
+          : 0)) *
+        100,
+    ) / 100;
+
   const monthlyPayment = useMemo(() => {
     const cleanPrincipal = principalStr.replace(/,/g, "");
     return computeMonthlyPayment({
@@ -630,6 +640,17 @@ export function NoteForm({
             {fe.cospark_fee ? (
               <p className="text-xs text-destructive">{fe.cospark_fee}</p>
             ) : null}
+          </div>
+          <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 sm:col-span-2">
+            <div>
+              <p className="text-sm font-medium">Total fees</p>
+              <p className="text-xs text-muted-foreground">
+                Service fee + CoSpark membership
+              </p>
+            </div>
+            <span className="text-lg font-semibold tabular-nums">
+              {formatCurrency(totalFeesPreview)}
+            </span>
           </div>
         </div>
       </Section>
