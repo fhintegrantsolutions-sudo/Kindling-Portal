@@ -25,6 +25,7 @@ export type ReceivedPayment = {
   check_number: string | null;
   wire_reference: string | null;
   notes: string | null;
+  logged_at: string | null;
 };
 
 export function ScheduleSection({
@@ -172,6 +173,7 @@ function ScheduleRowItem({
                   check_number: received.check_number,
                   wire_reference: received.wire_reference,
                   notes: received.notes,
+                  logged_at: received.logged_at,
                 }}
               />
             ) : null}

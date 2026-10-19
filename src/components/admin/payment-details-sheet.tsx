@@ -28,6 +28,8 @@ export type PaymentDetailsInput = {
   wire_reference: string | null;
   notes: string | null;
   total_amount?: number;
+  // When the payment was recorded in the portal.
+  logged_at?: string | null;
 };
 
 export function PaymentDetailsButton({ payment }: { payment: PaymentDetailsInput }) {
@@ -54,6 +56,15 @@ export function PaymentDetailsButton({ payment }: { payment: PaymentDetailsInput
           <SheetHeader>
             <SheetTitle>Payment details</SheetTitle>
             <SheetDescription>{payment.note_label}</SheetDescription>
+            {payment.logged_at ? (
+              <p className="text-xs text-muted-foreground">
+                Logged{" "}
+                {new Date(payment.logged_at).toLocaleString("en-US", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            ) : null}
           </SheetHeader>
           <PaymentDetailsForm
             payment={payment}
