@@ -1,3 +1,5 @@
+-- SUPERSEDED by 2026-10-19-lender-ppmt-split.sql — do not run again.
+--
 -- One-time data fix: rewrite every recorded lender payout to the lender's OWN
 -- amortization schedule, matching the app (generateLenderSchedule):
 --

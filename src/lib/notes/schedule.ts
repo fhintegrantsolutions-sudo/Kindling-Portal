@@ -18,6 +18,11 @@ export type ScheduleInput = {
   interestType: string; // "Amortized" or "Interest only"
   firstPaymentDate: string; // YYYY-MM-DD
   fee?: number; // one-time fee subtracted from the first payment; default 0
+  // Lender convention (matches Kindling's lender amortization spreadsheets):
+  // each month's principal = Excel PPMT rounded to the cent, interest = the
+  // rounded payment − that principal. Every payment is exactly the scheduled
+  // amount; principal may total a few cents over the loan.
+  ppmtSplit?: boolean;
 };
 
 export type ScheduleResult =
@@ -110,6 +115,7 @@ export function generateLenderSchedule(input: {
     interestType: input.interestType,
     firstPaymentDate: input.firstPaymentDate,
     fee: feeShare,
+    ppmtSplit: true,
   });
   return result.ok ? { ...result, feeShare } : result;
 }
@@ -168,6 +174,27 @@ export function generateSchedule(input: ScheduleInput): ScheduleResult {
     payment = (principal * (monthlyRate * factor)) / (factor - 1);
   }
   const fixedPayment = round2(payment);
+
+  if (input.ppmtSplit && monthlyRate > 0) {
+    let bal = principal;
+    for (let n = 1; n <= termMonths; n++) {
+      // PPMT for period n from the unrounded payment.
+      const principalPart = round2(
+        payment / Math.pow(1 + monthlyRate, termMonths - n + 1),
+      );
+      const interestPart = round2(fixedPayment - principalPart);
+      bal = round2(bal - principalPart);
+      rows.push({
+        payment_number: n,
+        due_date: addMonths(firstPaymentDate, n - 1),
+        principal_amount: principalPart,
+        interest_amount: interestPart,
+        fee_amount: n === 1 ? feeAmount : 0,
+        ending_balance: bal < 0 ? 0 : bal,
+      });
+    }
+    return { ok: true, rows };
+  }
 
   let balance = principal;
   for (let n = 1; n <= termMonths; n++) {
