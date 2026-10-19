@@ -964,16 +964,13 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       total &&
       total > 0
     ) {
-      const noteMonthly = computeMonthlyPayment({
-        principal: Number(n.principal),
+      // The lender's own amortization, matching their schedule.
+      monthly = computeMonthlyPayment({
+        principal: Number(r.invested_amount),
         annualRatePct: Number(n.rate),
         termMonths: Number(n.term_months),
         interestType: n.interest_type,
       });
-      if (noteMonthly !== null) {
-        const myShare = Number(r.invested_amount) / total;
-        monthly = Math.round(noteMonthly * myShare * 100) / 100;
-      }
     }
     return {
       id: r.id,
@@ -2099,34 +2096,27 @@ export async function getFundedParticipantsForNote(
   const total = rows.reduce((s, r) => s + Number(r.invested_amount ?? 0), 0);
   const noteFee = note ? noteFirstPaymentFees(note) : 0;
 
-  // Compute the note's monthly payment once; per-row monthly is the
-  // lender's pro-rata of that.
-  const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
-  const noteMonthly =
-    note &&
-    note.principal !== null &&
-    note.rate !== null &&
-    note.term_months
-      ? computeMonthlyPayment({
-          principal: Number(note.principal),
-          annualRatePct: Number(note.rate),
-          termMonths: Number(note.term_months),
-          interestType: String(note.interest_type),
-        })
-      : null;
+  const { computeMonthlyPayment, lenderFeeShare } = await import(
+    "@/lib/notes/schedule"
+  );
+  const notePrincipal = note?.principal != null ? Number(note.principal) : 0;
 
   return rows
     .map((r) => {
       const profile = r.user_id ? profileMap.get(r.user_id) : null;
       const invested = Number(r.invested_amount ?? 0);
+      // Same figures the lender sees: their own amortization and their
+      // fee share (fees x invested / note principal).
       const monthly =
-        noteMonthly !== null && total > 0
-          ? Math.round(((invested / total) * noteMonthly) * 100) / 100
+        note && note.rate !== null && note.term_months
+          ? computeMonthlyPayment({
+              principal: invested,
+              annualRatePct: Number(note.rate),
+              termMonths: Number(note.term_months),
+              interestType: String(note.interest_type),
+            })
           : null;
-      const fee =
-        noteFee > 0 && total > 0
-          ? Math.round(((invested / total) * noteFee) * 100) / 100
-          : 0;
+      const fee = lenderFeeShare(noteFee, invested, notePrincipal);
       return {
         participation_id: r.id,
         user_id: r.user_id,
