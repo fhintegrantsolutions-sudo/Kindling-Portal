@@ -26,7 +26,7 @@ export default async function SetupParticipationPage({
   if (!ar) notFound();
 
   // Status / expiry gates
-  if (ar.status === "rejected") {
+  if (ar.status === "rejected" || ar.archived_at) {
     return <ErrorPanel title="Link inactive" message="This setup link is no longer active. Please contact us." />;
   }
   if (ar.status === "pending") {

@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ApproveForm } from "./approve-form";
+import { ArchiveButton } from "./archive-button";
 import { CopyLink } from "./copy-link";
 import { CoSparkToggle } from "./cospark-toggle";
 
@@ -28,8 +29,9 @@ export default async function AdminAccessRequestDetailPage({
   ]);
   if (!r) notFound();
 
-  const isPending = r.status === "pending";
-  const isApproved = r.status === "approved";
+  const isArchived = r.archived_at !== null;
+  const isPending = r.status === "pending" && !isArchived;
+  const isApproved = r.status === "approved" && !isArchived;
   const isConverted = r.status === "converted";
   const isRejected = r.status === "rejected";
 
@@ -73,10 +75,32 @@ export default async function AdminAccessRequestDetailPage({
             {r.email} · {r.phone}
           </p>
         </div>
-        <span className="rounded-full border px-3 py-1 text-xs">
-          {r.status}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span className="rounded-full border px-3 py-1 text-xs">
+            {r.status}
+            {isArchived ? " · archived" : ""}
+          </span>
+          {!isConverted && !isArchived ? (
+            <ArchiveButton id={r.id} archived={false} />
+          ) : null}
+        </div>
       </header>
+
+      {isArchived ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Archived</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-start gap-3 text-sm">
+            <p className="text-muted-foreground">
+              Archived {formatDate(r.archived_at)}. Hidden from the working
+              tabs{r.status === "approved" ? " and the setup link is inactive" : ""}.
+              Restoring returns it to {r.status}.
+            </p>
+            <ArchiveButton id={r.id} archived />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isConverted ? (
         <Card>

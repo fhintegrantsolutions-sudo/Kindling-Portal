@@ -46,7 +46,7 @@ export async function submitLeadParticipationForm(
         "This setup link has already been used. Reach out if you need to make a change.",
     };
   }
-  if (ar.status !== "approved") {
+  if (ar.status !== "approved" || ar.archived_at) {
     return {
       error: "This setup link is not active.",
     };
