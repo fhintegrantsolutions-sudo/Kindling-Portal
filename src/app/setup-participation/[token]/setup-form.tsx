@@ -122,7 +122,7 @@ export function SetupForm({
         ) : null}
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="name_for_agreement" className="flex items-center gap-1.5">
-            Exact name for documentation{" "}
+            Exact name for the loan agreement{" "}
             <span className="text-destructive">*</span>
             <button
               type="button"
