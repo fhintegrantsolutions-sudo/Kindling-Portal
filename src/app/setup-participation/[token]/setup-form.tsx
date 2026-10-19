@@ -137,9 +137,10 @@ export function SetupForm({
           {showAgreementHelp ? (
             <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
               This is the formal name used for documentation. Use the exact legal
-              name — for example, a person&rsquo;s full name such as &ldquo;Jane
-              Quinn Doe,&rdquo; or &ldquo;Jane Q. Doe Revocable Trust&rdquo; or
-              &ldquo;Acme Capital LLC.&rdquo;
+              name — for example, a person&rsquo;s full name can be first and
+              last name, or it can include a middle name or initial, such as
+              &ldquo;Jane Quinn Doe,&rdquo; or &ldquo;Jane Q. Doe Revocable
+              Trust&rdquo; or &ldquo;Acme Capital LLC.&rdquo;
             </p>
           ) : null}
           <Input
