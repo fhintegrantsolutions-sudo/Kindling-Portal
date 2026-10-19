@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
-import { generateSchedule } from "@/lib/notes/schedule";
+import { generateSchedule, noteFirstPaymentFees } from "@/lib/notes/schedule";
 
 export async function recordScheduledPayment(
   noteUuid: string,
@@ -17,7 +17,7 @@ export async function recordScheduledPayment(
   const { data: note, error: noteErr } = await supabase
     .from("notes")
     .select(
-      "principal, rate, term_months, interest_type, first_payment_date, fee",
+      "principal, rate, term_months, interest_type, first_payment_date, fee, cospark_fee",
     )
     .eq("id", noteUuid)
     .maybeSingle();
@@ -39,7 +39,7 @@ export async function recordScheduledPayment(
     termMonths: Number(note.term_months),
     interestType: String(note.interest_type),
     firstPaymentDate: String(note.first_payment_date),
-    fee: note.fee !== null ? Number(note.fee) : 0,
+    fee: noteFirstPaymentFees(note),
   });
   if (!result.ok) throw new Error(result.reason);
 

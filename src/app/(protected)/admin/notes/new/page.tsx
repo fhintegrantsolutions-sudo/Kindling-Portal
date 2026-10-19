@@ -38,6 +38,7 @@ export default async function NewNotePage() {
           has_profit_bonus: false,
           principal: "",
           fee: null,
+          cospark_fee: null,
           rate: "",
           term_months: "",
           min_investment: "2500",
