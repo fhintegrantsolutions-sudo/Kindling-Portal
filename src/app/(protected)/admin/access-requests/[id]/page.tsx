@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getAccessRequestById,
   getNotesForPicker,
+  getRelatedAccessRequests,
 } from "@/lib/db/admin-queries";
 import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
 import {
@@ -28,6 +29,7 @@ export default async function AdminAccessRequestDetailPage({
     getNotesForPicker(),
   ]);
   if (!r) notFound();
+  const related = await getRelatedAccessRequests(r.id, r.email);
 
   const isArchived = r.archived_at !== null;
   const isPending = r.status === "pending" && !isArchived;
@@ -85,6 +87,32 @@ export default async function AdminAccessRequestDetailPage({
           ) : null}
         </div>
       </header>
+
+      {related.length > 0 ? (
+        <Card className="border-amber-500/40">
+          <CardHeader>
+            <CardTitle className="text-base">
+              Returning lead · {related.length} other request
+              {related.length === 1 ? "" : "s"} from this email
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1 text-sm">
+            {related.map((o) => (
+              <Link
+                key={o.id}
+                href={`/admin/access-requests/${o.id}`}
+                className="underline-offset-4 hover:underline"
+              >
+                Submitted {formatDate(o.created_at)} · {o.status}
+                {o.archived_at
+                  ? ` · archived ${formatDate(o.archived_at)}`
+                  : ""}{" "}
+                →
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isArchived ? (
         <Card>
