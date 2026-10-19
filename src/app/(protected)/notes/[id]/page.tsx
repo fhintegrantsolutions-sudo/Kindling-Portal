@@ -211,7 +211,7 @@ export default async function MyNoteDetailPage({
                 {hasFee ? (
                   <Field
                     label={cosparkFee > 0 ? "Fees (one-time)" : "Fee (one-time)"}
-                    value={`−${formatCurrency(totalFee)}`}
+                    value={formatCurrency(totalFee)}
                   />
                 ) : null}
                 <Field
