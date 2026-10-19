@@ -57,6 +57,15 @@ export default async function AdminUserDetailPage({
     (sum, row) => sum + (row.monthly_payment ?? 0),
     0,
   );
+  // The coming month's total: any participation whose first payment is still
+  // ahead counts at its fee-reduced first payment instead of the regular one.
+  const firstMonthOf = (row: (typeof detail.participations)[number]) =>
+    row.first_payment ? row.first_payment.amount : (row.monthly_payment ?? 0);
+  const totalFirstMonth = detail.participations.reduce(
+    (sum, row) => sum + firstMonthOf(row),
+    0,
+  );
+  const hasFirstPayment = detail.participations.some((r) => r.first_payment);
   const uniqueNoteIds = new Set(
     detail.participations
       .map((r) => r.note?.note_id)
@@ -80,6 +89,8 @@ export default async function AdminUserDetailPage({
     name: string;
     invested: number;
     monthly: number;
+    firstMonth: number;
+    hasFirstPayment: boolean;
     rows: typeof detail.participations;
   }[] = [];
   const groupIndex = new Map<string, number>();
@@ -94,11 +105,15 @@ export default async function AdminUserDetailPage({
         name: row.entity?.display_name ?? "No entity",
         invested: 0,
         monthly: 0,
+        firstMonth: 0,
+        hasFirstPayment: false,
         rows: [],
       });
     }
     entityGroups[i].invested += Number(row.invested_amount ?? 0);
     entityGroups[i].monthly += row.monthly_payment ?? 0;
+    entityGroups[i].firstMonth += firstMonthOf(row);
+    if (row.first_payment) entityGroups[i].hasFirstPayment = true;
     entityGroups[i].rows.push(row);
   }
 
@@ -195,7 +210,11 @@ export default async function AdminUserDetailPage({
             <Field
               label="Monthly payment"
               value={
-                totalMonthly > 0 ? formatCurrency(totalMonthly) : "—"
+                totalMonthly <= 0
+                  ? "—"
+                  : hasFirstPayment
+                    ? `${formatCurrency(totalFirstMonth)} first month, then ${formatCurrency(totalMonthly)}`
+                    : formatCurrency(totalMonthly)
               }
             />
             <Field
@@ -235,7 +254,9 @@ export default async function AdminUserDetailPage({
                   <p className="text-xs text-muted-foreground">
                     {formatCurrency(group.invested)}
                     {group.monthly > 0
-                      ? ` · ${formatCurrency(group.monthly)}/mo`
+                      ? group.hasFirstPayment
+                        ? ` · ${formatCurrency(group.firstMonth)} first month, then ${formatCurrency(group.monthly)}/mo`
+                        : ` · ${formatCurrency(group.monthly)}/mo`
                       : ""}
                   </p>
                 </div>
