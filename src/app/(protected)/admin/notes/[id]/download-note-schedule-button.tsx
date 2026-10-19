@@ -160,7 +160,7 @@ export function DownloadNoteScheduleButton({
       doc.setFontSize(9);
       doc.setTextColor(120);
       doc.text(
-        `First payment reduced by a one-time fee of ${formatCurrency(firstFee)}`,
+        `Borrower pays in full. One-time fees of ${formatCurrency(firstFee)} are deducted from lenders' first interest payment.`,
         margin,
         feeNoteY,
       );

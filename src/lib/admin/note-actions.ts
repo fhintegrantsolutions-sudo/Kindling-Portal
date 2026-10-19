@@ -8,6 +8,7 @@ import {
   addMonths,
   computeMonthlyPayment,
   generateSchedule,
+  noteFirstPaymentFees,
 } from "@/lib/notes/schedule";
 import { ensureNoteTags } from "@/lib/ghl/note-tags";
 
@@ -42,6 +43,8 @@ export async function createNote(
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
   const insert = await buildInsert(fields, supabase);
+  const feeErr = firstPaymentFeeError(insert, fields);
+  if (feeErr) return { fieldErrors: { cospark_fee: feeErr } };
 
   const { data, error } = await supabase
     .from("notes")
@@ -83,6 +86,8 @@ export async function updateNote(
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
   const update = await buildInsert(fields, supabase);
+  const feeErr = firstPaymentFeeError(update, fields);
+  if (feeErr) return { fieldErrors: { cospark_fee: feeErr } };
 
   const { error } = await supabase
     .from("notes")
@@ -293,6 +298,41 @@ function validate(fields: Fields): Record<string, string> {
   }
 
   return errors;
+}
+
+// One-time fees come out of the lenders' first INTEREST payment only, so the
+// service fee + CoSpark membership must not exceed the first month's interest.
+// Skipped when the note lacks the inputs to compute a schedule yet.
+function firstPaymentFeeError(
+  row: { fee: string | null; cospark_fee: string | null },
+  fields: Fields,
+): string | null {
+  const total = noteFirstPaymentFees(row);
+  if (
+    total <= 0 ||
+    fields.principal === null ||
+    fields.rate === "" ||
+    fields.term_months === ""
+  ) {
+    return null;
+  }
+  const sched = generateSchedule({
+    principal: Number(fields.principal),
+    annualRatePct: Number(fields.rate),
+    termMonths: parseInt(fields.term_months, 10),
+    interestType: fields.interest_type,
+    firstPaymentDate: fields.first_payment_date || "2020-01-01",
+  });
+  if (!sched.ok || sched.rows.length === 0) return null;
+  const firstInterest = sched.rows[0].interest_amount;
+  if (total > firstInterest) {
+    return `Service fee + CoSpark membership (${usd(total)}) can't exceed the first month's interest (${usd(firstInterest)}).`;
+  }
+  return null;
+}
+
+function usd(n: number): string {
+  return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
 async function buildInsert(

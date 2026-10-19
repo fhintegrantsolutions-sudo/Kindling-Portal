@@ -506,8 +506,8 @@ export function NoteForm({
 
       <Section title="Fees">
         <p className="-mt-2 text-xs text-muted-foreground">
-          Both are deducted from the first payment and split across lenders by
-          their share.
+          Both are deducted from the lenders&apos; first interest payment,
+          split by their share. The borrower always pays the full amount.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
@@ -523,8 +523,8 @@ export function NoteForm({
               One-time service fee
             </label>
             <p className="text-xs text-muted-foreground">
-              0.91% of the note&apos;s total projected interest, deducted from
-              the first payment. Calculated automatically when you save.
+              0.91% of the note&apos;s total projected interest. Calculated
+              automatically when you save.
               {defaults.fee != null && Number(defaults.fee) > 0
                 ? ` Current: ${formatCurrency(defaults.fee)}.`
                 : ""}
