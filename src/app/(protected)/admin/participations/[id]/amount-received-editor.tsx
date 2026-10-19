@@ -23,6 +23,18 @@ function fmtUsd(s: string | null): string {
   })}`;
 }
 
+// "300000" -> "300,000.00"; leaves unparseable input as typed.
+function formatMoney(value: string): string {
+  const cleaned = value.replace(/,/g, "").trim();
+  if (cleaned === "") return "";
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) return value;
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export function AmountReceivedEditor({
   participationId,
   investedAmount,
@@ -32,7 +44,7 @@ export function AmountReceivedEditor({
   investedAmount: string;
   submittedAmount: string | null;
 }) {
-  const [value, setValue] = useState(investedAmount);
+  const [value, setValue] = useState(formatMoney(investedAmount));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -41,7 +53,11 @@ export function AmountReceivedEditor({
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const res = await setParticipationInvestedAmount(participationId, value);
+      const res = await setParticipationInvestedAmount(
+        participationId,
+        value.replace(/,/g, ""),
+      );
+      if (!res?.error) setValue((v) => formatMoney(v));
       if (res?.error) setError(res.error);
       else setSaved(true);
     });
@@ -61,17 +77,24 @@ export function AmountReceivedEditor({
             <Label htmlFor="amount_received">
               Actual amount received (USD)
             </Label>
-            <Input
-              id="amount_received"
-              type="number"
-              step="0.01"
-              min="0"
-              value={value}
-              onChange={(e) => {
-                setValue(e.target.value);
-                setSaved(false);
-              }}
-            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="amount_received"
+                type="text"
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => {
+                  // Allow digits, comma, and one decimal point.
+                  setValue(e.target.value.replace(/[^0-9.,]/g, ""));
+                  setSaved(false);
+                }}
+                onBlur={() => setValue((v) => formatMoney(v))}
+                className="pl-7"
+              />
+            </div>
           </div>
           <Button type="button" disabled={pending} onClick={save}>
             {pending ? "Saving…" : "Save"}
