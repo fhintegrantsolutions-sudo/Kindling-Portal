@@ -89,8 +89,17 @@ async function computePayouts(
     }
     return rounded;
   };
-  const principalShares = split(row.principal_amount);
+  // Split each lender's TOTAL payment and interest, and take principal as the
+  // difference, so a lender's payment is the same every month instead of
+  // wobbling a cent from rounding principal and interest separately. Totals
+  // still sum exactly: Σprincipal = Σtotal − Σinterest = row principal.
+  const totalShares = split(
+    Math.round((row.principal_amount + row.interest_amount) * 100) / 100,
+  );
   const interestShares = split(row.interest_amount);
+  const principalShares = totalShares.map(
+    (t, i) => Math.round((t - interestShares[i]) * 100) / 100,
+  );
   // The one-time fees (service fee + CoSpark membership, row 1 only): the
   // borrower's note_payment is recorded in FULL, but each lender's payout OUT
   // is reduced by their pro-rata share — from INTEREST only, never principal.
