@@ -155,7 +155,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     .select(
       `
       invested_amount, funding_cleared,
-      note:notes ( note_id, principal, rate, term_months, interest_type, first_payment_date, fee )
+      note:notes ( note_id, principal, rate, term_months, interest_type, first_payment_date, fee, cospark_fee )
       `,
     )
     .in("entity_id", ctx.entityIds)
@@ -172,10 +172,13 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       interest_type: string;
       first_payment_date: string | null;
       fee: string | null;
+      cospark_fee: string | null;
     } | null;
   }>;
 
-  const { generateSchedule, addMonths } = await import("@/lib/notes/schedule");
+  const { generateSchedule, addMonths, noteFirstPaymentFees } = await import(
+    "@/lib/notes/schedule"
+  );
   const byMonth = new Map<string, { principal: number; interest: number }>();
   // Distinct notes paying into each month (human note IDs), for the chart detail.
   const notesByMonth = new Map<string, Set<string>>();
@@ -205,7 +208,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       termMonths: Number(n.term_months),
       interestType: String(n.interest_type),
       firstPaymentDate: String(n.first_payment_date),
-      fee: n.fee === null ? 0 : Number(n.fee),
+      fee: noteFirstPaymentFees(n),
     });
     if (!sched.ok) continue;
     targetPrincipal += Number(r.invested_amount);
@@ -611,7 +614,14 @@ export type MyScheduleRow = {
 };
 
 export type MyScheduleResult =
-  | { ok: true; rows: MyScheduleRow[]; one_time_fee: number }
+  | {
+      ok: true;
+      rows: MyScheduleRow[];
+      // This lender's share of all first-payment deductions, and its split.
+      one_time_fee: number;
+      service_fee: number;
+      cospark_fee: number;
+    }
   | { ok: false; reason: string };
 
 export async function getMyScheduleForNote(
@@ -624,7 +634,7 @@ export async function getMyScheduleForNote(
   const { data: note } = await supabase
     .from("notes")
     .select(
-      "principal, rate, term_months, interest_type, first_payment_date, fee",
+      "principal, rate, term_months, interest_type, first_payment_date, fee, cospark_fee",
     )
     .eq("id", noteUuid)
     .maybeSingle();
@@ -666,14 +676,16 @@ export async function getMyScheduleForNote(
   }
   const myShare = Number(me.invested_amount) / Number(note.principal);
 
-  const { generateSchedule } = await import("@/lib/notes/schedule");
+  const { generateSchedule, noteFirstPaymentFees } = await import(
+    "@/lib/notes/schedule"
+  );
   const result = generateSchedule({
     principal: Number(note.principal),
     annualRatePct: Number(note.rate),
     termMonths: Number(note.term_months),
     interestType: String(note.interest_type),
     firstPaymentDate: String(note.first_payment_date),
-    fee: note.fee !== null ? Number(note.fee) : 0,
+    fee: noteFirstPaymentFees(note),
   });
   if (!result.ok) return { ok: false, reason: result.reason };
 
@@ -754,7 +766,21 @@ export async function getMyScheduleForNote(
       result.rows.reduce((s, r) => s + r.fee_amount, 0) * myShare * 100,
     ) / 100;
 
-  return { ok: true, rows, one_time_fee: oneTimeFee };
+  // Split the lender's share into its parts for display; the CoSpark part takes
+  // the remainder so the two always sum to one_time_fee.
+  const serviceFee =
+    note.fee !== null && Number(note.fee) > 0
+      ? Math.min(oneTimeFee, Math.round(Number(note.fee) * myShare * 100) / 100)
+      : 0;
+  const cosparkFee = Math.round((oneTimeFee - serviceFee) * 100) / 100;
+
+  return {
+    ok: true,
+    rows,
+    one_time_fee: oneTimeFee,
+    service_fee: serviceFee,
+    cospark_fee: cosparkFee,
+  };
 }
 
 export type MyDocument = {

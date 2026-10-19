@@ -33,12 +33,15 @@ export function ScheduleSection({
   scheduleError,
   received,
   headerAction,
+  cosparkFee = 0,
 }: {
   noteUuid: string;
   schedule: ScheduleRow[] | null;
   scheduleError: string | null;
   received: ReceivedPayment[];
   headerAction?: React.ReactNode;
+  // The CoSpark membership portion of the row-1 fee, itemized in the header.
+  cosparkFee?: number;
 }) {
   const receivedByNumber = new Map(received.map((r) => [r.payment_number, r]));
   const totalFee = (schedule ?? []).reduce((s, r) => s + r.fee_amount, 0);
@@ -55,12 +58,16 @@ export function ScheduleSection({
             </p>
             {totalFee > 0 ? (
               <p className="mt-1 text-sm">
-                <span className="text-muted-foreground">One-time fee:</span>{" "}
+                <span className="text-muted-foreground">
+                  {cosparkFee > 0 ? "One-time fees:" : "One-time fee:"}
+                </span>{" "}
                 <span className="font-medium tabular-nums">
                   −{formatCurrency(totalFee)}
                 </span>{" "}
                 <span className="text-muted-foreground">
-                  (reduces the first payment)
+                  {cosparkFee > 0
+                    ? `(service fee ${formatCurrency(totalFee - cosparkFee)} + CoSpark membership ${formatCurrency(cosparkFee)}; reduces the first payment)`
+                    : "(reduces the first payment)"}
                 </span>
               </p>
             ) : null}

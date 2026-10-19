@@ -4,7 +4,7 @@ import {
   getAdminNoteById,
   getNotePayments,
 } from "@/lib/db/admin-queries";
-import { generateSchedule } from "@/lib/notes/schedule";
+import { generateSchedule, noteFirstPaymentFees } from "@/lib/notes/schedule";
 import { ScheduleSection, type ReceivedPayment } from "../schedule-section";
 import { DownloadNoteScheduleButton } from "../download-note-schedule-button";
 
@@ -34,7 +34,7 @@ export default async function NoteSchedulePage({
       termMonths: Number(note.term_months),
       interestType: note.interest_type,
       firstPaymentDate: note.first_payment_date,
-      fee: note.fee !== null ? Number(note.fee) : 0,
+      fee: noteFirstPaymentFees(note),
     });
     if (result.ok) scheduleRows = result.rows;
     else scheduleError = result.reason;
@@ -87,6 +87,7 @@ export default async function NoteSchedulePage({
       scheduleError={scheduleError}
       received={received}
       headerAction={downloadButton}
+      cosparkFee={note.cospark_fee !== null ? Number(note.cospark_fee) : 0}
     />
   );
 }

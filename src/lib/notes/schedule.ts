@@ -60,6 +60,19 @@ export function computeMonthlyPayment(input: {
   return Math.round(pmt * 100) / 100;
 }
 
+// Total one-time deduction from the first payment: the service fee plus the
+// CoSpark membership. Both columns are nullable money strings (null = none).
+export function noteFirstPaymentFees(note: {
+  fee: string | number | null;
+  cospark_fee?: string | number | null;
+}): number {
+  const n = (v: string | number | null | undefined) => {
+    const x = v === null || v === undefined ? 0 : Number(v);
+    return Number.isFinite(x) && x > 0 ? x : 0;
+  };
+  return round2(n(note.fee) + n(note.cospark_fee));
+}
+
 export function generateSchedule(input: ScheduleInput): ScheduleResult {
   const { principal, annualRatePct, termMonths, interestType, firstPaymentDate, fee } =
     input;

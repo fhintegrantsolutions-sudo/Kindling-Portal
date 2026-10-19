@@ -18,6 +18,7 @@ export function DownloadScheduleButton({
   interestType,
   startDate,
   oneTimeFee,
+  cosparkFee = 0,
 }: {
   rows: MyScheduleRow[];
   noteId: string;
@@ -29,6 +30,8 @@ export function DownloadScheduleButton({
   interestType: string;
   startDate: string | null;
   oneTimeFee: number;
+  // The CoSpark membership portion of oneTimeFee (itemized separately).
+  cosparkFee?: number;
 }) {
   const onClick = () => {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -72,9 +75,14 @@ export function DownloadScheduleButton({
     const rightRows: Array<[string, string]> = [
       ["Scheduled payment", scheduled === null ? "—" : formatCurrency(scheduled)],
       ["Scheduled number of payments", String(termMonths || rows.length)],
-      ...(oneTimeFee > 0
+      ...(oneTimeFee - cosparkFee > 0
         ? ([
-            ["One-time service fee", formatCurrency(oneTimeFee)],
+            ["One-time service fee", formatCurrency(oneTimeFee - cosparkFee)],
+          ] as Array<[string, string]>)
+        : []),
+      ...(cosparkFee > 0
+        ? ([
+            ["CoSpark membership", formatCurrency(cosparkFee)],
           ] as Array<[string, string]>)
         : []),
       ["Lender name", lenderName],
@@ -173,7 +181,9 @@ export function DownloadScheduleButton({
       doc.setFontSize(9);
       doc.setTextColor(120);
       doc.text(
-        `First payment reduced by a one-time fee of ${formatCurrency(firstFee)}`,
+        cosparkFee > 0
+          ? `First payment reduced by one-time fees of ${formatCurrency(firstFee)}`
+          : `First payment reduced by a one-time fee of ${formatCurrency(firstFee)}`,
         margin,
         feeNoteY,
       );

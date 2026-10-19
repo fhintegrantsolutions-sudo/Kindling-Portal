@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { noteFirstPaymentFees } from "@/lib/notes/schedule";
 
 export type AdminStats = {
   // Leads
@@ -1682,6 +1683,7 @@ export type AdminNoteDetail = {
   title: string;
   principal: string | null;
   fee: string | null;
+  cospark_fee: string | null;
   rate: string;
   term_months: number;
   term_years: number | null;
@@ -1755,7 +1757,7 @@ export async function getLedgerForMonth(
   let q = supabase
     .from("notes")
     .select(
-      "id, note_id, title, borrower_id, principal, rate, term_months, interest_type, first_payment_date, fee",
+      "id, note_id, title, borrower_id, principal, rate, term_months, interest_type, first_payment_date, fee, cospark_fee",
     );
   if (borrowerId) q = q.eq("borrower_id", borrowerId);
   const { data: notes } = await q;
@@ -1770,6 +1772,7 @@ export async function getLedgerForMonth(
     interest_type: string;
     first_payment_date: string | null;
     fee: string | null;
+    cospark_fee: string | null;
   }>;
 
   const borrowerIds = Array.from(
@@ -1846,7 +1849,7 @@ export async function getLedgerForMonth(
       termMonths: Number(n.term_months),
       interestType: n.interest_type,
       firstPaymentDate: n.first_payment_date,
-      fee: n.fee === null ? 0 : Number(n.fee),
+      fee: noteFirstPaymentFees(n),
     });
     if (!result.ok) continue;
     for (const row of result.rows) {
@@ -2048,7 +2051,7 @@ export async function getFundedParticipantsForNote(
   const supabase = await createClient();
   const { data: note } = await supabase
     .from("notes")
-    .select("principal, rate, term_months, interest_type, fee")
+    .select("principal, rate, term_months, interest_type, fee, cospark_fee")
     .eq("id", noteUuid)
     .maybeSingle();
   // business_name comes from the entity holding the position; name/email stay
@@ -2097,7 +2100,7 @@ export async function getFundedParticipantsForNote(
   }
 
   const total = rows.reduce((s, r) => s + Number(r.invested_amount ?? 0), 0);
-  const noteFee = note?.fee !== null && note?.fee !== undefined ? Number(note.fee) : 0;
+  const noteFee = note ? noteFirstPaymentFees(note) : 0;
 
   // Compute the note's monthly payment once; per-row monthly is the
   // lender's pro-rata of that.

@@ -24,6 +24,7 @@ export type NoteDefaults = {
   has_profit_bonus: boolean;
   principal: string | null;
   fee: string | null;
+  cospark_fee: string | null;
   rate: string;
   term_months: string;
   min_investment: string | null;
@@ -89,6 +90,11 @@ export function NoteForm({
   // friends are safe.
   const [principalStr, setPrincipalStr] = useState(
     defaults.principal == null ? "" : formatMoney(String(defaults.principal)),
+  );
+  const [cosparkStr, setCosparkStr] = useState(
+    defaults.cospark_fee == null
+      ? ""
+      : formatMoney(String(defaults.cospark_fee)),
   );
   const [rateStr, setRateStr] = useState(
     defaults.rate == null ? "" : String(defaults.rate),
@@ -419,26 +425,6 @@ export function NoteForm({
             </select>
           </div>
           <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                name="service_fee_enabled"
-                defaultChecked={
-                  defaults.fee != null && Number(defaults.fee) > 0
-                }
-                className="size-4"
-              />
-              One-time service fee
-            </label>
-            <p className="text-xs text-muted-foreground">
-              0.91% of the note&apos;s total projected interest, deducted from
-              the first payment. Calculated automatically when you save.
-              {defaults.fee != null && Number(defaults.fee) > 0
-                ? ` Current: ${formatCurrency(defaults.fee)}.`
-                : ""}
-            </p>
-          </div>
-          <div className="flex flex-col gap-2">
             <Label htmlFor="principal">Principal (USD)</Label>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -514,6 +500,74 @@ export function NoteForm({
                 </span>
               )}
             </div>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Fees">
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Both are deducted from the first payment and split across lenders by
+          their share.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="service_fee_enabled"
+                defaultChecked={
+                  defaults.fee != null && Number(defaults.fee) > 0
+                }
+                className="size-4"
+              />
+              One-time service fee
+            </label>
+            <p className="text-xs text-muted-foreground">
+              0.91% of the note&apos;s total projected interest, deducted from
+              the first payment. Calculated automatically when you save.
+              {defaults.fee != null && Number(defaults.fee) > 0
+                ? ` Current: ${formatCurrency(defaults.fee)}.`
+                : ""}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="cospark_fee">CoSpark membership (USD)</Label>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="cospark_fee"
+                name="cospark_fee"
+                type="text"
+                inputMode="decimal"
+                value={cosparkStr}
+                onChange={(e) =>
+                  setCosparkStr(e.target.value.replace(/[^0-9.,]/g, ""))
+                }
+                onBlur={() => setCosparkStr((s) => formatMoney(s))}
+                className="pl-7"
+                aria-invalid={Boolean(fe.cospark_fee) || undefined}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Typically $25 × term in months. Leave blank for none.{" "}
+              {termStr && parseInt(termStr, 10) > 0 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCosparkStr(formatMoney(String(25 * parseInt(termStr, 10))))
+                  }
+                  className="underline underline-offset-4 hover:text-foreground"
+                >
+                  Use $25 × {parseInt(termStr, 10)} ={" "}
+                  {formatCurrency(25 * parseInt(termStr, 10))}
+                </button>
+              ) : null}
+            </p>
+            {fe.cospark_fee ? (
+              <p className="text-xs text-destructive">{fe.cospark_fee}</p>
+            ) : null}
           </div>
         </div>
       </Section>

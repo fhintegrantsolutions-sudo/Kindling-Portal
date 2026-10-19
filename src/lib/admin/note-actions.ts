@@ -234,6 +234,7 @@ function parseFields(formData: FormData) {
     visible_entity_ids: formData.getAll("visible_entity_ids").map(String),
     principal: money(formData, "principal"),
     service_fee_enabled: formData.get("service_fee_enabled") === "on",
+    cospark_fee: money(formData, "cospark_fee"),
     rate: text(formData, "rate"),
     term_months: text(formData, "term_months"),
     min_investment: text(formData, "min_investment") || null,
@@ -259,6 +260,12 @@ function validate(fields: Fields): Record<string, string> {
     const principal = Number(fields.principal);
     if (!Number.isFinite(principal) || principal <= 0)
       errors.principal = "Must be greater than zero";
+  }
+
+  if (fields.cospark_fee !== null) {
+    const cospark = Number(fields.cospark_fee);
+    if (!Number.isFinite(cospark) || cospark < 0)
+      errors.cospark_fee = "Must be zero or more";
   }
 
   const rate = Number(fields.rate);
@@ -336,6 +343,10 @@ async function buildInsert(
     title: fields.title,
     principal: fields.principal,
     fee,
+    cospark_fee:
+      fields.cospark_fee !== null && Number(fields.cospark_fee) > 0
+        ? Number(fields.cospark_fee).toFixed(2)
+        : null,
     rate: fields.rate,
     term_months: parseInt(fields.term_months, 10),
     project_type: fields.project_type,
