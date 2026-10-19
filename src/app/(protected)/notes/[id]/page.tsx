@@ -275,6 +275,10 @@ export default async function MyNoteDetailPage({
                         <td className="py-2 pr-2 text-right text-xs">
                           {r.received_date ? (
                             <span className="text-green-700">Received</span>
+                          ) : r.pending ? (
+                            <span className="text-amber-700 dark:text-amber-400">
+                              Pending
+                            </span>
                           ) : (
                             <span className="text-muted-foreground">
                               Scheduled

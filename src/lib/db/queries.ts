@@ -587,6 +587,8 @@ export type MyScheduleRow = {
   my_fee: number; // this lender's pro-rata share of the one-time fee (row 1)
   my_balance: number;
   received_date: string | null;
+  // Recorded (borrower paid) but its due date hasn't arrived — shown as Pending.
+  pending: boolean;
 };
 
 export type MyScheduleResult =
@@ -684,6 +686,17 @@ export async function getMyScheduleForNote(
     });
   }
 
+  // A recorded payment stays "Pending" for the lender until its due date: the
+  // borrower may pay early, but lenders see it as received only on/after the
+  // scheduled date. Until then the row shows its scheduled amounts (which equal
+  // the recorded payout). Dates compare in US Pacific so the flip never happens
+  // before the due date anywhere in the US.
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+  }).format(new Date()); // YYYY-MM-DD
+  const receivedFor = (row: { payment_number: number; due_date: string }) =>
+    row.due_date <= today ? receivedByNumber.get(row.payment_number) : undefined;
+
   // Index of the last still-projected payment. If recorded payouts returned a
   // slightly different amount of principal than the lender's own schedule, the
   // final projected payment settles to the remaining balance so total principal
@@ -691,7 +704,7 @@ export async function getMyScheduleForNote(
   // are never adjusted.
   let lastProjectedIdx = -1;
   for (let i = result.rows.length - 1; i >= 0; i--) {
-    if (!receivedByNumber.has(result.rows[i].payment_number)) {
+    if (!receivedFor(result.rows[i])) {
       lastProjectedIdx = i;
       break;
     }
@@ -699,7 +712,7 @@ export async function getMyScheduleForNote(
 
   let runningBalance = invested;
   const rows: MyScheduleRow[] = result.rows.map((row, i) => {
-    const got = receivedByNumber.get(row.payment_number);
+    const got = receivedFor(row);
     const myInterest = got ? got.interest : row.interest_amount;
     let myPrincipal: number;
     if (got) {
@@ -722,6 +735,7 @@ export async function getMyScheduleForNote(
       my_fee: myFee,
       my_balance: runningBalance < 0 ? 0 : runningBalance,
       received_date: got ? got.date : null,
+      pending: !got && receivedByNumber.has(row.payment_number),
     };
   });
 
