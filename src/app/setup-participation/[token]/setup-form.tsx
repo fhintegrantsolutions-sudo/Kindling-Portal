@@ -45,6 +45,7 @@ export function SetupForm({
   const fe = state?.fieldErrors ?? {};
   const [entityChoice, setEntityChoice] = useState<string>("");
   const [showAgreementHelp, setShowAgreementHelp] = useState(false);
+  const [showEntityHelp, setShowEntityHelp] = useState(false);
   const [differentSender, setDifferentSender] = useState<"" | "yes" | "no">("");
 
   return (
@@ -63,9 +64,26 @@ export function SetupForm({
       <h2 className="text-sm font-semibold">Legal information</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="entity_type_choice">
+          <Label htmlFor="entity_type_choice" className="flex items-center gap-1.5">
             Entity type <span className="text-destructive">*</span>
+            <button
+              type="button"
+              onClick={() => setShowEntityHelp((v) => !v)}
+              aria-expanded={showEntityHelp}
+              aria-label="What is this?"
+              className="inline-flex text-muted-foreground hover:text-foreground"
+            >
+              <Info className="size-3.5" />
+            </button>
           </Label>
+          {showEntityHelp ? (
+            <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+              Select &ldquo;Individual&rdquo; if this is a personal
+              participation in your own name. Choose LLC, Trust, Corporation,
+              or Partnership if you&rsquo;re participating through a business
+              or trust.
+            </p>
+          ) : null}
           <select
             id="entity_type_choice"
             name="entity_type_choice"
