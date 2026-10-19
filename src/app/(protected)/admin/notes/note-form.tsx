@@ -6,7 +6,11 @@ import {
   updateNote,
   type NoteFormState,
 } from "@/lib/admin/note-actions";
-import { addMonths, computeMonthlyPayment } from "@/lib/notes/schedule";
+import {
+  addMonths,
+  computeMonthlyPayment,
+  generateSchedule,
+} from "@/lib/notes/schedule";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,6 +28,7 @@ export type NoteDefaults = {
   has_profit_bonus: boolean;
   principal: string | null;
   fee: string | null;
+  service_fee_rate: string | null;
   cospark_fee: string | null;
   rate: string;
   term_months: string;
@@ -126,6 +131,35 @@ export function NoteForm({
     if (!Number.isInteger(term) || term <= 0) return null;
     return addMonths(firstPaymentDate, term - 1);
   }, [firstPaymentDate, termStr]);
+
+  const [feeEnabled, setFeeEnabled] = useState(
+    defaults.fee != null && Number(defaults.fee) > 0,
+  );
+  const [feeRateStr, setFeeRateStr] = useState(
+    defaults.service_fee_rate == null
+      ? "0.91"
+      : String(Number(defaults.service_fee_rate)),
+  );
+
+  // Live preview of the service fee: rate% of total projected interest. The
+  // server recomputes the same figure on save.
+  const serviceFeePreview = useMemo(() => {
+    const p = Number(principalStr.replace(/,/g, ""));
+    const r = Number(rateStr);
+    const t = parseInt(termStr, 10);
+    const pct = Number(feeRateStr);
+    if (!(p > 0) || !(r > 0) || !(t > 0) || !(pct >= 0)) return null;
+    const sched = generateSchedule({
+      principal: p,
+      annualRatePct: r,
+      termMonths: t,
+      interestType,
+      firstPaymentDate: "2020-01-01",
+    });
+    if (!sched.ok) return null;
+    const interest = sched.rows.reduce((s, row) => s + row.interest_amount, 0);
+    return Math.round(interest * (pct / 100) * 100) / 100;
+  }, [principalStr, rateStr, termStr, interestType, feeRateStr]);
 
   const monthlyPayment = useMemo(() => {
     const cleanPrincipal = principalStr.replace(/,/g, "");
@@ -515,16 +549,44 @@ export function NoteForm({
               <input
                 type="checkbox"
                 name="service_fee_enabled"
-                defaultChecked={
-                  defaults.fee != null && Number(defaults.fee) > 0
-                }
+                checked={feeEnabled}
+                onChange={(e) => setFeeEnabled(e.target.checked)}
                 className="size-4"
               />
               One-time service fee
             </label>
+            {feeEnabled ? (
+              <div className="flex items-center gap-2">
+                <div className="relative w-28">
+                  <Input
+                    id="service_fee_rate"
+                    name="service_fee_rate"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={feeRateStr}
+                    onChange={(e) => setFeeRateStr(e.target.value)}
+                    className="pr-7"
+                    aria-label="Service fee percent"
+                    aria-invalid={Boolean(fe.service_fee_rate) || undefined}
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    %
+                  </span>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  of total projected interest
+                  {serviceFeePreview !== null
+                    ? ` = ${formatCurrency(serviceFeePreview)}`
+                    : ""}
+                </span>
+              </div>
+            ) : null}
+            {fe.service_fee_rate ? (
+              <p className="text-xs text-destructive">{fe.service_fee_rate}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground">
-              0.91% of the note&apos;s total projected interest. Calculated
-              automatically when you save.
+              Standard is 0.91%. Calculated automatically when you save.
               {defaults.fee != null && Number(defaults.fee) > 0
                 ? ` Current: ${formatCurrency(defaults.fee)}.`
                 : ""}
