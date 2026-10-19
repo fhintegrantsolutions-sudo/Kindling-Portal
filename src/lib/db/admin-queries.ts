@@ -855,6 +855,9 @@ export type UserParticipationRow = {
   // null when the note doesn't have enough info to compute one (missing
   // principal/rate/term, or when the lender's funding hasn't cleared).
   monthly_payment: number | null;
+  // Until the note's first payment date, the first payment is reduced by the
+  // lender's one-time fee share. null once that date has passed or no fee.
+  first_payment: { amount: number; date: string } | null;
 };
 
 export type UserBeneficiary = {
@@ -896,7 +899,7 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
          funding_received, funding_deposited, funding_cleared,
          entity:investor_entities ( id, display_name ),
          note:notes ( id, note_id, title, principal, rate, term_months,
-                      interest_type )`,
+                      interest_type, first_payment_date, fee, cospark_fee )`,
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
@@ -929,6 +932,9 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       rate: string | number | null;
       term_months: number | null;
       interest_type: string;
+      first_payment_date: string | null;
+      fee: string | number | null;
+      cospark_fee: string | number | null;
     } | null;
   }>;
 
@@ -954,7 +960,13 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
     }
   }
 
-  const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
+  const { computeMonthlyPayment, lenderFeeShare } = await import(
+    "@/lib/notes/schedule"
+  );
+  // US Pacific, matching when lenders see a payment flip to Received.
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+  }).format(new Date());
 
   const participations: UserParticipationRow[] = rawParts.map((r) => {
     let monthly: number | null = null;
@@ -977,6 +989,20 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
         interestType: n.interest_type,
       });
     }
+    let firstPayment: UserParticipationRow["first_payment"] = null;
+    if (monthly !== null && n?.first_payment_date && n.first_payment_date >= today) {
+      const feeShare = lenderFeeShare(
+        noteFirstPaymentFees(n),
+        Number(r.invested_amount),
+        Number(n.principal),
+      );
+      if (feeShare > 0) {
+        firstPayment = {
+          amount: Math.max(0, Math.round((monthly - feeShare) * 100) / 100),
+          date: n.first_payment_date,
+        };
+      }
+    }
     return {
       id: r.id,
       invested_amount: r.invested_amount,
@@ -989,6 +1015,7 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
         ? { id: r.entity.id, display_name: r.entity.display_name }
         : null,
       monthly_payment: monthly,
+      first_payment: firstPayment,
     };
   });
 

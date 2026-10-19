@@ -263,7 +263,9 @@ export default async function AdminUserDetailPage({
                           {formatCurrency(row.invested_amount)} · {label} ·{" "}
                           {row.status}
                           {row.monthly_payment !== null
-                            ? ` · ${formatCurrency(row.monthly_payment)}/mo`
+                            ? row.first_payment
+                              ? ` · ${formatCurrency(row.first_payment.amount)} first payment (${formatDate(row.first_payment.date)}, after one-time fee), then ${formatCurrency(row.monthly_payment)}/mo`
+                              : ` · ${formatCurrency(row.monthly_payment)}/mo`
                             : ""}
                         </p>
                       </div>
