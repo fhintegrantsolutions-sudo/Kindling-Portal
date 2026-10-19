@@ -15,7 +15,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AdminNotesCard } from "./admin-notes-card";
-import { LenderSchedulePdfButton } from "./lender-schedule-pdf-button";
 
 export default async function NoteOverviewPage({
   params,
@@ -178,20 +177,13 @@ export default async function NoteOverviewPage({
                   </div>
                 );
                 return (
-                  <li
-                    key={p.participation_id}
-                    className="flex items-center gap-2"
-                  >
+                  <li key={p.participation_id}>
                     <Link
                       href={`/admin/participations/${p.participation_id}?from=note`}
-                      className="block min-w-0 flex-1 rounded-md hover:bg-muted/40"
+                      className="block rounded-md hover:bg-muted/40"
                     >
                       {inner}
                     </Link>
-                    <LenderSchedulePdfButton
-                      participationId={p.participation_id}
-                      lenderLabel={p.lender_name ?? p.lender_email ?? "lender"}
-                    />
                   </li>
                 );
               })}
