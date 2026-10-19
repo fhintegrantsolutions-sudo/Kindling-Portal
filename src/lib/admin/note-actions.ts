@@ -239,6 +239,7 @@ function parseFields(formData: FormData) {
     visible_entity_ids: formData.getAll("visible_entity_ids").map(String),
     principal: money(formData, "principal"),
     service_fee_enabled: formData.get("service_fee_enabled") === "on",
+    service_fee_rate: text(formData, "service_fee_rate"),
     cospark_fee: money(formData, "cospark_fee"),
     rate: text(formData, "rate"),
     term_months: text(formData, "term_months"),
@@ -265,6 +266,12 @@ function validate(fields: Fields): Record<string, string> {
     const principal = Number(fields.principal);
     if (!Number.isFinite(principal) || principal <= 0)
       errors.principal = "Must be greater than zero";
+  }
+
+  if (fields.service_fee_enabled && fields.service_fee_rate !== "") {
+    const pct = Number(fields.service_fee_rate);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100)
+      errors.service_fee_rate = "Enter a percent between 0 and 100";
   }
 
   if (fields.cospark_fee !== null) {
@@ -347,11 +354,17 @@ async function buildInsert(
     interestType: fields.interest_type,
   });
 
-  // One-time service fee = 0.91% of the note's total projected interest,
-  // deducted from the first payment. Computed from the amortization (the fee
+  // One-time service fee = service_fee_rate% (standard 0.91%) of the note's
+  // total projected interest, deducted from the lenders' first interest
+  // payment. Computed from the amortization (the fee
   // is date-independent, so a placeholder first-payment date is fine when the
   // note doesn't have one set yet). Null when the fee is toggled off.
-  const SERVICE_FEE_RATE = 0.0091;
+  // Rate is a percent (0.91 = 0.91%); blank falls back to the standard 0.91.
+  const DEFAULT_SERVICE_FEE_PCT = 0.91;
+  const serviceFeePct =
+    fields.service_fee_rate !== "" && Number.isFinite(Number(fields.service_fee_rate))
+      ? Number(fields.service_fee_rate)
+      : DEFAULT_SERVICE_FEE_PCT;
   let fee: string | null = null;
   if (
     fields.service_fee_enabled &&
@@ -371,7 +384,7 @@ async function buildInsert(
         (s, r) => s + r.interest_amount,
         0,
       );
-      fee = (Math.round(totalInterest * SERVICE_FEE_RATE * 100) / 100).toFixed(
+      fee = (Math.round(totalInterest * (serviceFeePct / 100) * 100) / 100).toFixed(
         2,
       );
     }
@@ -383,6 +396,7 @@ async function buildInsert(
     title: fields.title,
     principal: fields.principal,
     fee,
+    service_fee_rate: fields.service_fee_enabled ? serviceFeePct : null,
     cospark_fee:
       fields.cospark_fee !== null && Number(fields.cospark_fee) > 0
         ? Number(fields.cospark_fee).toFixed(2)

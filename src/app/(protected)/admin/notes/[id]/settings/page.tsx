@@ -62,6 +62,7 @@ export default async function NoteSettingsPage({
           has_profit_bonus: note.has_profit_bonus,
           principal: note.principal,
           fee: note.fee,
+          service_fee_rate: note.service_fee_rate,
           cospark_fee: note.cospark_fee,
           rate: note.rate,
           term_months: String(note.term_months),

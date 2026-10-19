@@ -1683,6 +1683,7 @@ export type AdminNoteDetail = {
   title: string;
   principal: string | null;
   fee: string | null;
+  service_fee_rate: string | null;
   cospark_fee: string | null;
   rate: string;
   term_months: number;
