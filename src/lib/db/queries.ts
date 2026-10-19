@@ -874,6 +874,28 @@ export async function getMyBeneficiaries() {
   return (data ?? []) as Beneficiary[];
 }
 
+export type MyReferralCode = {
+  id: string;
+  code: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export async function getMyReferralCode(): Promise<MyReferralCode | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("referral_codes")
+    .select("id, code, is_active, created_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  return data as MyReferralCode | null;
+}
+
 export async function getBeneficiaryById(id: string) {
   const supabase = await createClient();
   const ctx = await getCurrentEntityContext();

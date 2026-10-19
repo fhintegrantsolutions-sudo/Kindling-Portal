@@ -50,6 +50,7 @@ export async function createReferralCode(userId: string): Promise<void> {
         .eq("id", userId);
       revalidatePath("/admin/referrals");
       revalidatePath(`/admin/users/${userId}`);
+      revalidatePath("/profile/referrals");
       return;
     }
     lastErr = error.message;
@@ -84,6 +85,7 @@ export async function setReferralCodeActive(
 
   revalidatePath("/admin/referrals");
   revalidatePath(`/admin/users/${target.user_id}`);
+  revalidatePath("/profile/referrals");
 }
 
 // ============================================================================
