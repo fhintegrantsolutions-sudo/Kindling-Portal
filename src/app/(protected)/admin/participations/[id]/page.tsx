@@ -152,7 +152,7 @@ export default async function AdminParticipationDetailPage({
                 />
                 <Field
                   label="Fee (one-time)"
-                  value={share.fee > 0 ? `−${formatCurrency(share.fee)}` : "—"}
+                  value={share.fee > 0 ? formatCurrency(share.fee) : "—"}
                 />
               </>
             ) : null}
