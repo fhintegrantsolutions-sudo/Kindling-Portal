@@ -697,28 +697,13 @@ export async function getMyScheduleForNote(
   const receivedFor = (row: { payment_number: number; due_date: string }) =>
     row.due_date <= today ? receivedByNumber.get(row.payment_number) : undefined;
 
-  // Index of the last still-projected payment. If recorded payouts returned a
-  // slightly different amount of principal than the lender's own schedule, the
-  // final projected payment settles to the remaining balance so total principal
-  // returned equals exactly what they invested. Frozen (already-received) rows
-  // are never adjusted.
-  let lastProjectedIdx = -1;
-  for (let i = result.rows.length - 1; i >= 0; i--) {
-    if (!receivedFor(result.rows[i])) {
-      lastProjectedIdx = i;
-      break;
-    }
-  }
-
   let runningBalance = invested;
-  const rows: MyScheduleRow[] = result.rows.map((row, i) => {
+  const rows: MyScheduleRow[] = result.rows.map((row) => {
     const got = receivedFor(row);
     const myInterest = got ? got.interest : row.interest_amount;
     let myPrincipal: number;
     if (got) {
       myPrincipal = got.principal;
-    } else if (i === lastProjectedIdx) {
-      myPrincipal = runningBalance > 0 ? runningBalance : 0;
     } else {
       myPrincipal = row.principal_amount;
     }
