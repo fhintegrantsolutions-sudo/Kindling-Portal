@@ -80,7 +80,6 @@ export default async function MyNoteDetailPage({
   const totalFee = schedule.ok ? schedule.one_time_fee : 0;
   const hasFee = totalFee > 0;
   const cosparkFee = schedule.ok ? schedule.cospark_fee : 0;
-  const serviceFee = schedule.ok ? schedule.service_fee : 0;
 
   // Calendar-year rollup of this participation's schedule. Each year is tagged
   // from received_date: Paid = every payment that year received, In progress =
@@ -182,7 +181,6 @@ export default async function MyNoteDetailPage({
                 interestType={String(note.interest_type ?? "")}
                 startDate={note.first_payment_date ?? null}
                 oneTimeFee={totalFee}
-                cosparkFee={cosparkFee}
               />
             ) : null}
           </div>
@@ -290,21 +288,9 @@ export default async function MyNoteDetailPage({
               </div>
               {hasFee ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {cosparkFee > 0 ? (
-                    <>
-                      * Interest on your first payment is reduced by one-time
-                      fees of {formatCurrency(totalFee)}
-                      {serviceFee > 0
-                        ? ` (service fee ${formatCurrency(serviceFee)} + CoSpark membership ${formatCurrency(cosparkFee)})`
-                        : ` (CoSpark membership)`}
-                      .
-                    </>
-                  ) : (
-                    <>
-                      * Interest on your first payment is reduced by a one-time
-                      fee of {formatCurrency(totalFee)}.
-                    </>
-                  )}
+                  * Interest on your first payment is reduced by{" "}
+                  {cosparkFee > 0 ? "one-time fees" : "a one-time fee"} of{" "}
+                  {formatCurrency(totalFee)}.
                 </p>
               ) : null}
             </>
