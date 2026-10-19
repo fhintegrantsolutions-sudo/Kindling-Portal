@@ -3,13 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
-import { generateSchedule, noteFirstPaymentFees } from "@/lib/notes/schedule";
+import {
+  generateLenderSchedule,
+  generateSchedule,
+  noteFirstPaymentFees,
+} from "@/lib/notes/schedule";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-// Derive one scheduled payment and each funded lender's payout from the note's
-// CURRENT terms and fees. Shared by recording and recalculating so both use
-// identical math. Payouts come back without note_payment_id.
+// Derive one scheduled payment (the borrower's row) and each funded lender's
+// payout from the note's CURRENT terms and fees. Payouts come back without
+// note_payment_id.
 async function computePayouts(
   supabase: Supabase,
   noteUuid: string,
@@ -62,58 +66,30 @@ async function computePayouts(
   if (rows.length === 0) {
     throw new Error("No funded participations on this note yet.");
   }
-  const totalShare = rows.reduce(
-    (sum, p) => sum + Number(p.invested_amount ?? 0),
-    0,
-  );
-
-  const split = (total: number) => {
-    if (total === 0) return rows.map(() => 0);
-    const raw = rows.map(
-      (p) => (Number(p.invested_amount) / totalShare) * total,
-    );
-    const rounded = raw.map((v) => Math.round(v * 100) / 100);
-    const drift =
-      Math.round(total * 100) -
-      Math.round(rounded.reduce((s, v) => s + v, 0) * 100);
-    if (drift !== 0) {
-      let maxIdx = 0;
-      for (let i = 1; i < rows.length; i++) {
-        if (
-          Number(rows[i].invested_amount) > Number(rows[maxIdx].invested_amount)
-        ) {
-          maxIdx = i;
-        }
-      }
-      rounded[maxIdx] = Math.round(rounded[maxIdx] * 100 + drift) / 100;
-    }
-    return rounded;
-  };
-  // Split each lender's TOTAL payment and interest, and take principal as the
-  // difference, so a lender's payment is the same every month instead of
-  // wobbling a cent from rounding principal and interest separately. Totals
-  // still sum exactly: Σprincipal = Σtotal − Σinterest = row principal.
-  const totalShares = split(
-    Math.round((row.principal_amount + row.interest_amount) * 100) / 100,
-  );
-  const interestShares = split(row.interest_amount);
-  const principalShares = totalShares.map(
-    (t, i) => Math.round((t - interestShares[i]) * 100) / 100,
-  );
-  // The one-time fees (service fee + CoSpark membership, row 1 only): the
-  // borrower's note_payment is recorded in FULL, but each lender's payout OUT
-  // is reduced by their pro-rata share — from INTEREST only, never principal.
-  // Note save rejects fees above the first month's interest, so the cap below
-  // is only a guard.
-  const feeShares = split(row.fee_amount);
-
-  const payouts = rows.map((p, i) => {
-    const feeFromInterest = Math.min(feeShares[i], interestShares[i]);
+  // Each lender is paid their OWN amortization row (their invested amount at
+  // the note's rate and term) — the exact figures on their schedule — with
+  // their fee share taken from payment #1's interest only. The borrower's
+  // payment is recorded in full separately; lender payouts can differ from it
+  // by a few cents of rounding, which Kindling absorbs.
+  const noteFees = noteFirstPaymentFees(note);
+  const payouts = rows.map((p) => {
+    const sched = generateLenderSchedule({
+      invested: Number(p.invested_amount),
+      notePrincipal: Number(note.principal),
+      annualRatePct: Number(note.rate),
+      termMonths: Number(note.term_months),
+      interestType: String(note.interest_type),
+      firstPaymentDate: String(note.first_payment_date),
+      noteFees,
+    });
+    if (!sched.ok) throw new Error(sched.reason);
+    const mine = sched.rows.find((r) => r.payment_number === paymentNumber);
+    if (!mine) throw new Error("Payment number out of range");
+    const fee = Math.min(mine.fee_amount, mine.interest_amount);
     return {
       participation_id: p.id,
-      principal_amount: principalShares[i],
-      interest_amount:
-        Math.round((interestShares[i] - feeFromInterest) * 100) / 100,
+      principal_amount: mine.principal_amount,
+      interest_amount: Math.round((mine.interest_amount - fee) * 100) / 100,
       share_basis: Number(p.invested_amount),
     };
   });

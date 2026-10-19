@@ -73,6 +73,47 @@ export function noteFirstPaymentFees(note: {
   return round2(n(note.fee) + n(note.cospark_fee));
 }
 
+// A lender's pro-rata share of the note's one-time fees: fees x invested /
+// note principal, rounded to the cent.
+export function lenderFeeShare(
+  noteFees: number,
+  invested: number,
+  notePrincipal: number,
+): number {
+  if (!(noteFees > 0) || !(invested > 0) || !(notePrincipal > 0)) return 0;
+  return round2((noteFees * invested) / notePrincipal);
+}
+
+// A lender's own amortization schedule: their invested amount amortized at the
+// note's rate and term (e.g. $300,000 at 7.75% / 60 mo = $6,047.09 every
+// month), with their fee share taken from the first payment's interest. This
+// is the single source of truth for every lender amount — schedule, PDF,
+// dashboard and recorded payouts — so they always agree to the cent.
+export function generateLenderSchedule(input: {
+  invested: number;
+  notePrincipal: number;
+  annualRatePct: number;
+  termMonths: number;
+  interestType: string;
+  firstPaymentDate: string;
+  noteFees: number;
+}): ScheduleResult & { feeShare?: number } {
+  const feeShare = lenderFeeShare(
+    input.noteFees,
+    input.invested,
+    input.notePrincipal,
+  );
+  const result = generateSchedule({
+    principal: input.invested,
+    annualRatePct: input.annualRatePct,
+    termMonths: input.termMonths,
+    interestType: input.interestType,
+    firstPaymentDate: input.firstPaymentDate,
+    fee: feeShare,
+  });
+  return result.ok ? { ...result, feeShare } : result;
+}
+
 export function generateSchedule(input: ScheduleInput): ScheduleResult {
   const { principal, annualRatePct, termMonths, interestType, firstPaymentDate, fee } =
     input;

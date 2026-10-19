@@ -1,3 +1,5 @@
+-- SUPERSEDED by 2026-10-19-lender-own-amortization.sql — do not run.
+--
 -- One-time data fix: recompute every recorded lender payout with the app's
 -- current split (commit "keep each lender's monthly payment steady to the cent"):
 --

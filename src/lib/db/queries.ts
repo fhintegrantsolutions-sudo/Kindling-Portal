@@ -176,9 +176,8 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     } | null;
   }>;
 
-  const { generateSchedule, addMonths, noteFirstPaymentFees } = await import(
-    "@/lib/notes/schedule"
-  );
+  const { generateLenderSchedule, addMonths, noteFirstPaymentFees } =
+    await import("@/lib/notes/schedule");
   // Month -> principal / interest in integer cents.
   const byMonth = new Map<string, { principal: number; interest: number }>();
   // Distinct notes paying into each month (human note IDs), for the chart detail.
@@ -197,43 +196,29 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     }
     const notePrincipal = Number(n.principal);
     if (!(notePrincipal > 0)) continue;
-    const myShare = Number(r.invested_amount) / notePrincipal;
-    const sched = generateSchedule({
-      principal: notePrincipal,
+    // The lender's own amortization — the same rows their note page shows.
+    const sched = generateLenderSchedule({
+      invested: Number(r.invested_amount),
+      notePrincipal,
       annualRatePct: Number(n.rate),
       termMonths: Number(n.term_months),
       interestType: String(n.interest_type),
       firstPaymentDate: String(n.first_payment_date),
-      fee: noteFirstPaymentFees(n),
+      noteFees: noteFirstPaymentFees(n),
     });
     if (!sched.ok) continue;
-    // Per-row amounts rounded exactly like the lender's schedule
-    // (getMyScheduleForNote): interest rounded on its own, the TOTAL payment
-    // rounded once with principal as the remainder (so the monthly amount
-    // never wobbles a cent), and the final row settling principal to exactly
-    // the amount invested. Accumulate in integer cents.
     const cents = (x: number) => Math.round(x * 100);
-    let remainingCents = cents(Number(r.invested_amount));
-    sched.rows.forEach((row, i) => {
+    for (const row of sched.rows) {
       const month = row.due_date.slice(0, 7);
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
-      const myInterest = cents(row.interest_amount * myShare);
-      const myPrincipal =
-        i === sched.rows.length - 1
-          ? Math.max(0, remainingCents)
-          : cents((row.principal_amount + row.interest_amount) * myShare) -
-            myInterest;
-      remainingCents -= myPrincipal;
-      // The one-time fee reduces the lender's INTEREST only (row 1 is the
-      // only row with fee_amount > 0).
-      const myFee = cents(row.fee_amount * myShare);
-      cur.principal += myPrincipal;
-      cur.interest += myInterest - myFee;
+      // The one-time fee reduces the lender's INTEREST only (row 1 only).
+      cur.principal += cents(row.principal_amount);
+      cur.interest += cents(row.interest_amount) - cents(row.fee_amount);
       byMonth.set(month, cur);
       const set = notesByMonth.get(month) ?? new Set<string>();
       set.add(n.note_id);
       notesByMonth.set(month, set);
-    });
+    }
   }
 
   if (byMonth.size === 0) return [];
@@ -293,12 +278,8 @@ export async function getMyTotalMonthlyPayment(): Promise<number> {
   }>;
   if (rows.length === 0) return 0;
 
-  // Projected share = invested_amount / note.principal. Lender-side RLS
-  // hides other participations on each note, so we can't sum cleared
-  // funding to match admin's distribution exactly. For fully-subscribed
-  // notes this is identical; for under-subscribed notes it slightly
-  // under-states the lender's projected income. See the matching note in
-  // getMyScheduleForNote.
+  // Each participation's monthly payment is its own amortization (invested
+  // amount at the note's rate and term), matching the lender's schedule.
   const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
   let total = 0;
   for (const r of rows) {
@@ -312,15 +293,14 @@ export async function getMyTotalMonthlyPayment(): Promise<number> {
     ) {
       continue;
     }
-    const noteMonthly = computeMonthlyPayment({
-      principal: Number(n.principal),
+    const myMonthly = computeMonthlyPayment({
+      principal: Number(r.invested_amount),
       annualRatePct: Number(n.rate),
       termMonths: Number(n.term_months),
       interestType: n.interest_type,
     });
-    if (noteMonthly === null) continue;
-    const myShare = Number(r.invested_amount) / Number(n.principal);
-    total += noteMonthly * myShare;
+    if (myMonthly === null) continue;
+    total += myMonthly;
   }
   return Math.round(total * 100) / 100;
 }
@@ -647,14 +627,6 @@ export async function getMyScheduleForNote(
     };
   }
 
-  // Projected share = invested_amount / note.principal. Lender-side RLS
-  // hides other participations on this note, so we can't replicate admin's
-  // distribution math exactly (which divides by the sum of funded shares
-  // across all participants). For a fully-subscribed note the two are
-  // identical; for an under-subscribed note this projection slightly
-  // under-states the lender's actual share. Actual recorded payouts on
-  // received rows always read from `participation_payment_payouts` (frozen
-  // amounts), so this approximation only affects forward-looking rows.
   const { data: me } = await supabase
     .from("participations")
     .select("id, invested_amount, funding_cleared")
@@ -670,18 +642,20 @@ export async function getMyScheduleForNote(
       reason: "Schedule will appear once your funding clears.",
     };
   }
-  const myShare = Number(me.invested_amount) / Number(note.principal);
+  const invested = Number(me.invested_amount);
 
-  const { generateSchedule, noteFirstPaymentFees } = await import(
-    "@/lib/notes/schedule"
-  );
-  const result = generateSchedule({
-    principal: Number(note.principal),
+  // The lender's OWN amortization (their invested amount at the note's rate
+  // and term), not a slice of the note's schedule — see generateLenderSchedule.
+  const { generateLenderSchedule, noteFirstPaymentFees, lenderFeeShare } =
+    await import("@/lib/notes/schedule");
+  const result = generateLenderSchedule({
+    invested,
+    notePrincipal: Number(note.principal),
     annualRatePct: Number(note.rate),
     termMonths: Number(note.term_months),
     interestType: String(note.interest_type),
     firstPaymentDate: String(note.first_payment_date),
-    fee: noteFirstPaymentFees(note),
+    noteFees: noteFirstPaymentFees(note),
   });
   if (!result.ok) return { ok: false, reason: result.reason };
 
@@ -710,12 +684,11 @@ export async function getMyScheduleForNote(
     });
   }
 
-  // Index of the last still-projected payment. Per-row rounding of
-  // (note principal × share) drifts a cent or two over the full term, so we
-  // settle that final payment to the remaining balance — the lender's total
-  // principal returned then equals exactly what they invested. Frozen
-  // (already-received) rows are never adjusted; if every row is received there's
-  // nothing to settle and the recorded payouts stand as-is.
+  // Index of the last still-projected payment. If recorded payouts returned a
+  // slightly different amount of principal than the lender's own schedule, the
+  // final projected payment settles to the remaining balance so total principal
+  // returned equals exactly what they invested. Frozen (already-received) rows
+  // are never adjusted.
   let lastProjectedIdx = -1;
   for (let i = result.rows.length - 1; i >= 0; i--) {
     if (!receivedByNumber.has(result.rows[i].payment_number)) {
@@ -724,31 +697,22 @@ export async function getMyScheduleForNote(
     }
   }
 
-  let runningBalance = Number(me.invested_amount);
+  let runningBalance = invested;
   const rows: MyScheduleRow[] = result.rows.map((row, i) => {
     const got = receivedByNumber.get(row.payment_number);
-    const myInterest = got
-      ? got.interest
-      : Math.round(row.interest_amount * myShare * 100) / 100;
+    const myInterest = got ? got.interest : row.interest_amount;
     let myPrincipal: number;
     if (got) {
       myPrincipal = got.principal;
     } else if (i === lastProjectedIdx) {
       myPrincipal = runningBalance > 0 ? runningBalance : 0;
     } else {
-      // Round the lender's TOTAL payment once and take principal as the
-      // remainder after interest. Rounding principal and interest separately
-      // made the monthly total wobble by a cent ($50.39 / $50.40).
-      const myTotal =
-        Math.round(
-          (row.principal_amount + row.interest_amount) * myShare * 100,
-        ) / 100;
-      myPrincipal = Math.round((myTotal - myInterest) * 100) / 100;
+      myPrincipal = row.principal_amount;
     }
-    // The one-time fee reduces interest only, never principal, so it doesn't
-    // touch the settle above. Received rows already reflect the fee in the
-    // recorded payout; my_fee is only meaningful on projected (unpaid) rows.
-    const myFee = got ? 0 : Math.round(row.fee_amount * myShare * 100) / 100;
+    // The one-time fee reduces interest only, never principal. Received rows
+    // already reflect it in the recorded payout; my_fee is only meaningful on
+    // projected (unpaid) rows.
+    const myFee = got ? 0 : row.fee_amount;
     runningBalance = Math.round((runningBalance - myPrincipal) * 100) / 100;
     return {
       payment_number: row.payment_number,
@@ -761,20 +725,20 @@ export async function getMyScheduleForNote(
     };
   });
 
-  // The lender's one-time fee (pro-rata of the note fee), independent of whether
-  // the first payment has been received yet — so it can be shown even after the
-  // fee has been baked into the recorded first payout.
-  const oneTimeFee =
-    Math.round(
-      result.rows.reduce((s, r) => s + r.fee_amount, 0) * myShare * 100,
-    ) / 100;
+  // The lender's one-time fee, independent of whether the first payment has
+  // been received — so it can be shown after it's baked into the payout.
+  const oneTimeFee = result.feeShare ?? 0;
 
-  // Split the lender's share into its parts for display; the CoSpark part takes
-  // the remainder so the two always sum to one_time_fee.
-  const serviceFee =
-    note.fee !== null && Number(note.fee) > 0
-      ? Math.min(oneTimeFee, Math.round(Number(note.fee) * myShare * 100) / 100)
-      : 0;
+  // Split it into its parts for display; the CoSpark part takes the remainder
+  // so the two always sum to one_time_fee.
+  const serviceFee = Math.min(
+    oneTimeFee,
+    lenderFeeShare(
+      note.fee !== null ? Number(note.fee) : 0,
+      invested,
+      Number(note.principal),
+    ),
+  );
   const cosparkFee = Math.round((oneTimeFee - serviceFee) * 100) / 100;
 
   return {
