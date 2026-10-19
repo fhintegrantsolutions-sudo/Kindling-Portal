@@ -179,14 +179,10 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
   const { generateSchedule, addMonths, noteFirstPaymentFees } = await import(
     "@/lib/notes/schedule"
   );
+  // Month -> principal / interest in integer cents.
   const byMonth = new Map<string, { principal: number; interest: number }>();
   // Distinct notes paying into each month (human note IDs), for the chart detail.
   const notesByMonth = new Map<string, Set<string>>();
-  // A note returns exactly its invested principal over the term, so this is the
-  // exact target the rounded monthly series must sum to. Interest has no clean
-  // target, so we track its unrounded total and settle to that.
-  let targetPrincipal = 0;
-  let exactInterest = 0;
 
   for (const r of rows) {
     const n = r.note;
@@ -211,22 +207,33 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
       fee: noteFirstPaymentFees(n),
     });
     if (!sched.ok) continue;
-    targetPrincipal += Number(r.invested_amount);
-    for (const row of sched.rows) {
+    // Per-row amounts rounded exactly like the lender's schedule
+    // (getMyScheduleForNote): interest rounded on its own, the TOTAL payment
+    // rounded once with principal as the remainder (so the monthly amount
+    // never wobbles a cent), and the final row settling principal to exactly
+    // the amount invested. Accumulate in integer cents.
+    const cents = (x: number) => Math.round(x * 100);
+    let remainingCents = cents(Number(r.invested_amount));
+    sched.rows.forEach((row, i) => {
       const month = row.due_date.slice(0, 7);
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
-      // The one-time fee reduces the lender's INTEREST only (row 1 is the only
-      // row with fee_amount > 0); principal always pays out in whole. Net it
-      // from interest here and from the interest settle target (exactInterest).
-      const netInterest = (row.interest_amount - row.fee_amount) * myShare;
-      cur.principal += row.principal_amount * myShare;
-      cur.interest += netInterest;
-      exactInterest += netInterest;
+      const myInterest = cents(row.interest_amount * myShare);
+      const myPrincipal =
+        i === sched.rows.length - 1
+          ? Math.max(0, remainingCents)
+          : cents((row.principal_amount + row.interest_amount) * myShare) -
+            myInterest;
+      remainingCents -= myPrincipal;
+      // The one-time fee reduces the lender's INTEREST only (row 1 is the
+      // only row with fee_amount > 0).
+      const myFee = cents(row.fee_amount * myShare);
+      cur.principal += myPrincipal;
+      cur.interest += myInterest - myFee;
       byMonth.set(month, cur);
       const set = notesByMonth.get(month) ?? new Set<string>();
       set.add(n.note_id);
       notesByMonth.set(month, set);
-    }
+    });
   }
 
   if (byMonth.size === 0) return [];
@@ -244,24 +251,13 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     const v = byMonth.get(m) ?? { principal: 0, interest: 0 };
     out.push({
       month: m,
-      principal: Math.round(v.principal * 100) / 100,
-      interest: Math.round(v.interest * 100) / 100,
+      principal: v.principal / 100,
+      interest: v.interest / 100,
       noteIds: Array.from(notesByMonth.get(m) ?? []).sort(),
     });
     cursor = addMonths(cursor, 1);
   }
 
-  // Per-month rounding drifts the column totals a cent or two off the true
-  // figures. Settle both onto the last month so the lender's total principal
-  // returned equals exactly what they invested (and interest matches its
-  // unrounded total). out has at least one row here (byMonth is non-empty).
-  const last = out[out.length - 1];
-  const cents = (x: number) => Math.round(x * 100);
-  const sumP = out.reduce((s, p) => s + cents(p.principal), 0);
-  const sumI = out.reduce((s, p) => s + cents(p.interest), 0);
-  last.principal =
-    (cents(last.principal) + (cents(targetPrincipal) - sumP)) / 100;
-  last.interest = (cents(last.interest) + (cents(exactInterest) - sumI)) / 100;
   return out;
 }
 

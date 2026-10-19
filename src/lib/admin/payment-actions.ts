@@ -159,64 +159,6 @@ export async function recordScheduledPayment(
   revalidatePath("/notes");
 }
 
-// Recompute the lender payouts of an already-recorded payment from the note's
-// current fees and funded lenders (e.g. after fees changed post-recording).
-// The note_payment row — date, method, check/wire #, notes — is untouched; only
-// its participation_payment_payouts are replaced.
-export async function recalculateScheduledPayment(
-  noteUuid: string,
-  paymentNumber: number,
-): Promise<{ error?: string }> {
-  await requireAdmin();
-  const supabase = await createClient();
-
-  try {
-    const { data: payment, error: payErr } = await supabase
-      .from("note_payments")
-      .select("id")
-      .eq("note_id", noteUuid)
-      .eq("payment_number", paymentNumber)
-      .maybeSingle();
-    if (payErr) return { error: payErr.message };
-    if (!payment) return { error: "That payment hasn't been recorded." };
-
-    const { payouts } = await computePayouts(supabase, noteUuid, paymentNumber);
-    const fresh = payouts.map((p) => ({ ...p, note_payment_id: payment.id }));
-
-    // Keep the old payouts so they can be restored if the insert fails.
-    const { data: old, error: oldErr } = await supabase
-      .from("participation_payment_payouts")
-      .select(
-        "note_payment_id, participation_id, principal_amount, interest_amount, share_basis",
-      )
-      .eq("note_payment_id", payment.id);
-    if (oldErr) return { error: oldErr.message };
-
-    const { error: delErr } = await supabase
-      .from("participation_payment_payouts")
-      .delete()
-      .eq("note_payment_id", payment.id);
-    if (delErr) return { error: delErr.message };
-
-    const { error: insErr } = await supabase
-      .from("participation_payment_payouts")
-      .insert(fresh);
-    if (insErr) {
-      if (old && old.length > 0) {
-        await supabase.from("participation_payment_payouts").insert(old);
-      }
-      return { error: insErr.message };
-    }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Failed to recalculate" };
-  }
-
-  revalidatePath(`/admin/notes/${noteUuid}`);
-  revalidatePath("/notes");
-  revalidatePath("/dashboard");
-  return {};
-}
-
 export async function unrecordScheduledPayment(
   noteUuid: string,
   paymentNumber: number,
