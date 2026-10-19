@@ -23,12 +23,16 @@ function fmtUsd(s: string | null): string {
   })}`;
 }
 
-// "300000" -> "300,000.00"; leaves unparseable input as typed.
-function formatMoney(value: string): string {
-  const cleaned = value.replace(/,/g, "").trim();
+// "300000" -> "300,000.00"; leaves unparseable input as typed. Accepts a
+// number too: Supabase returns numeric columns as JSON numbers at runtime even
+// though our row types say string.
+function formatMoney(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  const cleaned = str.replace(/,/g, "").trim();
   if (cleaned === "") return "";
   const n = Number(cleaned);
-  if (!Number.isFinite(n)) return value;
+  if (!Number.isFinite(n)) return str;
   return n.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
