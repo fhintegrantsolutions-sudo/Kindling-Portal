@@ -25,6 +25,7 @@ import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
 import { EditInvestedAmount } from "./edit-invested-amount";
 import { MyNotesCard } from "./my-notes-card";
+import { FeeField } from "./fee-field";
 import { DocumentDownloadButton } from "@/components/document-download-button";
 
 export default async function MyNoteDetailPage({
@@ -209,9 +210,14 @@ export default async function MyNoteDetailPage({
                   value={formatCurrency(totalInterest)}
                 />
                 {hasFee ? (
-                  <Field
+                  <FeeField
                     label={cosparkFee > 0 ? "Fees (one-time)" : "Fee (one-time)"}
                     value={formatCurrency(totalFee)}
+                    detail={
+                      cosparkFee > 0 && serviceFee > 0
+                        ? `Service fee ${formatCurrency(serviceFee)} + CoSpark membership ${formatCurrency(cosparkFee)}.`
+                        : undefined
+                    }
                   />
                 ) : null}
                 <Field
