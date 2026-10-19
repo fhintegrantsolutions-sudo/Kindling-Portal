@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import {
+  recalculateScheduledPayment,
   recordScheduledPayment,
   unrecordScheduledPayment,
 } from "@/lib/admin/payment-actions";
@@ -111,6 +112,25 @@ function ScheduleRowItem({
   const [pending, startTransition] = useTransition();
   const isReceived = Boolean(received);
 
+  // Payment #1 carries the one-time fees; if they changed after it was
+  // recorded, this re-splits the lender payouts with the current fees.
+  const recalculate = () => {
+    if (
+      !confirm(
+        "Recalculate lender payouts for this payment using the note's current fees? Payment details (date, method, notes) are kept.",
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      const res = await recalculateScheduledPayment(
+        noteUuid,
+        row.payment_number,
+      );
+      alert(res.error ?? "Lender payouts recalculated.");
+    });
+  };
+
   const toggle = () => {
     startTransition(async () => {
       try {
@@ -160,7 +180,7 @@ function ScheduleRowItem({
               {isReceived && received ? formatDate(received.recorded_date) : ""}
             </span>
           </label>
-          <div className="w-24 text-right">
+          <div className="flex w-24 flex-col items-end">
             {isReceived && received ? (
               <PaymentDetailsButton
                 payment={{
@@ -174,6 +194,17 @@ function ScheduleRowItem({
                   notes: received.notes,
                 }}
               />
+            ) : null}
+            {isReceived && row.payment_number === 1 ? (
+              <button
+                type="button"
+                onClick={recalculate}
+                disabled={pending}
+                className="h-7 px-2 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
+                title="Re-split lender payouts using the note's current fees"
+              >
+                {pending ? "…" : "Recalculate"}
+              </button>
             ) : null}
           </div>
         </div>
