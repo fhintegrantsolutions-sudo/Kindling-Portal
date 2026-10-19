@@ -84,7 +84,7 @@ export default async function SetupParticipationPage({
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4 text-sm">
               <Field label="Note" value={formatNoteLabel(note.note_id, note.title)} />
-              <Field label="Rate" value={formatPercent(note.rate)} />
+              <Field label="Rate*" value={formatPercent(note.rate)} />
               <Field label="Term" value={`${note.term_months} mo`} />
               <Field
                 label="Min investment"
@@ -94,6 +94,11 @@ export default async function SetupParticipationPage({
                     : "—"
                 }
               />
+              <p className="col-span-2 text-xs text-muted-foreground sm:col-span-4">
+                *The interest rate is a projection and will be finalized once
+                all funds have been collected and the total transaction amount
+                is confirmed.
+              </p>
             </CardContent>
           </Card>
         ) : null}
