@@ -256,6 +256,21 @@ export function SetupForm({
         </div>
       </div>
 
+      <h2 className="text-sm font-semibold">Notes</h2>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="lead_notes">
+          Anything else we should know?{" "}
+          <span className="font-normal text-muted-foreground">(optional)</span>
+        </Label>
+        <textarea
+          id="lead_notes"
+          name="lead_notes"
+          rows={3}
+          maxLength={2000}
+          className="w-full rounded-md border bg-background p-2 text-sm"
+        />
+      </div>
+
       <div className="mt-2 rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
         After you submit, we&apos;ll follow up with wire / check / ACH
         instructions. We do <em>not</em> store any banking information in this

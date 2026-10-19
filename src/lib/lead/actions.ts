@@ -167,6 +167,13 @@ export async function submitLeadParticipationForm(
     fields.different_sender === "yes" && fields.funding_sender_name
       ? `⚠ Funds may arrive under a different name: ${fields.funding_sender_name}`
       : null;
+  // The lead's optional free-text note rides along in the admin-only funding
+  // notes, under the sender warning when both are present.
+  const leadNote = text(formData, "lead_notes").slice(0, 2000);
+  const fundingNotes =
+    [senderNote, leadNote ? `Note from lead: ${leadNote}` : null]
+      .filter(Boolean)
+      .join("\n\n") || null;
   const { error: partErr } = await supabase.from("participations").insert({
     user_id: null,
     note_id: ar.note_id,
@@ -174,7 +181,7 @@ export async function submitLeadParticipationForm(
     invested_amount: amountStr,
     submitted_amount: amountStr,
     funding_type: fields.funding_type,
-    funding_notes: senderNote,
+    funding_notes: fundingNotes,
     status: "Active",
   });
   if (partErr) {
