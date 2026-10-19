@@ -66,8 +66,10 @@ export function ScheduleSection({
                 </span>{" "}
                 <span className="text-muted-foreground">
                   {cosparkFee > 0
-                    ? `(service fee ${formatCurrency(totalFee - cosparkFee)} + CoSpark membership ${formatCurrency(cosparkFee)}; reduces the first payment)`
-                    : "(reduces the first payment)"}
+                    ? `(service fee ${formatCurrency(totalFee - cosparkFee)} + CoSpark membership ${formatCurrency(cosparkFee)})`
+                    : ""}{" "}
+                  — deducted from lenders&apos; first interest payment. The
+                  borrower pays the full amount.
                 </span>
               </p>
             ) : null}
@@ -160,9 +162,7 @@ function ScheduleRowItem({
         {formatCurrency(row.interest_amount)}
       </td>
       <td className="py-2 pr-2 text-right tabular-nums">
-        {formatCurrency(
-          row.principal_amount + row.interest_amount - row.fee_amount,
-        )}
+        {formatCurrency(row.principal_amount + row.interest_amount)}
       </td>
       <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">
         {formatCurrency(row.ending_balance)}

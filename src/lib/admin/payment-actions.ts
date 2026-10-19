@@ -102,20 +102,19 @@ export async function recordScheduledPayment(
   };
   const principalShares = split(row.principal_amount);
   const interestShares = split(row.interest_amount);
-  // The one-time service fee (row 1 only) is Kindling's cut: the borrower's
-  // note_payment above is recorded in FULL, but each lender's payout OUT is
-  // reduced by their pro-rata share of the fee. Take it from interest first,
-  // then any remainder from principal, so neither goes negative.
+  // The one-time fees (service fee + CoSpark membership, row 1 only): the
+  // borrower's note_payment above is recorded in FULL, but each lender's
+  // payout OUT is reduced by their pro-rata share — from INTEREST only, never
+  // principal. Note save rejects fees above the first month's interest, so the
+  // cap below is only a guard.
   const feeShares = split(row.fee_amount);
 
   const payoutInsert = rows.map((p, i) => {
     const feeFromInterest = Math.min(feeShares[i], interestShares[i]);
-    const feeFromPrincipal = Math.max(0, feeShares[i] - interestShares[i]);
     return {
       note_payment_id: payment.id,
       participation_id: p.id,
-      principal_amount:
-        Math.round((principalShares[i] - feeFromPrincipal) * 100) / 100,
+      principal_amount: principalShares[i],
       interest_amount:
         Math.round((interestShares[i] - feeFromInterest) * 100) / 100,
       share_basis: Number(p.invested_amount),
