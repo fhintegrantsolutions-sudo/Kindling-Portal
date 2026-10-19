@@ -217,6 +217,7 @@ function Row({
                 check_number: row.check_number,
                 wire_reference: row.wire_reference,
                 notes: row.payment_notes,
+                total_amount: total,
               }}
             />
           ) : null}
