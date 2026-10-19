@@ -122,7 +122,7 @@ export function SetupForm({
         ) : null}
         <div className="flex flex-col gap-2 sm:col-span-2">
           <Label htmlFor="name_for_agreement" className="flex items-center gap-1.5">
-            Exact name for the loan agreement{" "}
+            Exact name for documentation{" "}
             <span className="text-destructive">*</span>
             <button
               type="button"
@@ -137,7 +137,8 @@ export function SetupForm({
           {showAgreementHelp ? (
             <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
               This is the formal name used for documentation. Use the exact legal
-              name — for example, &ldquo;Jane Q. Doe Revocable Trust&rdquo; or
+              name — for example, a person&rsquo;s full name such as &ldquo;Jane
+              Quinn Doe,&rdquo; or &ldquo;Jane Q. Doe Revocable Trust&rdquo; or
               &ldquo;Acme Capital LLC.&rdquo;
             </p>
           ) : null}
