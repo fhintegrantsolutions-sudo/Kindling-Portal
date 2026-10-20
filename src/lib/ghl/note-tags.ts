@@ -14,6 +14,13 @@ export function noteLeadTag(noteId: string): string {
   return base ? `lead ${base}` : "";
 }
 
+// The interest tag ("interested k26004") — applied when a lender flags interest
+// in an upcoming note, removed if they withdraw.
+export function noteInterestTag(noteId: string): string {
+  const base = noteBaseTag(noteId);
+  return base ? `interested ${base}` : "";
+}
+
 // The two GHL tags every note gets provisioned with: the bare note id and the
 // lead variant, both lowercased from the human note id.
 export function noteTagNames(noteId: string): string[] {

@@ -147,15 +147,19 @@ export default async function AdminDashboardPage() {
         <h2 className="text-sm font-medium">Upcoming notes</h2>
         {upcomingNotes.length > 0 ? (
           <div className="overflow-x-auto rounded-lg border bg-card">
-            <table className="w-full min-w-[42rem] text-sm">
+            <table className="w-full min-w-[52rem] text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
                   <th className="px-4 py-2.5 font-medium">Note</th>
                   <th className="px-3 py-2.5 font-medium">Status</th>
+                  <th className="px-3 py-2.5 font-medium">Interest opens</th>
                   <th className="px-3 py-2.5 font-medium">Funding opens</th>
                   <th className="px-3 py-2.5 font-medium">Funding closes</th>
                   <th className="px-3 py-2.5 text-right font-medium">Rate</th>
                   <th className="px-3 py-2.5 text-right font-medium">Term</th>
+                  <th className="px-3 py-2.5 text-right font-medium">
+                    Interested
+                  </th>
                   <th className="px-4 py-2.5 text-right font-medium">
                     Participations
                   </th>
@@ -181,6 +185,9 @@ export default async function AdminDashboardPage() {
                       {n.status}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums">
+                      {formatDate(n.interestOpensOn)}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums">
                       {formatDate(n.fundingStart)}
                     </td>
                     <td className="px-3 py-2.5 tabular-nums">
@@ -191,6 +198,21 @@ export default async function AdminDashboardPage() {
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {n.termMonths ? `${n.termMonths} mo` : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {n.interested > 0 ? (
+                        <Link
+                          href={`/admin/notes/${n.noteUuid}#interest`}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {n.interested}
+                          {n.interestedTotal > 0
+                            ? ` · ${formatCurrency(n.interestedTotal)}`
+                            : ""}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
                       {n.participations || "—"}
