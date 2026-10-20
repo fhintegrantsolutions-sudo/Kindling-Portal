@@ -28,7 +28,7 @@ export default function ResetPasswordPage() {
         <CardDescription>Choose a password of at least 8 characters.</CardDescription>
       </CardHeader>
       <form action={action}>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="flex flex-col gap-4 pb-6">
           <div className="flex flex-col gap-2">
             <Label htmlFor="password">New password</Label>
             <PasswordInput

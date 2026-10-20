@@ -30,7 +30,7 @@ export default function AccountSetupPage() {
         </CardDescription>
       </CardHeader>
       <form action={action}>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="flex flex-col gap-4 pb-6">
           <div className="flex flex-col gap-2">
             <Label htmlFor="password">Password</Label>
             <PasswordInput
