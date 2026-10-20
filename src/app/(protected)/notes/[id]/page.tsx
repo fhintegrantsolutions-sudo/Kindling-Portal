@@ -296,7 +296,7 @@ export default async function MyNoteDetailPage({
                         Interest
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
-                        Net
+                        Payment
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
                         Balance
