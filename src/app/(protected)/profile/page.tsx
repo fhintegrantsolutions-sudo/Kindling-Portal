@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { getCurrentProfile } from "@/lib/dal";
 import {
   getCurrentEntityContext,
@@ -26,8 +26,17 @@ export default async function ProfilePage() {
         </p>
         <p className="text-sm text-muted-foreground">
           Your mailing address, loan agreement details, and W-9 are set per
-          entity. Choose an entity from the switcher to view them.
+          entity.
         </p>
+        <div className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm">
+          <ArrowLeft className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p>
+            Choose an entity from the switcher at the top of the{" "}
+            <span className="font-medium">left-hand menu</span>, just below the
+            Kindling logo (it currently says &ldquo;All entities&rdquo;). On a
+            phone, open the menu first.
+          </p>
+        </div>
       </div>
     );
   }
