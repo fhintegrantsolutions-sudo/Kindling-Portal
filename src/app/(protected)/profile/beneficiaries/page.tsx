@@ -26,8 +26,14 @@ export default async function BeneficiariesPage({
   if (ctx?.mode === "all") {
     return (
       <p className="text-sm text-muted-foreground">
-        Beneficiaries are set per entity. Choose an entity from the switcher to
-        view or edit them.
+        Beneficiaries are set per entity. Choose an entity from the switcher at
+        the top of the left-hand menu to view or edit them.{" "}
+        <Link
+          href="/help/beneficiaries"
+          className="font-medium text-foreground underline underline-offset-4"
+        >
+          How to set up beneficiaries
+        </Link>
       </p>
     );
   }
@@ -66,7 +72,13 @@ export default async function BeneficiariesPage({
             "your"
           )}
           {currentEntity ? "’s" : ""} participation in the event of your
-          passing.
+          passing.{" "}
+          <Link
+            href="/help/beneficiaries"
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            How to set up beneficiaries
+          </Link>
         </p>
         <Link href="/profile/beneficiaries/new">
           <Button>Add beneficiary</Button>

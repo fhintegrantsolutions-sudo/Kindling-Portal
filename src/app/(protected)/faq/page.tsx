@@ -296,7 +296,14 @@ const SECTIONS: Section[] = [
               Profile
             </Link>
             . Addresses and beneficiaries are set per entity, so choose the
-            entity first.
+            entity first. See{" "}
+            <Link
+              href="/help/beneficiaries"
+              className="underline underline-offset-4"
+            >
+              how to set up beneficiaries
+            </Link>{" "}
+            for a step-by-step guide.
           </>
         ),
       },
