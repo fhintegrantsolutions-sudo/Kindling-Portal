@@ -50,9 +50,25 @@ export function RequestAccessForm() {
     return (
       <div className="rounded-lg border bg-card p-8 text-center">
         <CheckCircle2 className="mx-auto mb-4 size-12 text-primary" />
-        <h2 className="font-serif text-2xl font-bold">Request submitted</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Thanks — we&apos;ll be in touch within a few business days.
+        <h2 className="font-serif text-2xl font-bold">
+          You&apos;re one step closer.
+        </h2>
+        <div className="mx-auto mt-3 flex max-w-md flex-col gap-3 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">
+            Thank you for your interest in Kindling.
+          </p>
+          <p>
+            Your request for access has been received. Kindling is available
+            exclusively to CoSpark members, and our team will review your
+            request and follow up with you regarding next steps.
+          </p>
+          <p>
+            We appreciate your interest in being part of the Kindling
+            community.
+          </p>
+        </div>
+        <p className="mt-5 font-serif text-base font-semibold">
+          Kindling. Make more of your financial opportunities.
         </p>
         <div className="mt-6">
           <Link href="/">
