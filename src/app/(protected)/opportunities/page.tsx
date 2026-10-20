@@ -78,7 +78,6 @@ export default async function OpportunitiesPage() {
                   id: e.id,
                   display_name: e.display_name,
                 }))}
-                defaultEntityId={ctx.currentEntityId}
                 interests={myInterests}
               />
             ) : (
