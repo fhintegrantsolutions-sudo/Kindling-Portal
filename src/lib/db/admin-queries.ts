@@ -85,20 +85,29 @@ export type NoteParticipationRow = {
 };
 
 // Funding-stage breakdown for the LATEST note currently being funded — the most
-// recent note whose funding has started (window opened) and hasn't been archived
-// yet. Excludes upcoming notes whose window hasn't opened. Cleared invested =
+// recent note whose funding has started (window opened), hasn't been archived,
+// and is either Open for funding or has participations to track. Skips empty
+// notes (e.g. a Funded sub-note with no participations). Cleared invested =
 // actual money in. Returns null if there's no such note.
 export async function getLatestNoteParticipations(): Promise<NoteParticipationRow | null> {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const { data: note } = await supabase
+  const { data: candidates } = await supabase
     .from("notes")
-    .select("id, note_id, status")
+    .select("id, note_id, status, participations(count)")
     .is("funding_archived_at", null)
     .or(`funding_start_date.is.null,funding_start_date.lte.${today}`)
-    .order("note_id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("note_id", { ascending: false });
+  const note = (
+    (candidates ?? []) as unknown as Array<{
+      id: string;
+      note_id: string;
+      status: string;
+      participations: Array<{ count: number }>;
+    }>
+  ).find(
+    (n) => n.status === "Open" || (n.participations?.[0]?.count ?? 0) > 0,
+  );
   if (!note) return null;
 
   const { data: parts } = await supabase

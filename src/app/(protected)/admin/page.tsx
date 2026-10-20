@@ -135,7 +135,7 @@ export default async function AdminDashboardPage() {
           </div>
         ) : (
           <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
-            No open note — every note&apos;s funding round has been archived.
+            No note is currently being funded.
           </div>
         )}
       </section>
