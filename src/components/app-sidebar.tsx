@@ -11,6 +11,7 @@ import {
   FileCheck,
   FileText,
   Handshake,
+  HelpCircle,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -42,6 +43,7 @@ const NAV = [
   { label: "My Notes", href: "/notes", icon: PieChart },
   { label: "Opportunities", href: "/opportunities", icon: TrendingUp },
   { label: "Profile", href: "/profile", icon: User },
+  { label: "FAQ", href: "/faq", icon: HelpCircle },
 ] as const;
 
 // Two groups separated by a thin divider in the sidebar: the note-workflow
