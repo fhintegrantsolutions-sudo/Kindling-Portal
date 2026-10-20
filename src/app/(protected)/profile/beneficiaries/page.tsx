@@ -1,16 +1,10 @@
 import Link from "next/link";
 import { getMyBeneficiaries } from "@/lib/db/queries";
-import { formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentEntityContext } from "@/lib/entities/context";
-import { DeleteBeneficiaryButton } from "./delete-button";
+import { BeneficiaryList } from "./beneficiary-list";
 import { CopyBeneficiariesFromEntity } from "./copy-from-entity";
 
 export default async function BeneficiariesPage({
@@ -46,19 +40,6 @@ export default async function BeneficiariesPage({
   );
   const showCopy = otherEntities.length > 0 && beneficiaries.length === 0;
 
-  // Within each group, highest percentage first, then alphabetical by name.
-  const byRank = (a: (typeof beneficiaries)[number], b: typeof a) =>
-    b.percentage - a.percentage || a.name.localeCompare(b.name);
-  const primary = beneficiaries
-    .filter((b) => b.type === "Primary")
-    .sort(byRank);
-  const contingent = beneficiaries
-    .filter((b) => b.type === "Contingent")
-    .sort(byRank);
-
-  const primaryTotal = primary.reduce((sum, b) => sum + b.percentage, 0);
-  const contingentTotal = contingent.reduce((sum, b) => sum + b.percentage, 0);
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -91,23 +72,6 @@ export default async function BeneficiariesPage({
         </Alert>
       ) : null}
 
-      {primaryTotal !== 0 && primaryTotal !== 100 ? (
-        <Alert variant="destructive">
-          <AlertDescription>
-            Primary beneficiaries currently total {primaryTotal}%. They should
-            sum to 100%.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {contingentTotal !== 0 && contingentTotal !== 100 ? (
-        <Alert variant="destructive">
-          <AlertDescription>
-            Contingent beneficiaries currently total {contingentTotal}%. They
-            should sum to 100% (or 0% if you have none).
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
       {showCopy ? (
         <CopyBeneficiariesFromEntity sources={otherEntities} />
       ) : null}
@@ -121,86 +85,23 @@ export default async function BeneficiariesPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="flex flex-col gap-6">
-          <BeneficiaryGroup
-            title="Primary beneficiaries"
-            total={primaryTotal}
-            beneficiaries={primary}
-          />
-          {contingent.length > 0 ? (
-            <BeneficiaryGroup
-              title="Contingent beneficiaries"
-              total={contingentTotal}
-              beneficiaries={contingent}
-            />
-          ) : null}
-        </div>
+        <BeneficiaryList
+          // Remount when the set of beneficiaries changes (add/delete) so the
+          // editable percentages start from the saved values.
+          key={beneficiaries.map((b) => b.id).join(",")}
+          items={beneficiaries.map((b) => ({
+            id: b.id,
+            name: b.name,
+            relation: b.relation,
+            percentage: Number(b.percentage),
+            type: b.type,
+            dob: b.dob,
+            phone: b.phone,
+            address: b.address,
+            ssn_last4: b.ssn_last4,
+          }))}
+        />
       )}
     </div>
   );
 }
-
-// One boxed section per beneficiary class, so Primary and Contingent read as
-// distinct groups rather than a single run of cards.
-function BeneficiaryGroup({
-  title,
-  total,
-  beneficiaries,
-}: {
-  title: string;
-  total: number;
-  beneficiaries: Awaited<ReturnType<typeof getMyBeneficiaries>>;
-}) {
-  return (
-    <section className="rounded-xl border bg-muted/30 p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-4 px-1">
-        <h2 className="text-sm font-semibold uppercase tracking-wider">
-          {title}
-        </h2>
-        <span
-          className={
-            total === 100
-              ? "text-xs text-muted-foreground"
-              : "text-xs font-medium text-destructive"
-          }
-        >
-          {total}%
-        </span>
-      </div>
-      <div className="grid gap-3">
-        {beneficiaries.map((b) => (
-          <Card key={b.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <CardTitle>{b.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{b.relation}</p>
-                </div>
-                <span className="rounded-full border px-2 py-0.5 text-xs">
-                  {b.percentage}%
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="flex items-center justify-between gap-4">
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                {b.dob ? <span>DOB {formatDate(b.dob)}</span> : null}
-                {b.phone ? <span>{b.phone}</span> : null}
-                {b.ssn_last4 ? <span>SSN ••••{b.ssn_last4}</span> : null}
-                {b.address ? <span>{b.address}</span> : null}
-              </div>
-              <div className="flex gap-2">
-                <Link href={`/profile/beneficiaries/${b.id}`}>
-                  <Button variant="outline" size="sm">
-                    Edit
-                  </Button>
-                </Link>
-                <DeleteBeneficiaryButton id={b.id} />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </section>
-  );
-}
-

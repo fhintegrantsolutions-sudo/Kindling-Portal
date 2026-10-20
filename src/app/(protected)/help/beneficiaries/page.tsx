@@ -109,71 +109,62 @@ export default function BeneficiariesHowToPage() {
             <li>
               Click{" "}
               <strong className="text-foreground">Add beneficiary</strong> at
-              the bottom of the form. Repeat for each beneficiary until each
-              group totals 100%.
+              the bottom of the form. Repeat for each beneficiary.
             </li>
           </ol>
           <p className="mt-4 text-xs text-muted-foreground">
-            The total for each group is shown next to its heading. If a group
-            doesn&apos;t add up to 100%, you&apos;ll see a red reminder at the
-            top of the page until it does.
+            Don&apos;t worry about getting the percentages exactly right while
+            adding people — you can balance everyone afterwards on one screen
+            (see below).
           </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Edit or remove a beneficiary</CardTitle>
+          <CardTitle className="text-base">
+            Change percentages (all at once)
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
           <p>
-            Click <strong className="text-foreground">Edit</strong> on a
-            beneficiary to change their details or percentage (then{" "}
-            <strong className="text-foreground">Save changes</strong>), or{" "}
-            <strong className="text-foreground">Delete</strong> to remove them.
+            Every beneficiary&apos;s percentage can be changed right on the{" "}
+            <strong className="text-foreground">Beneficiaries</strong> page:
           </p>
-          <p>
-            <strong className="text-foreground">Changing percentages:</strong>{" "}
-            a group can&apos;t go over 100%. To shift shares between people,
-            lower one person&apos;s percentage first, then raise the
-            other&apos;s.
-          </p>
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
-            <p className="font-medium text-amber-800 dark:text-amber-300">
-              Tip: &ldquo;…which exceeds the 100% limit&rdquo;
-            </p>
+          <ol className="flex list-decimal flex-col gap-2 pl-5 marker:font-medium marker:text-foreground">
+            <li>Type the new percentage in each person&apos;s box.</li>
+            <li>
+              Watch the totals update as you type — each group shows how much
+              is left to assign or how much it&apos;s over.
+            </li>
+            <li>
+              When Primary totals 100% (and Contingent totals 100%, or 0% if
+              you have none), click{" "}
+              <strong className="text-foreground">Save percentages</strong>.
+            </li>
+          </ol>
+          <div className="rounded-md bg-muted/50 p-3 text-xs">
+            <p className="font-medium text-foreground">Example</p>
             <p className="mt-1">
-              If you see a message like{" "}
-              <em>
-                &ldquo;Your Primary beneficiaries already account for 50%, and
-                this 60% entry would bring the total to 110%, which exceeds the
-                100% limit… At most 50% is available here,&rdquo;
-              </em>{" "}
-              the other beneficiaries in that group already use part of the
-              100%, so this person can only be given what&apos;s left (50% in
-              this example).
-            </p>
-            <p className="mt-2 font-medium text-foreground">To fix it:</p>
-            <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
-              <li>
-                Enter the amount that&apos;s available (or less) and save — or
-                cancel this change.
-              </li>
-              <li>
-                Click <strong>Edit</strong> on another beneficiary in the same
-                group, lower their percentage, and{" "}
-                <strong>Save changes</strong>.
-              </li>
-              <li>
-                Come back and raise this beneficiary&apos;s percentage. The
-                group should now total exactly 100%.
-              </li>
-            </ol>
-            <p className="mt-2">
-              Example: to change Spouse 50% / Child 50% to Spouse 40% / Child
-              60%, first lower Spouse to 40%, then raise Child to 60%.
+              To change Spouse 50% / Child 50% to Spouse 40% / Child 60%, type
+              40 and 60, then click Save percentages — one save, no need to do
+              one person at a time.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Edit details or remove a beneficiary</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Click <strong className="text-foreground">Edit details</strong> to
+          change a beneficiary&apos;s name, relation, type or contact details
+          (then <strong className="text-foreground">Save changes</strong>), or{" "}
+          <strong className="text-foreground">Delete</strong> to remove them.
+          After removing someone, rebalance the remaining percentages and click
+          Save percentages.
         </CardContent>
       </Card>
 
