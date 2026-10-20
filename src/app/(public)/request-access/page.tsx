@@ -14,15 +14,10 @@ export default function RequestAccessPage() {
             financial goals within the CoSpark economy.
           </p>
           <p className="text-base text-muted-foreground">
-            Kindling is available exclusively to CoSpark members. Tell us a bit
-            about yourself, and our team will review your request and follow up
-            with you regarding next steps.
+            Kindling is available exclusively to CoSpark members. Tell us a
+            little about yourself, and our team will review your request and
+            follow up with you about the next steps.
           </p>
-          <ul className="mt-2 flex flex-col gap-3 text-sm text-muted-foreground">
-            <li>• Available exclusively to CoSpark members</li>
-            <li>• Secure access to your note information and documents</li>
-            <li>• Our team reviews every request and follows up with next steps</li>
-          </ul>
           <p className="mt-4 font-serif text-lg font-semibold">
             Kindling. Make more of your financial opportunities.
           </p>
