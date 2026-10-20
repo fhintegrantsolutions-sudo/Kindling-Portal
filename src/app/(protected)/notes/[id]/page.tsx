@@ -5,6 +5,7 @@ import {
   getMyParticipationByNoteId,
   getMyBonusPayoutsForParticipation,
   getMyScheduleForNote,
+  getMyParticipationsForNote,
   getMyParticipationDocuments,
 } from "@/lib/db/queries";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -31,17 +32,26 @@ import { DocumentDownloadButton } from "@/components/document-download-button";
 
 export default async function MyNoteDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ p?: string }>;
 }) {
   const { id } = await params;
+  const { p: requestedId } = await searchParams;
   const note = await getNoteByNoteId(id);
   if (!note) notFound();
 
-  const participation = await getMyParticipationByNoteId(note.id);
+  // ?p= picks a specific position when the note is held through more than one
+  // entity; fall back to the earliest if it isn't one of this lender's.
+  const participation =
+    (requestedId
+      ? await getMyParticipationByNoteId(note.id, requestedId)
+      : null) ?? (await getMyParticipationByNoteId(note.id));
   if (!participation) {
     redirect(`/opportunities/${note.note_id}`);
   }
+  const positions = await getMyParticipationsForNote(note.id);
 
   const [bonuses, schedule, profile, ctx, documents] = await Promise.all([
     getMyBonusPayoutsForParticipation(participation.id),
@@ -137,6 +147,31 @@ export default async function MyNoteDetailPage({
       >
         ← Back to my notes
       </Link>
+
+      {positions.length > 1 ? (
+        <nav
+          aria-label="Choose which entity's position to view"
+          className="flex flex-wrap gap-1 border-b"
+        >
+          {positions.map((pos) => {
+            const active = pos.id === participation.id;
+            return (
+              <Link
+                key={pos.id}
+                href={`/notes/${note.note_id}?p=${pos.id}`}
+                aria-current={active ? "page" : undefined}
+                className={`border-b-2 px-3 py-2 text-sm transition-colors ${
+                  active
+                    ? "border-foreground font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {pos.entity_name ?? "Position"}
+              </Link>
+            );
+          })}
+        </nav>
+      ) : null}
 
       <Card>
         <CardHeader>
