@@ -51,12 +51,12 @@ const TABS: { key: Bucket; label: string; description: string }[] = [
 
 export function NotesTabs({
   participations,
+  showEntity,
 }: {
   participations: ParticipationWithNote[];
+  // True when the login owns more than one entity: label each card with it.
+  showEntity: boolean;
 }) {
-  // Label each card with its entity once positions span more than one.
-  const multiEntity =
-    new Set(participations.map((p) => p.entity?.id ?? "")).size > 1;
   const rows = participations.map((p) => ({ p, bucket: bucketOf(p) }));
   const counts: Record<Bucket, number> = {
     active: rows.filter((r) => r.bucket === "active").length,
@@ -125,7 +125,7 @@ export function NotesTabs({
                           {note?.note_id}
                         </p>
                         <CardTitle>{note?.title}</CardTitle>
-                        {multiEntity && p.entity ? (
+                        {showEntity && p.entity ? (
                           <p className="mt-1 text-xs text-muted-foreground">
                             Held by {p.entity.display_name}
                           </p>
