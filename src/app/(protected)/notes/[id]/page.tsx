@@ -296,9 +296,6 @@ export default async function MyNoteDetailPage({
                         Interest
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
-                        Payment
-                      </th>
-                      <th className="py-2 pr-2 font-medium text-right">
                         Balance
                       </th>
                       <th className="py-2 pr-2 font-medium text-right">
@@ -324,15 +321,12 @@ export default async function MyNoteDetailPage({
                           {formatCurrency(r.my_principal)}
                         </td>
                         <td className="py-2 pr-2 text-right tabular-nums">
-                          {formatCurrency(r.my_interest)}
+                          {/* Net of the one-time fee on the first payment
+                              (received rows already are; my_fee is 0). */}
+                          {formatCurrency(r.my_interest - r.my_fee)}
                           {hasFee && r.payment_number === 1 ? (
                             <span className="text-muted-foreground">*</span>
                           ) : null}
-                        </td>
-                        <td className="py-2 pr-2 text-right tabular-nums">
-                          {formatCurrency(
-                            r.my_principal + r.my_interest - r.my_fee,
-                          )}
                         </td>
                         <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">
                           {formatCurrency(r.my_balance)}
