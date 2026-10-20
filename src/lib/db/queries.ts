@@ -18,6 +18,8 @@ export type ParticipationWithNote = {
   funding_deposited: boolean;
   funding_cleared: boolean;
   created_at: string;
+  // The investor entity holding this position.
+  entity: { id: string; display_name: string } | null;
   note: {
     id: string;
     note_id: string;
@@ -77,6 +79,7 @@ export async function getMyParticipations() {
       funding_deposited,
       funding_cleared,
       created_at,
+      entity:investor_entities ( id, display_name ),
       note:notes (
         id,
         note_id,
@@ -507,12 +510,38 @@ export type MyParticipation = {
   } | null;
 };
 
-export async function getMyParticipationByNoteId(noteUuid: string) {
+// The signed-in lender's participations on one note within the current entity
+// context (several in "All entities" mode when the note is held through more
+// than one entity), oldest first — for the note page's entity tabs.
+export async function getMyParticipationsForNote(
+  noteUuid: string,
+): Promise<Array<{ id: string; entity_name: string | null }>> {
+  const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entityIds.length === 0) return [];
+  const { data } = await supabase
+    .from("participations")
+    .select("id, entity:investor_entities ( display_name )")
+    .eq("note_id", noteUuid)
+    .in("entity_id", ctx.entityIds)
+    .order("created_at", { ascending: true });
+  return ((data ?? []) as unknown as Array<{
+    id: string;
+    entity: { display_name: string } | null;
+  }>).map((r) => ({ id: r.id, entity_name: r.entity?.display_name ?? null }));
+}
+
+// One participation on the note. With participationId, that exact position
+// (still scoped to the current entity context); otherwise the earliest.
+export async function getMyParticipationByNoteId(
+  noteUuid: string,
+  participationId?: string,
+) {
   const supabase = await createClient();
   const ctx = await getCurrentEntityContext();
   if (!ctx || ctx.entityIds.length === 0) return null;
 
-  const { data } = await supabase
+  let query = supabase
     .from("participations")
     .select(
       `
@@ -524,10 +553,12 @@ export async function getMyParticipationByNoteId(noteUuid: string) {
       `,
     )
     .eq("note_id", noteUuid)
-    .in("entity_id", ctx.entityIds)
-    // In "all" mode ctx.entityIds holds MULTIPLE entities and the same note can
-    // be held through more than one of them, so this can match >1 row.
-    // .maybeSingle() would throw; take the earliest participation instead.
+    .in("entity_id", ctx.entityIds);
+  if (participationId) query = query.eq("id", participationId);
+  // In "all" mode ctx.entityIds holds MULTIPLE entities and the same note can
+  // be held through more than one of them, so this can match >1 row.
+  // .maybeSingle() would throw; take the earliest participation instead.
+  const { data } = await query
     .order("created_at", { ascending: true })
     .limit(1);
 

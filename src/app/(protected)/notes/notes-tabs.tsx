@@ -54,6 +54,9 @@ export function NotesTabs({
 }: {
   participations: ParticipationWithNote[];
 }) {
+  // Label each card with its entity once positions span more than one.
+  const multiEntity =
+    new Set(participations.map((p) => p.entity?.id ?? "")).size > 1;
   const rows = participations.map((p) => ({ p, bucket: bucketOf(p) }));
   const counts: Record<Bucket, number> = {
     active: rows.filter((r) => r.bucket === "active").length,
@@ -105,7 +108,9 @@ export function NotesTabs({
         <div className="grid gap-4">
           {shown.map(({ p, bucket }) => {
             const note = p.note;
-            const href = note ? `/notes/${note.note_id}` : "#";
+            // Link to this exact position, so a note held through two
+            // entities opens the right one.
+            const href = note ? `/notes/${note.note_id}?p=${p.id}` : "#";
             return (
               <Link
                 key={p.id}
@@ -120,6 +125,11 @@ export function NotesTabs({
                           {note?.note_id}
                         </p>
                         <CardTitle>{note?.title}</CardTitle>
+                        {multiEntity && p.entity ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Held by {p.entity.display_name}
+                          </p>
+                        ) : null}
                       </div>
                       <span className="rounded-full border px-2 py-0.5 text-xs">
                         {note?.status}
