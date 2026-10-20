@@ -12,10 +12,11 @@ import { requireAdmin } from "@/lib/dal";
 import {
   getAdminStats,
   getLatestNoteParticipations,
+  getUpcomingNotes,
   getUsersByState,
   getUserCounts,
 } from "@/lib/db/admin-queries";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate, formatPercent } from "@/lib/format";
 import {
   Card,
   CardContent,
@@ -26,12 +27,14 @@ import { UserHeatMap } from "@/components/admin/user-heat-map";
 
 export default async function AdminDashboardPage() {
   await requireAdmin();
-  const [stats, statesData, userCounts, latestNote] = await Promise.all([
-    getAdminStats(),
-    getUsersByState(),
-    getUserCounts(),
-    getLatestNoteParticipations(),
-  ]);
+  const [stats, statesData, userCounts, latestNote, upcomingNotes] =
+    await Promise.all([
+      getAdminStats(),
+      getUsersByState(),
+      getUserCounts(),
+      getLatestNoteParticipations(),
+      getUpcomingNotes(),
+    ]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-8">
@@ -136,6 +139,70 @@ export default async function AdminDashboardPage() {
         ) : (
           <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
             No note is currently being funded.
+          </div>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium">Upcoming notes</h2>
+        {upcomingNotes.length > 0 ? (
+          <div className="overflow-x-auto rounded-lg border bg-card">
+            <table className="w-full min-w-[42rem] text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="px-4 py-2.5 font-medium">Note</th>
+                  <th className="px-3 py-2.5 font-medium">Status</th>
+                  <th className="px-3 py-2.5 font-medium">Funding opens</th>
+                  <th className="px-3 py-2.5 font-medium">Funding closes</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Rate</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Term</th>
+                  <th className="px-4 py-2.5 text-right font-medium">
+                    Participations
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {upcomingNotes.map((n) => (
+                  <tr key={n.noteUuid} className="border-b last:border-b-0">
+                    <td className="px-4 py-2.5 font-medium">
+                      <Link
+                        href={`/admin/notes/${n.noteUuid}`}
+                        className="underline-offset-4 hover:underline"
+                      >
+                        {n.noteId}
+                      </Link>
+                      {n.isPrivate ? (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          Private
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      {n.status}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums">
+                      {formatDate(n.fundingStart)}
+                    </td>
+                    <td className="px-3 py-2.5 tabular-nums">
+                      {formatDate(n.fundingEnd)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {n.rate !== null ? formatPercent(n.rate) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {n.termMonths ? `${n.termMonths} mo` : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">
+                      {n.participations || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
+            No upcoming notes.
           </div>
         )}
       </section>

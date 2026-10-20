@@ -72,6 +72,60 @@ export async function getUsersByState(): Promise<StateUserCount[]> {
   );
 }
 
+export type UpcomingNoteRow = {
+  noteUuid: string;
+  noteId: string;
+  title: string;
+  status: string;
+  fundingStart: string;
+  fundingEnd: string | null;
+  rate: number | null;
+  termMonths: number | null;
+  isPrivate: boolean;
+  participations: number;
+};
+
+// Notes whose funding window hasn't opened yet (funding_start_date in the
+// future), not archived and not cancelled/completed — soonest first.
+export async function getUpcomingNotes(): Promise<UpcomingNoteRow[]> {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from("notes")
+    .select(
+      "id, note_id, title, status, funding_start_date, funding_end_date, rate, term_months, is_private, participations(count)",
+    )
+    .is("funding_archived_at", null)
+    .gt("funding_start_date", today)
+    .not("status", "in", "(Cancelled,Completed,Defaulted)")
+    .order("funding_start_date", { ascending: true });
+  return (
+    (data ?? []) as unknown as Array<{
+      id: string;
+      note_id: string;
+      title: string | null;
+      status: string;
+      funding_start_date: string;
+      funding_end_date: string | null;
+      rate: string | number | null;
+      term_months: number | null;
+      is_private: boolean;
+      participations: Array<{ count: number }>;
+    }>
+  ).map((n) => ({
+    noteUuid: n.id,
+    noteId: n.note_id,
+    title: n.title ?? "",
+    status: n.status,
+    fundingStart: n.funding_start_date,
+    fundingEnd: n.funding_end_date,
+    rate: n.rate !== null ? Number(n.rate) : null,
+    termMonths: n.term_months,
+    isPrivate: n.is_private,
+    participations: n.participations?.[0]?.count ?? 0,
+  }));
+}
+
 export type NoteParticipationRow = {
   noteUuid: string;
   noteId: string;
