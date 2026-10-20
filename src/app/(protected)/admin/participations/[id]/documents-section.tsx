@@ -8,7 +8,6 @@ import {
   type DocumentActionState,
   type ParticipationDocument,
 } from "@/lib/documents/actions";
-import { formatDate } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -128,8 +127,7 @@ export function ParticipationDocuments({
                     <p className="truncate font-medium">{d.file_name}</p>
                     <p className="text-xs text-muted-foreground">
                       {d.type}
-                      {d.size_bytes ? ` · ${formatBytes(d.size_bytes)}` : ""} ·{" "}
-                      {formatDate(d.created_at)}
+                      {d.size_bytes ? ` · ${formatBytes(d.size_bytes)}` : ""}
                     </p>
                   </div>
                 </div>
