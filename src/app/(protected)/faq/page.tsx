@@ -1,17 +1,10 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 
-// Lender FAQ. Answers marked [TO CONFIRM] need Kindling to fill in or verify
-// (contact details, payout method, legal/tax wording) before launch.
+// Lender FAQ.
 
 type QA = { q: string; a: React.ReactNode };
 type Section = { title: string; items: QA[] };
-
-const TO_CONFIRM = (
-  <span className="rounded bg-amber-500/15 px-1 text-xs font-medium text-amber-700 dark:text-amber-400">
-    [TO CONFIRM]
-  </span>
-);
 
 const SECTIONS: Section[] = [
   {
@@ -48,8 +41,13 @@ const SECTIONS: Section[] = [
         a: (
           <>
             Check your spam or promotions folder first. Setup links expire
-            after 14 days — if yours has expired or never arrived, contact us
-            and we&apos;ll send a fresh one. {TO_CONFIRM}
+            after 14 days — if yours has expired or never arrived, email us at{" "}
+            <a
+              href="mailto:info@kindling.network"
+              className="underline underline-offset-4"
+            >
+              info@kindling.network
+            </a> and we&apos;ll send a fresh one.
           </>
         ),
       },
@@ -106,11 +104,12 @@ const SECTIONS: Section[] = [
       },
       {
         q: "What happens if a borrower pays late or defaults?",
-        a: <>{TO_CONFIRM} Describe Kindling&apos;s process and lender risk here.</>,
-      },
-      {
-        q: "Can I withdraw my money early?",
-        a: <>{TO_CONFIRM} Describe whether and how early exits work.</>,
+        a: (
+          <>
+            Kindling notes are backed by CoSpark via points, so a late payment
+            or default by a borrower is covered through CoSpark.
+          </>
+        ),
       },
     ],
   },
@@ -214,9 +213,9 @@ const SECTIONS: Section[] = [
         q: "Why is my first payment smaller?",
         a: (
           <>
-            A one-time fee is taken from the interest of your first payment.
-            Every payment after that is your full monthly amount. Your fee is
-            shown on your payment schedule.
+            A one-time fee, paid to CoSpark, is taken from the interest of
+            your first payment. Every payment after that is your full monthly
+            amount. Your fee is shown on your payment schedule.
           </>
         ),
       },
@@ -233,7 +232,13 @@ const SECTIONS: Section[] = [
       },
       {
         q: "How are payments sent to me?",
-        a: <>{TO_CONFIRM} ACH / direct deposit / check — and how to update bank details.</>,
+        a: (
+          <>
+            Payments are sent through <strong>Melio</strong>. You&apos;ll
+            receive a link from Melio to enter your banking details, and your
+            monthly payments are deposited from there.
+          </>
+        ),
       },
     ],
   },
@@ -244,31 +249,22 @@ const SECTIONS: Section[] = [
         q: "What fees are there?",
         a: (
           <>
-            There are one-time fees on each note, taken only from the interest
-            of your first payment — never from your principal. Your share is
-            based on the amount you invested. {TO_CONFIRM}
+            Each note has one-time fees — a service fee and a CoSpark
+            membership — which are paid to CoSpark. They are taken once, from
+            the interest on your first payment of the note, and never from your
+            principal. Your share is based on the amount you invested.
           </>
         ),
       },
       {
         q: "Are there any ongoing fees?",
-        a: <>{TO_CONFIRM}</>,
+        a: <>No. There are no ongoing fees.</>,
       },
     ],
   },
   {
     title: "Entities and your account",
     items: [
-      {
-        q: "Can I invest through an LLC, trust or IRA?",
-        a: (
-          <>
-            Yes. Each one is set up as its own entity, with its own address,
-            loan agreement name and W-9. {TO_CONFIRM} Note any requirements for
-            IRA custodians.
-          </>
-        ),
-      },
       {
         q: "How do I switch between my entities?",
         a: (
@@ -322,9 +318,10 @@ const SECTIONS: Section[] = [
         q: "Will I receive a 1099?",
         a: (
           <>
-            Yes. Your 1099 is delivered electronically whenever possible; if it
-            can&apos;t be, it is mailed to the address on file for that entity.{" "}
-            {TO_CONFIRM} Add the expected delivery timing.
+            Yes. 1099s are sent by mid-February. You&apos;ll receive an email
+            from <strong>Zendesk</strong> with your 1099. If it can&apos;t be
+            delivered electronically, it is mailed to the address on file for
+            that entity.
           </>
         ),
       },
@@ -358,21 +355,22 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: "Referrals and support",
+    title: "Support",
     items: [
       {
-        q: "How does my referral link work?",
+        q: "Who do I contact with questions?",
         a: (
           <>
-            If you have a referral code, find it under Profile →{" "}
-            <strong>Referrals</strong>. Share the link with anyone who&apos;d
-            like to request access. {TO_CONFIRM}
+            Email us at{" "}
+            <a
+              href="mailto:info@kindling.network"
+              className="underline underline-offset-4"
+            >
+              info@kindling.network
+            </a>
+            . Please allow 24–48 business hours for a response.
           </>
         ),
-      },
-      {
-        q: "Who do I contact with questions?",
-        a: <>{TO_CONFIRM} Email, phone and typical response time.</>,
       },
     ],
   },
