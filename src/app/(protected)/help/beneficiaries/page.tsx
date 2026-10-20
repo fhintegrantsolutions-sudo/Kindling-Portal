@@ -138,6 +138,42 @@ export default function BeneficiariesHowToPage() {
             lower one person&apos;s percentage first, then raise the
             other&apos;s.
           </p>
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+            <p className="font-medium text-amber-800 dark:text-amber-300">
+              Tip: &ldquo;…which exceeds the 100% limit&rdquo;
+            </p>
+            <p className="mt-1">
+              If you see a message like{" "}
+              <em>
+                &ldquo;Your Primary beneficiaries already account for 50%, and
+                this 60% entry would bring the total to 110%, which exceeds the
+                100% limit… At most 50% is available here,&rdquo;
+              </em>{" "}
+              the other beneficiaries in that group already use part of the
+              100%, so this person can only be given what&apos;s left (50% in
+              this example).
+            </p>
+            <p className="mt-2 font-medium text-foreground">To fix it:</p>
+            <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
+              <li>
+                Enter the amount that&apos;s available (or less) and save — or
+                cancel this change.
+              </li>
+              <li>
+                Click <strong>Edit</strong> on another beneficiary in the same
+                group, lower their percentage, and{" "}
+                <strong>Save changes</strong>.
+              </li>
+              <li>
+                Come back and raise this beneficiary&apos;s percentage. The
+                group should now total exactly 100%.
+              </li>
+            </ol>
+            <p className="mt-2">
+              Example: to change Spouse 50% / Child 50% to Spouse 40% / Child
+              60%, first lower Spouse to 40%, then raise Child to 60%.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
