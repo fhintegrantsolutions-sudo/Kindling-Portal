@@ -4,8 +4,13 @@ import {
   getAdminNoteById,
   getFundedParticipantsForNote,
   getNoteBonuses,
+  getNoteInterests,
   getNotePayments,
 } from "@/lib/db/admin-queries";
+import {
+  interestOpensOn,
+  todayPacific,
+} from "@/lib/notes/interest-window";
 import { computeMonthlyPayment, generateSchedule } from "@/lib/notes/schedule";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
@@ -15,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { AdminNotesCard } from "./admin-notes-card";
+import { InterestSection } from "./interest-section";
 
 export default async function NoteOverviewPage({
   params,
@@ -22,13 +28,18 @@ export default async function NoteOverviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [note, participants, payments, bonuses] = await Promise.all([
+  const [note, participants, payments, bonuses, interests] = await Promise.all([
     getAdminNoteById(id),
     getFundedParticipantsForNote(id),
     getNotePayments(id),
     getNoteBonuses(id),
+    getNoteInterests(id),
   ]);
   if (!note) notFound();
+  // Show the interest card while funding hasn't opened, or once anyone has
+  // flagged interest.
+  const fundingStart = note.funding_start_date;
+  const isUpcoming = Boolean(fundingStart && fundingStart > todayPacific());
 
   const monthly = computeMonthlyPayment({
     principal: note.principal !== null ? Number(note.principal) : null,
@@ -130,6 +141,16 @@ export default async function NoteOverviewPage({
       </Card>
 
       <AdminNotesCard noteUuid={note.id} initial={note.admin_notes} />
+
+      {isUpcoming || interests.length > 0 ? (
+        <InterestSection
+          noteId={note.note_id}
+          interestOpensOn={
+            isUpcoming && fundingStart ? interestOpensOn(fundingStart) : null
+          }
+          rows={interests}
+        />
+      ) : null}
 
       <Card>
         <CardHeader>

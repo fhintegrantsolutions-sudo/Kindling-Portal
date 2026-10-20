@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import {
+  getMyNoteInterests,
   getNextUpcomingNote,
   getOpportunities,
   type OpportunityRegistration,
 } from "@/lib/db/queries";
+import { getCurrentEntityContext } from "@/lib/entities/context";
+import {
+  interestOpensOn,
+  isInterestWindowOpen,
+} from "@/lib/notes/interest-window";
+import { InterestPanel } from "./interest-panel";
 import { formatCurrency, formatDate, formatPercent, formatNoteLabel } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,10 +27,17 @@ function registrationLabel(reg: OpportunityRegistration): string {
 }
 
 export default async function OpportunitiesPage() {
-  const [notes, upcoming] = await Promise.all([
+  const [notes, upcoming, ctx] = await Promise.all([
     getOpportunities(),
     getNextUpcomingNote(),
+    getCurrentEntityContext(),
   ]);
+  // From 30 days before funding opens, lenders can flag interest.
+  const interestOpen = upcoming
+    ? isInterestWindowOpen(upcoming.funding_start_date)
+    : false;
+  const myInterests =
+    upcoming && interestOpen ? await getMyNoteInterests(upcoming.id) : [];
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
@@ -56,6 +70,23 @@ export default async function OpportunitiesPage() {
                 expiredText="opening today"
               />
             </p>
+            {interestOpen && ctx && ctx.entities.length > 0 ? (
+              <InterestPanel
+                noteUuid={upcoming.id}
+                noteId={upcoming.note_id}
+                entities={ctx.entities.map((e) => ({
+                  id: e.id,
+                  display_name: e.display_name,
+                }))}
+                defaultEntityId={ctx.currentEntityId}
+                interests={myInterests}
+              />
+            ) : (
+              <p className="w-full text-xs text-muted-foreground">
+                You can let us know you&apos;re interested starting{" "}
+                {formatDate(interestOpensOn(upcoming.funding_start_date))}.
+              </p>
+            )}
           </CardContent>
         </Card>
       ) : null}

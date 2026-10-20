@@ -333,6 +333,37 @@ export async function getNextUpcomingNote(): Promise<UpcomingNote | null> {
   return data as UpcomingNote | null;
 }
 
+export type MyNoteInterest = {
+  entity_id: string;
+  estimated_amount: number | null;
+};
+
+// The signed-in lender's interest rows on one note, across all their entities
+// (the panel shows each entity's status regardless of the switcher).
+export async function getMyNoteInterests(
+  noteUuid: string,
+): Promise<MyNoteInterest[]> {
+  const supabase = await createClient();
+  const ctx = await getCurrentEntityContext();
+  if (!ctx || ctx.entities.length === 0) return [];
+  const { data } = await supabase
+    .from("note_interests")
+    .select("entity_id, estimated_amount")
+    .eq("note_id", noteUuid)
+    .in(
+      "entity_id",
+      ctx.entities.map((e) => e.id),
+    );
+  return ((data ?? []) as Array<{
+    entity_id: string;
+    estimated_amount: string | number | null;
+  }>).map((r) => ({
+    entity_id: r.entity_id,
+    estimated_amount:
+      r.estimated_amount !== null ? Number(r.estimated_amount) : null,
+  }));
+}
+
 // Note ids that the given entities have access to via an explicit private-note
 // grant or an existing participation. Used to scope PRIVATE notes to the entity
 // you're currently viewing as.

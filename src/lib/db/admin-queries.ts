@@ -83,6 +83,10 @@ export type UpcomingNoteRow = {
   termMonths: number | null;
   isPrivate: boolean;
   participations: number;
+  // "Interested" stage (from 30 days before funding opens).
+  interestOpensOn: string;
+  interested: number;
+  interestedTotal: number;
 };
 
 // Notes whose funding window hasn't opened yet (funding_start_date in the
@@ -99,20 +103,39 @@ export async function getUpcomingNotes(): Promise<UpcomingNoteRow[]> {
     .gt("funding_start_date", today)
     .not("status", "in", "(Cancelled,Completed,Defaulted)")
     .order("funding_start_date", { ascending: true });
-  return (
-    (data ?? []) as unknown as Array<{
-      id: string;
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    note_id: string;
+    title: string | null;
+    status: string;
+    funding_start_date: string;
+    funding_end_date: string | null;
+    rate: string | number | null;
+    term_months: number | null;
+    is_private: boolean;
+    participations: Array<{ count: number }>;
+  }>;
+  const interestByNote = new Map<string, { n: number; total: number }>();
+  if (rows.length > 0) {
+    const { data: ints } = await supabase
+      .from("note_interests")
+      .select("note_id, estimated_amount")
+      .in(
+        "note_id",
+        rows.map((r) => r.id),
+      );
+    for (const i of (ints ?? []) as Array<{
       note_id: string;
-      title: string | null;
-      status: string;
-      funding_start_date: string;
-      funding_end_date: string | null;
-      rate: string | number | null;
-      term_months: number | null;
-      is_private: boolean;
-      participations: Array<{ count: number }>;
-    }>
-  ).map((n) => ({
+      estimated_amount: string | number | null;
+    }>) {
+      const cur = interestByNote.get(i.note_id) ?? { n: 0, total: 0 };
+      cur.n += 1;
+      cur.total += Number(i.estimated_amount ?? 0);
+      interestByNote.set(i.note_id, cur);
+    }
+  }
+  const { interestOpensOn } = await import("@/lib/notes/interest-window");
+  return rows.map((n) => ({
     noteUuid: n.id,
     noteId: n.note_id,
     title: n.title ?? "",
@@ -123,6 +146,68 @@ export async function getUpcomingNotes(): Promise<UpcomingNoteRow[]> {
     termMonths: n.term_months,
     isPrivate: n.is_private,
     participations: n.participations?.[0]?.count ?? 0,
+    interestOpensOn: interestOpensOn(n.funding_start_date),
+    interested: interestByNote.get(n.id)?.n ?? 0,
+    interestedTotal:
+      Math.round((interestByNote.get(n.id)?.total ?? 0) * 100) / 100,
+  }));
+}
+
+export type NoteInterestRow = {
+  id: string;
+  lender_name: string | null;
+  lender_email: string | null;
+  entity_name: string | null;
+  estimated_amount: number | null;
+  created_at: string;
+};
+
+// Everyone who flagged interest in a note, newest first.
+export async function getNoteInterests(
+  noteUuid: string,
+): Promise<NoteInterestRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("note_interests")
+    .select(
+      "id, user_id, estimated_amount, created_at, entity:investor_entities ( display_name )",
+    )
+    .eq("note_id", noteUuid)
+    .order("created_at", { ascending: false });
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    user_id: string;
+    estimated_amount: string | number | null;
+    created_at: string;
+    entity: { display_name: string } | null;
+  }>;
+  const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+  const people = new Map<string, { name: string | null; email: string | null }>();
+  if (ids.length > 0) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .in("id", ids);
+    for (const p of (profs ?? []) as Array<{
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    }>) {
+      people.set(p.id, {
+        name: `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() || null,
+        email: p.email,
+      });
+    }
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    lender_name: people.get(r.user_id)?.name ?? null,
+    lender_email: people.get(r.user_id)?.email ?? null,
+    entity_name: r.entity?.display_name ?? null,
+    estimated_amount:
+      r.estimated_amount !== null ? Number(r.estimated_amount) : null,
+    created_at: r.created_at,
   }));
 }
 
