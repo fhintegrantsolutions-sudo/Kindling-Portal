@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 
@@ -39,6 +40,15 @@ export default function LandingPage() {
             <ArrowRight className="ml-2 size-4" />
           </a>
         </div>
+        <p className="mt-6 text-sm text-muted-foreground">
+          Already a CoSpark member and joined Kindling?{" "}
+          <Link
+            href="/dashboard"
+            className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+          >
+            Access your dashboard
+          </Link>
+        </p>
       </div>
     </section>
   );
