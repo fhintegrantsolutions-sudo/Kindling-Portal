@@ -35,8 +35,6 @@ export async function createBeneficiary(
     };
   }
 
-  const overAllocated = await checkTotal(supabase, entityId, fields, null);
-  if (overAllocated) return { fieldErrors: { percentage: overAllocated } };
 
   const { error } = await supabase.from("beneficiaries").insert({
     user_id: user.id,
@@ -86,13 +84,6 @@ export async function updateBeneficiary(
     };
   }
 
-  const overAllocated = await checkTotal(
-    supabase,
-    entityId,
-    fields,
-    beneficiaryId,
-  );
-  if (overAllocated) return { fieldErrors: { percentage: overAllocated } };
 
   const { error } = await supabase
     .from("beneficiaries")
@@ -130,34 +121,80 @@ export async function deleteBeneficiary(beneficiaryId: string): Promise<void> {
   revalidatePath("/profile/beneficiaries");
 }
 
-// Enforce that a beneficiary type (Primary/Contingent) never exceeds 100% FOR A
-// GIVEN ENTITY. Beneficiaries are per-entity, so each entity gets its own 100%
-// allocation. Sums the other beneficiaries of the same type on that entity
-// (excluding the row being edited) and returns an error message if adding this
-// one would push the total over 100 — otherwise null. Under-100 is allowed (the
-// list page warns about it); this only blocks over-allocation.
-async function checkTotal(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  entityId: string,
-  fields: Fields,
-  excludeId: string | null,
-): Promise<string | null> {
-  const { data } = await supabase
+export type PercentagesState = { error?: string; message?: string };
+
+// Save every beneficiary's percentage for the current entity in one go, so a
+// lender can rebalance (e.g. 50/50 -> 40/60) without saving people one at a
+// time. Primary must total exactly 100%; Contingent must total 0% or 100%.
+// Adding or editing a single beneficiary no longer enforces totals — this is
+// where they get balanced.
+export async function saveBeneficiaryPercentages(
+  _prev: PercentagesState | undefined,
+  formData: FormData,
+): Promise<PercentagesState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const entityId = await getWriteEntityId();
+  if (!entityId) return { error: "Choose an entity first." };
+
+  const { data: rows } = await supabase
     .from("beneficiaries")
-    .select("id, percentage")
-    .eq("entity_id", entityId)
-    .eq("type", fields.type);
+    .select("id, type, percentage")
+    .eq("entity_id", entityId);
+  const list = (rows ?? []) as Array<{
+    id: string;
+    type: string;
+    percentage: number | string;
+  }>;
+  if (list.length === 0) return { error: "No beneficiaries to update." };
 
-  const othersTotal = (data ?? [])
-    .filter((r) => r.id !== excludeId)
-    .reduce((sum, r) => sum + Number(r.percentage), 0);
-
-  const newTotal = othersTotal + fields.percentage;
-  if (newTotal > 100) {
-    const available = 100 - othersTotal;
-    return `Your ${fields.type} beneficiaries already account for ${othersTotal}%, and this ${fields.percentage}% entry would bring the total to ${newTotal}%, which exceeds the 100% limit. Please lower another ${fields.type} beneficiary's percentage before increasing this one. At most ${available}% is available here.`;
+  const next = new Map<string, number>();
+  for (const r of list) {
+    const raw = formData.get(`pct_${r.id}`);
+    const n = raw === null ? Number(r.percentage) : Number(String(raw).trim());
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      return { error: "Each percentage must be a number from 0 to 100." };
+    }
+    next.set(r.id, Math.round(n * 100) / 100);
   }
-  return null;
+
+  const total = (type: string) =>
+    Math.round(
+      list
+        .filter((r) => r.type === type)
+        .reduce((sum, r) => sum + (next.get(r.id) ?? 0), 0) * 100,
+    ) / 100;
+  const hasPrimary = list.some((r) => r.type === "Primary");
+  const primaryTotal = total("Primary");
+  const contingentTotal = total("Contingent");
+  if (hasPrimary && primaryTotal !== 100) {
+    return {
+      error: `Primary beneficiaries total ${primaryTotal}%. They need to add up to exactly 100%.`,
+    };
+  }
+  if (contingentTotal !== 0 && contingentTotal !== 100) {
+    return {
+      error: `Contingent beneficiaries total ${contingentTotal}%. They need to add up to exactly 100% (or 0% if you have none).`,
+    };
+  }
+
+  for (const r of list) {
+    const pct = next.get(r.id) as number;
+    if (pct === Number(r.percentage)) continue;
+    const { error } = await supabase
+      .from("beneficiaries")
+      .update({ percentage: pct })
+      .eq("id", r.id)
+      .eq("entity_id", entityId);
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/profile/beneficiaries");
+  return { message: "Percentages saved." };
 }
 
 type Fields = {
