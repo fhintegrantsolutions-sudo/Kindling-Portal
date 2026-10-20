@@ -43,7 +43,6 @@ const NAV = [
   { label: "My Notes", href: "/notes", icon: PieChart },
   { label: "Opportunities", href: "/opportunities", icon: TrendingUp },
   { label: "Profile", href: "/profile", icon: User },
-  { label: "FAQ", href: "/faq", icon: HelpCircle },
 ] as const;
 
 // Two groups separated by a thin divider in the sidebar: the note-workflow
@@ -216,6 +215,18 @@ function SidebarBody({
           />
         ) : null}
       </nav>
+      {/* FAQ sits at the bottom of the menu, just above the signed-in user. */}
+      {role !== "participations_admin" ? (
+        <div className="px-4 pb-2">
+          <NavLink
+            href="/faq"
+            label="FAQ"
+            Icon={HelpCircle}
+            pathname={pathname}
+            onNavigate={onNavigate}
+          />
+        </div>
+      ) : null}
       <Separator className="bg-sidebar-border" />
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-center gap-3">
