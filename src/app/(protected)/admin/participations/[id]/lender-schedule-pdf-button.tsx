@@ -24,7 +24,7 @@ export function LenderSchedulePdfButton({
         alert(res.error ?? "Couldn't load this lender's schedule.");
         return;
       }
-      downloadLenderSchedulePdf({ ...res.data, includeLenderInFileName: true });
+      downloadLenderSchedulePdf(res.data);
     });
   };
 

@@ -18,9 +18,6 @@ export type LenderSchedulePdfInput = {
   interestType: string;
   startDate: string | null;
   oneTimeFee: number;
-  // Admin downloads put the lender's name in the file name and PDF title;
-  // the lender's own download keeps "<note>-schedule.pdf".
-  includeLenderInFileName?: boolean;
 };
 
 export function DownloadScheduleButton(props: LenderSchedulePdfInput) {
@@ -50,7 +47,6 @@ export function downloadLenderSchedulePdf({
   interestType,
   startDate,
   oneTimeFee,
-  includeLenderInFileName = false,
 }: LenderSchedulePdfInput) {
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -256,13 +252,12 @@ export function downloadLenderSchedulePdf({
     margin: { left: margin, right: margin },
   });
 
-  if (includeLenderInFileName) {
-    // Strip characters that aren't safe in file names.
-    const safeLender = lenderName.replace(/[\\/:*?"<>|]+/g, "").trim();
-    const title = `${noteId} - ${safeLender} - Amortization Schedule`;
-    doc.setProperties({ title });
-    doc.save(`${title}.pdf`);
-  } else {
-    doc.save(`${noteId}-schedule.pdf`);
-  }
+  // "<note> - <lender> - Amortization Schedule.pdf", with a matching PDF
+  // title. Strip characters that aren't safe in file names.
+  const safeLender = lenderName.replace(/[\\/:*?"<>|]+/g, "").trim();
+  const title = safeLender
+    ? `${noteId} - ${safeLender} - Amortization Schedule`
+    : `${noteId} - Amortization Schedule`;
+  doc.setProperties({ title });
+  doc.save(`${title}.pdf`);
 }
