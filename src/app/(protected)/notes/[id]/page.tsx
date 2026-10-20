@@ -148,6 +148,20 @@ export default async function MyNoteDetailPage({
         ← Back to my notes
       </Link>
 
+      <header>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">
+          Note
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {note.note_id}
+          {note.title ? (
+            <span className="ml-2 text-base font-normal text-muted-foreground">
+              {note.title}
+            </span>
+          ) : null}
+        </h1>
+      </header>
+
       {positions.length > 1 ? (
         <nav
           aria-label="Choose which entity's position to view"
