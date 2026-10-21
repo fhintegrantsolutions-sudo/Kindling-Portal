@@ -266,6 +266,22 @@ const SECTIONS: Section[] = [
     title: "Entities and your account",
     items: [
       {
+        q: "Can I participate through another entity, like a trust, LLC or IRA?",
+        a: (
+          <>
+            Yes. Go to{" "}
+            <Link
+              href="/profile/change-requests"
+              className="underline underline-offset-4"
+            >
+              Profile → Change requests
+            </Link> and choose <strong>Add an entity</strong>. You&apos;ll
+            keep the same login, and once the entity is set up you can switch
+            between your entities in the portal.
+          </>
+        ),
+      },
+      {
         q: "How do I switch between my entities?",
         a: (
           <>
@@ -296,7 +312,8 @@ const SECTIONS: Section[] = [
               Profile
             </Link>
             . Addresses and beneficiaries are set per entity, so choose the
-            entity first. See{" "}
+            entity first. When you change a mailing address, you may also need
+            to update your W-9. See{" "}
             <Link
               href="/help/beneficiaries"
               className="underline underline-offset-4"
@@ -304,6 +321,24 @@ const SECTIONS: Section[] = [
               how to set up beneficiaries
             </Link>{" "}
             for a step-by-step guide.
+          </>
+        ),
+      },
+      {
+        q: "How do I change my name, email or loan agreement details?",
+        a: (
+          <>
+            Submit a request from{" "}
+            <Link
+              href="/profile/change-requests"
+              className="underline underline-offset-4"
+            >
+              Profile → Change requests
+            </Link>. You can request a name change, a new login email, a
+            new email for an entity, or changes to your loan agreement title,
+            entity type or business name. We&apos;ll review it — usually within
+            24–48 business hours — and you can track its status on the same
+            page.
           </>
         ),
       },
@@ -337,12 +372,16 @@ const SECTIONS: Section[] = [
         a: (
           <>
             We need a W-9 for each entity to report your interest income
-            accurately. Payments may be held until your W-9 is on file. Submit
-            or update it from{" "}
-            <Link href="/profile" className="underline underline-offset-4">
-              Profile
-            </Link>{" "}
-            → <strong>Update W-9</strong>.
+            accurately. Payments may be held until your W-9 is on file. To
+            submit or update one, go to{" "}
+            <Link
+              href="/profile/change-requests?type=w9"
+              className="underline underline-offset-4"
+            >
+              Profile → Change requests → Update W-9
+            </Link>
+            , complete the W-9 form, then submit the request so we know to look
+            for it.
           </>
         ),
       },
