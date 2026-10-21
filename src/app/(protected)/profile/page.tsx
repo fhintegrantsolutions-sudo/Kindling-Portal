@@ -1,10 +1,10 @@
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { getCurrentProfile } from "@/lib/dal";
 import {
   getCurrentEntityContext,
   getCurrentEntityIdentity,
 } from "@/lib/entities/context";
-import { buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ProfileForm } from "./profile-form";
 
@@ -103,27 +103,19 @@ export default async function ProfilePage() {
             </div>
           </section>
 
-          {/* W-9 — completed via the external digital form (moved from the
-              Tax forms tab). */}
-          <section className="flex flex-col gap-3 border-t pt-6">
-            <div>
-              <h2 className="text-base font-semibold">W-9</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Keep your W-9 on file up to date so we can report accurately.
-                W-9s are completed and signed digitally.
-              </p>
-            </div>
-            <div>
-              <a
-                href="https://www.kindling.network/forms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={buttonVariants({ variant: "outline" })}
+          {/* W-9 updates now start from Profile → Change requests. */}
+          <section className="flex flex-col gap-2 border-t pt-6">
+            <h2 className="text-base font-semibold">W-9</h2>
+            <p className="text-sm text-muted-foreground">
+              Need to update your W-9? Go to{" "}
+              <Link
+                href="/profile/change-requests?type=w9"
+                className="font-medium text-foreground underline underline-offset-4"
               >
-                Update W-9
-                <ExternalLink className="ml-2 size-4" />
-              </a>
-            </div>
+                Change requests → Update W-9
+              </Link>
+              .
+            </p>
           </section>
         </>
       ) : null}
