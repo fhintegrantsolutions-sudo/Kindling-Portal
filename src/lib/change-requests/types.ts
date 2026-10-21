@@ -136,6 +136,8 @@ export const CHANGE_REQUEST_TYPES: TypeDef[] = [
     label: "Add an entity",
     needsEntity: false,
     autoApply: false,
+    help:
+      "Use this if you'd like to participate in a note through another entity — for example a trust, LLC or IRA. You'll still use the same login, and you can switch between your entities in the portal using the switcher at the top of the left-hand menu.",
     fields: [
       { key: "entity_name", label: "Entity name", required: true, placeholder: "e.g. Doe Family Trust" },
       { key: "entity_type", label: "Entity type", required: true, type: "select", options: ENTITY_TYPE_OPTIONS },
