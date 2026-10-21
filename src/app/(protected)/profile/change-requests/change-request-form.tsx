@@ -10,8 +10,9 @@ import {
   isMessageRequired,
   typeDef,
 } from "@/lib/change-requests/types";
+import { ExternalLink } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -90,6 +91,20 @@ export function ChangeRequestForm({
 
       {def?.help ? (
         <p className="text-sm text-muted-foreground">{def.help}</p>
+      ) : null}
+
+      {type === "w9" ? (
+        <div>
+          <a
+            href="https://www.kindling.network/forms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            Update W-9
+            <ExternalLink className="ml-2 size-4" />
+          </a>
+        </div>
       ) : null}
 
       {def ? (

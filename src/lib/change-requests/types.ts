@@ -75,7 +75,7 @@ export const CHANGE_REQUEST_TYPES: TypeDef[] = [
     autoApply: false,
     fields: [],
     messageRequired: false,
-    help: "We'll follow up with the W-9 form for this entity. Add any details below if helpful.",
+    help: "Complete and sign your updated W-9 with the button below, then submit this request so we know to look for it.",
   },
   {
     type: "entity_email",
