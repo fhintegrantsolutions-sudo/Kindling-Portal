@@ -139,6 +139,12 @@ export const CHANGE_REQUEST_TYPES: TypeDef[] = [
     fields: [
       { key: "entity_name", label: "Entity name", required: true, placeholder: "e.g. Doe Family Trust" },
       { key: "entity_type", label: "Entity type", required: true, type: "select", options: ENTITY_TYPE_OPTIONS },
+      {
+        key: "email",
+        label: "Email for this entity",
+        type: "email",
+        placeholder: "Leave blank to use your login email",
+      },
       { key: "loan_agreement_title", label: "Loan agreement title (if known)" },
     ],
   },
