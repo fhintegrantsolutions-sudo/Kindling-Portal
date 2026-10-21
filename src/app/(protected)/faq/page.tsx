@@ -169,8 +169,10 @@ const SECTIONS: Section[] = [
         q: "What is an acknowledgment letter, and where do I find it?",
         a: (
           <>
-            It confirms your participation in a note. Once your funding has
-            cleared, you can download it from the note&apos;s page under{" "}
+            It confirms your participation in a note. Your acknowledgment
+            letter is uploaded once the note&apos;s contract has been signed by
+            CoSpark and the borrower. After that (and once your funding has
+            cleared), you can download it from the note&apos;s page under{" "}
             <strong>Documents</strong>.
           </>
         ),
