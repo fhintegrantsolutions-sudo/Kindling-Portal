@@ -7,6 +7,7 @@ import { getCurrentEntityContext } from "@/lib/entities/context";
 import { formatPhone, phoneDigits } from "@/lib/phone";
 import { formatZip, isValidZip, normalizeState } from "@/lib/address";
 import { toProperCase } from "@/lib/text";
+import { notifyChangeRequest } from "@/lib/ghl/notify-change-request";
 
 export type ProfileFormState = {
   error?: string;
@@ -130,6 +131,68 @@ export async function updateProfile(
       (current.address_city ?? null) !== address.address_city ||
       (current.address_state ?? null) !== address.address_state ||
       (current.address_zip ?? null) !== address.address_zip);
+
+  // Lenders change their mailing address directly, but Kindling is notified:
+  // log it under Change requests (as completed) and email info@kindling.network.
+  if (addressChanged) {
+    const fmt = (a: {
+      address_street: string | null;
+      address_city: string | null;
+      address_state: string | null;
+      address_zip: string | null;
+    }) =>
+      [a.address_street, [a.address_city, a.address_state].filter(Boolean).join(", "), a.address_zip]
+        .filter(Boolean)
+        .join(" ") || "—";
+    const oldAddress = fmt(current!);
+    const newAddress = fmt(address);
+    const { data: who } = await admin
+      .from("profiles")
+      .select("first_name, last_name, email")
+      .eq("id", user.id)
+      .maybeSingle();
+    const entityName =
+      ctx.entities.find((e) => e.id === targetEntityId)?.display_name ?? null;
+    const { data: logged } = await admin
+      .from("change_requests")
+      .insert({
+        user_id: user.id,
+        entity_id: targetEntityId,
+        type: "mailing_address",
+        details: {
+          address_street: address.address_street ?? "",
+          address_city: address.address_city ?? "",
+          address_state: address.address_state ?? "",
+          address_zip: address.address_zip ?? "",
+        },
+        message: `Previous address: ${oldAddress}`,
+        status: "completed",
+        admin_note: "Updated directly by the lender on Profile.",
+        resolved_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    const lender =
+      `${who?.first_name ?? ""} ${who?.last_name ?? ""}`.trim() ||
+      who?.email ||
+      user.email ||
+      "Lender";
+    await notifyChangeRequest({
+      lender,
+      lenderEmail: (who?.email as string | null) ?? user.email ?? null,
+      activity: "Mailing address updated",
+      entity: entityName,
+      lines: [
+        ["Previous address", oldAddress],
+        ["New address", newAddress],
+      ],
+      message: null,
+      requestId: (logged?.id as string | undefined) ?? "",
+      intro:
+        "A lender updated their mailing address on their Profile. They may also need an updated W-9.",
+    });
+    revalidatePath("/admin/change-requests");
+  }
 
   revalidatePath("/profile");
   return { message: "Profile saved.", addressChanged, savedAt: Date.now() };

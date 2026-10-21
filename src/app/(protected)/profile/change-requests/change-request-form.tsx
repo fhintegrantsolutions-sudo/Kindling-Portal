@@ -51,7 +51,7 @@ export function ChangeRequestForm({
           className={select}
         >
           <option value="">— choose —</option>
-          {CHANGE_REQUEST_TYPES.map((t) => (
+          {CHANGE_REQUEST_TYPES.filter((t) => t.lenderSelectable !== false).map((t) => (
             <option key={t.type} value={t.type}>
               {t.label}
             </option>

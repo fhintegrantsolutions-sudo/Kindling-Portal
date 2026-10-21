@@ -42,6 +42,9 @@ export type TypeDef = {
   autoApply: boolean;
   fields: FieldDef[];
   help?: string;
+  // false = not offered on the lender's request form (still used for records,
+  // e.g. lenders change their mailing address directly and it's logged here).
+  lenderSelectable?: boolean;
 };
 
 export const CHANGE_REQUEST_TYPES: TypeDef[] = [
@@ -50,6 +53,7 @@ export const CHANGE_REQUEST_TYPES: TypeDef[] = [
     label: "Update mailing address",
     needsEntity: true,
     autoApply: true,
+    lenderSelectable: false,
     fields: [
       { key: "address_street", label: "Street", required: true },
       { key: "address_city", label: "City", required: true },
