@@ -18,10 +18,11 @@ export type ScheduleInput = {
   interestType: string; // "Amortized" or "Interest only"
   firstPaymentDate: string; // YYYY-MM-DD
   fee?: number; // one-time fee subtracted from the first payment; default 0
-  // Lender convention (matches Kindling's lender amortization spreadsheets):
-  // each month's principal = Excel PPMT rounded to the cent, interest = the
-  // rounded payment − that principal. Every payment is exactly the scheduled
-  // amount; principal may total a few cents over the loan.
+  // Lender convention — matches the calculator.net amortization calculator
+  // (the standard every lender figure must match): principal = PPMT and
+  // interest = IPMT for the month, each from the unrounded payment and
+  // rounded to the cent on its own; the balance is tracked unrounded and ends
+  // at $0.00.
   ppmtSplit?: boolean;
 };
 
@@ -186,7 +187,9 @@ export function generateSchedule(input: ScheduleInput): ScheduleResult {
       const exactPrincipal =
         payment / Math.pow(1 + monthlyRate, termMonths - n + 1);
       const principalPart = round2(exactPrincipal);
-      const interestPart = round2(fixedPayment - principalPart);
+      // IPMT: the unrounded interest for the month, rounded on its own (as
+      // calculator.net shows it) — not payment minus rounded principal.
+      const interestPart = round2(payment - exactPrincipal);
       exactBal -= exactPrincipal;
       const shown = round2(exactBal);
       rows.push({
