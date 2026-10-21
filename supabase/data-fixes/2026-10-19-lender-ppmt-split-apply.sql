@@ -1,3 +1,5 @@
+-- SUPERSEDED by 2026-10-21-lender-calculator-net.sql — do not run again.
+--
 -- STEP 2 - APPLY for 2026-10-19-lender-ppmt-split.sql.
 -- Run the preview (STEP 1 in that file) first. Then run this WHOLE file as-is:
 -- it rewrites recorded lender payouts on amortized notes to the lender's own

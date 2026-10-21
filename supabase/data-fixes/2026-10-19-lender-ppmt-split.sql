@@ -1,3 +1,5 @@
+-- SUPERSEDED by 2026-10-21-lender-calculator-net.sql — do not run again.
+--
 -- One-time data fix: rewrite recorded lender payouts on AMORTIZED notes to the
 -- lender amortization spreadsheet convention (app: generateSchedule ppmtSplit):
 --
