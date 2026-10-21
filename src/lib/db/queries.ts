@@ -759,7 +759,6 @@ export async function getMyScheduleForNote(
   const receivedFor = (row: { payment_number: number; due_date: string }) =>
     row.due_date <= today ? receivedByNumber.get(row.payment_number) : undefined;
 
-  let runningBalance = invested;
   const rows: MyScheduleRow[] = result.rows.map((row) => {
     const got = receivedFor(row);
     const myInterest = got ? got.interest : row.interest_amount;
@@ -773,14 +772,15 @@ export async function getMyScheduleForNote(
     // already reflect it in the recorded payout; my_fee is only meaningful on
     // projected (unpaid) rows.
     const myFee = got ? 0 : row.fee_amount;
-    runningBalance = Math.round((runningBalance - myPrincipal) * 100) / 100;
+    // Balance comes from the lender's own schedule (unrounded, ends at $0.00
+    // like calculator.net), not from subtracting rounded principal amounts.
     return {
       payment_number: row.payment_number,
       due_date: row.due_date,
       my_principal: myPrincipal,
       my_interest: myInterest,
       my_fee: myFee,
-      my_balance: runningBalance < 0 ? 0 : runningBalance,
+      my_balance: row.ending_balance,
       received_date: got ? got.date : null,
       pending: !got && receivedByNumber.has(row.payment_number),
     };
