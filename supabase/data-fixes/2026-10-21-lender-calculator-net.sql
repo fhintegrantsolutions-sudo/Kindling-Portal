@@ -56,9 +56,13 @@ rowcalc as (
     pp.principal_amount as old_principal,
     pp.interest_amount  as old_interest,
     p.fee_share,
-    round(p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1), 2) as new_principal,
+    -- + 1e-9 so an exact half-cent (e.g. 19.375) rounds UP like calculator.net;
+    -- numeric division truncates the repeating monthly rate just below it.
+    round(p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1)
+      + 0.000000001, 2) as new_principal,
     round(p.pmt_exact
-      - p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1), 2) as gross_interest
+      - p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1)
+      + 0.000000001, 2) as gross_interest
   from public.participation_payment_payouts pp
   join public.note_payments np on np.id = pp.note_payment_id
   join public.notes n on n.id = np.note_id
@@ -122,9 +126,13 @@ rowcalc as (
     pp.id,
     np.payment_number,
     p.fee_share,
-    round(p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1), 2) as new_principal,
+    -- + 1e-9 so an exact half-cent (e.g. 19.375) rounds UP like calculator.net;
+    -- numeric division truncates the repeating monthly rate just below it.
+    round(p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1)
+      + 0.000000001, 2) as new_principal,
     round(p.pmt_exact
-      - p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1), 2) as gross_interest
+      - p.pmt_exact / power(1 + p.r, p.term - np.payment_number + 1)
+      + 0.000000001, 2) as gross_interest
   from public.participation_payment_payouts pp
   join public.note_payments np on np.id = pp.note_payment_id
   join params p on p.pid = pp.participation_id
