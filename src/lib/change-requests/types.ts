@@ -45,7 +45,14 @@ export type TypeDef = {
   // false = not offered on the lender's request form (still used for records,
   // e.g. lenders change their mailing address directly and it's logged here).
   lenderSelectable?: boolean;
+  // Whether the message box must be filled in. Defaults to true only for types
+  // with no fields of their own (e.g. Other request).
+  messageRequired?: boolean;
 };
+
+export function isMessageRequired(def: TypeDef): boolean {
+  return def.messageRequired ?? def.fields.length === 0;
+}
 
 export const CHANGE_REQUEST_TYPES: TypeDef[] = [
   {
@@ -67,7 +74,8 @@ export const CHANGE_REQUEST_TYPES: TypeDef[] = [
     needsEntity: true,
     autoApply: false,
     fields: [],
-    help: "Tell us what needs to change on the W-9 for this entity. We'll follow up with the form.",
+    messageRequired: false,
+    help: "We'll follow up with the W-9 form for this entity. Add any details below if helpful.",
   },
   {
     type: "entity_email",
