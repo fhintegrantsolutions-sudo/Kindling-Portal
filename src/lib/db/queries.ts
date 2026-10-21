@@ -958,3 +958,35 @@ export async function getMyRegistrationByNoteId(noteUuid: string) {
 
   return data;
 }
+
+export type MyChangeRequest = {
+  id: string;
+  type: string;
+  details: Record<string, string>;
+  message: string | null;
+  status: "open" | "completed" | "declined";
+  admin_note: string | null;
+  created_at: string;
+  resolved_at: string | null;
+  entity_name: string | null;
+};
+
+// The signed-in lender's change requests, newest first.
+export async function getMyChangeRequests(): Promise<MyChangeRequest[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("change_requests")
+    .select(
+      "id, type, details, message, status, admin_note, created_at, resolved_at, entity:investor_entities ( display_name )",
+    )
+    .order("created_at", { ascending: false });
+  return ((data ?? []) as unknown as Array<
+    Omit<MyChangeRequest, "entity_name"> & {
+      entity: { display_name: string } | null;
+    }
+  >).map((r) => ({
+    ...r,
+    details: (r.details ?? {}) as Record<string, string>,
+    entity_name: r.entity?.display_name ?? null,
+  }));
+}

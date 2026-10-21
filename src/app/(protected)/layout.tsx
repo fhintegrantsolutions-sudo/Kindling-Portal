@@ -1,6 +1,7 @@
 import { AppSidebar, MobileNav } from "@/components/app-sidebar";
 import { getCurrentProfile, verifySession } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
+import { getOpenChangeRequestCount } from "@/lib/db/admin-queries";
 
 export default async function ProtectedLayout({
   children,
@@ -22,6 +23,8 @@ export default async function ProtectedLayout({
     })),
     currentEntityId: entityCtx?.currentEntityId ?? null,
     entityMode: entityCtx?.mode ?? ("one" as const),
+    openChangeRequests:
+      profile?.role === "admin" ? await getOpenChangeRequestCount() : 0,
   };
 
   return (

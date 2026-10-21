@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   Banknote,
   Building2,
+  ClipboardList,
   ExternalLink,
   FileCheck,
   FileText,
@@ -51,6 +52,11 @@ const NAV = [
 const ADMIN_WORKFLOW = [
   { label: "Overview", href: "/admin", icon: Shield },
   { label: "Access requests", href: "/admin/access-requests", icon: Inbox },
+  {
+    label: "Change requests",
+    href: "/admin/change-requests",
+    icon: ClipboardList,
+  },
   { label: "Participations", href: "/admin/participations", icon: Banknote },
   { label: "Notes", href: "/admin/notes", icon: FileText },
   { label: "Borrowers", href: "/admin/borrowers", icon: Building2 },
@@ -68,6 +74,8 @@ type SidebarProps = {
   entities: SwitcherEntity[];
   currentEntityId: string | null;
   entityMode: "all" | "one";
+  // Open lender change requests (admins only) — shown as a badge.
+  openChangeRequests?: number;
 };
 
 // Desktop: a fixed left column, visible from md up.
@@ -123,6 +131,7 @@ function SidebarBody({
   entities,
   currentEntityId,
   entityMode,
+  openChangeRequests = 0,
   onNavigate,
 }: SidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -182,6 +191,11 @@ function SidebarBody({
                 pathname={pathname}
                 exact={item.href === "/admin"}
                 onNavigate={onNavigate}
+                badge={
+                  item.href === "/admin/change-requests"
+                    ? openChangeRequests
+                    : undefined
+                }
               />
             ))}
             <div className="my-2 border-t border-sidebar-border" />
@@ -274,6 +288,7 @@ function NavLink({
   pathname,
   exact,
   onNavigate,
+  badge,
 }: {
   href: string;
   label: string;
@@ -281,6 +296,7 @@ function NavLink({
   pathname: string | null;
   exact?: boolean;
   onNavigate?: () => void;
+  badge?: number;
 }) {
   const active = exact
     ? pathname === href
@@ -298,6 +314,11 @@ function NavLink({
     >
       <Icon className="size-4" />
       {label}
+      {badge ? (
+        <span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground">
+          {badge}
+        </span>
+      ) : null}
     </Link>
   );
 }
