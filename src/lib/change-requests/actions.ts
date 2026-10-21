@@ -27,7 +27,9 @@ export async function submitChangeRequest(
   if (!profile || !ctx) return { error: "Please sign in again." };
 
   const def = typeDef(String(formData.get("type") ?? ""));
-  if (!def) return { fieldErrors: { type: "Choose what you'd like to change." } };
+  if (!def || def.lenderSelectable === false) {
+    return { fieldErrors: { type: "Choose what you'd like to change." } };
+  }
 
   const fieldErrors: Record<string, string> = {};
   let entityId: string | null = null;

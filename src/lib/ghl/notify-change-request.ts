@@ -19,6 +19,8 @@ export async function notifyChangeRequest(payload: {
   lines: Array<[string, string]>;
   message: string | null;
   requestId: string;
+  // Opening line of the email; defaults to a submitted-request intro.
+  intro?: string;
 }): Promise<void> {
   try {
     const contactId = await ghlUpsertContact({
@@ -36,7 +38,7 @@ export async function notifyChangeRequest(payload: {
       ...payload.lines,
       ...(payload.message ? [["Message", payload.message]] : []),
     ] as Array<[string, string]>;
-    const html = `<p>A lender submitted a change request.</p>
+    const html = `<p>${esc(payload.intro ?? "A lender submitted a change request.")}</p>
 <table cellpadding="4" style="border-collapse:collapse">
 ${rows.map(([k, v]) => `<tr><td style="color:#666">${esc(k)}</td><td><strong>${esc(v)}</strong></td></tr>`).join("\n")}
 </table>
