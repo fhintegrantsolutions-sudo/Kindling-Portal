@@ -24,6 +24,8 @@ const MANUAL_HINT: Record<string, string> = {
     "Change the login email on the lender's user page (Change login email), then mark complete.",
   add_entity:
     "Add the entity on the lender's user page (Entities → Add entity), then mark complete.",
+  bank_account:
+    "Send the lender a Melio link to update their banking details, then mark complete.",
   other: "Handle the request, then mark complete.",
 };
 
