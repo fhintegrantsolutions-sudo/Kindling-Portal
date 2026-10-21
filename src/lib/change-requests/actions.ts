@@ -6,7 +6,7 @@ import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { normalizeEmail } from "@/lib/text";
 import { notifyChangeRequest } from "@/lib/ghl/notify-change-request";
-import { typeDef } from "./types";
+import { isMessageRequired, typeDef } from "./types";
 
 export type ChangeRequestFormState = {
   error?: string;
@@ -53,7 +53,7 @@ export async function submitChangeRequest(
     if (v) details[f.key] = v;
   }
   const message = String(formData.get("message") ?? "").trim() || null;
-  if (def.fields.length === 0 && !message) {
+  if (isMessageRequired(def) && !message) {
     fieldErrors.message = "Please describe the change.";
   }
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };

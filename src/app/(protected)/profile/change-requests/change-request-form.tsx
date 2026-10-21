@@ -5,7 +5,11 @@ import {
   submitChangeRequest,
   type ChangeRequestFormState,
 } from "@/lib/change-requests/actions";
-import { CHANGE_REQUEST_TYPES, typeDef } from "@/lib/change-requests/types";
+import {
+  CHANGE_REQUEST_TYPES,
+  isMessageRequired,
+  typeDef,
+} from "@/lib/change-requests/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,7 +129,11 @@ export function ChangeRequestForm({
       {def ? (
         <div className="flex flex-col gap-2">
           <Label htmlFor="message">
-            {def.fields.length === 0 ? "Details *" : "Message (optional)"}
+            {isMessageRequired(def)
+              ? "Details *"
+              : def.fields.length === 0
+                ? "Details (optional)"
+                : "Message (optional)"}
           </Label>
           <textarea
             id="message"
