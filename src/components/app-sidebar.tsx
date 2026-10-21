@@ -52,11 +52,6 @@ const NAV = [
 const ADMIN_WORKFLOW = [
   { label: "Overview", href: "/admin", icon: Shield },
   { label: "Access requests", href: "/admin/access-requests", icon: Inbox },
-  {
-    label: "Change requests",
-    href: "/admin/change-requests",
-    icon: ClipboardList,
-  },
   { label: "Participations", href: "/admin/participations", icon: Banknote },
   { label: "Notes", href: "/admin/notes", icon: FileText },
   { label: "Borrowers", href: "/admin/borrowers", icon: Building2 },
@@ -64,6 +59,11 @@ const ADMIN_WORKFLOW = [
 const ADMIN_TOOLS = [
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Referrals", href: "/admin/referrals", icon: Handshake },
+  {
+    label: "Change requests",
+    href: "/admin/change-requests",
+    icon: ClipboardList,
+  },
 ] as const;
 
 type SidebarProps = {
@@ -191,11 +191,6 @@ function SidebarBody({
                 pathname={pathname}
                 exact={item.href === "/admin"}
                 onNavigate={onNavigate}
-                badge={
-                  item.href === "/admin/change-requests"
-                    ? openChangeRequests
-                    : undefined
-                }
               />
             ))}
             <div className="my-2 border-t border-sidebar-border" />
@@ -207,6 +202,11 @@ function SidebarBody({
                 Icon={item.icon}
                 pathname={pathname}
                 onNavigate={onNavigate}
+                badge={
+                  item.href === "/admin/change-requests"
+                    ? openChangeRequests
+                    : undefined
+                }
               />
             ))}
             <ExternalNavLink
