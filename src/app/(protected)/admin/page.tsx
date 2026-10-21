@@ -12,6 +12,7 @@ import { requireAdmin } from "@/lib/dal";
 import {
   getAdminStats,
   getLatestNoteParticipations,
+  getOpenChangeRequestCount,
   getUpcomingNotes,
   getUsersByState,
   getUserCounts,
@@ -27,14 +28,21 @@ import { UserHeatMap } from "@/components/admin/user-heat-map";
 
 export default async function AdminDashboardPage() {
   await requireAdmin();
-  const [stats, statesData, userCounts, latestNote, upcomingNotes] =
-    await Promise.all([
-      getAdminStats(),
-      getUsersByState(),
-      getUserCounts(),
-      getLatestNoteParticipations(),
-      getUpcomingNotes(),
-    ]);
+  const [
+    stats,
+    statesData,
+    userCounts,
+    latestNote,
+    upcomingNotes,
+    openChangeRequests,
+  ] = await Promise.all([
+    getAdminStats(),
+    getUsersByState(),
+    getUserCounts(),
+    getLatestNoteParticipations(),
+    getUpcomingNotes(),
+    getOpenChangeRequestCount(),
+  ]);
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-8">
@@ -46,8 +54,8 @@ export default async function AdminDashboardPage() {
       </header>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">Leads</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <h2 className="text-sm font-medium">Leads &amp; requests</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Stat
             label="Pending access requests"
             value={String(stats.pendingAccessRequests)}
@@ -72,6 +80,12 @@ export default async function AdminDashboardPage() {
             label="Converted"
             value={String(stats.convertedLeads)}
             icon={<UserCheck className="size-4" />}
+          />
+          <Stat
+            label="Open change requests"
+            value={String(openChangeRequests)}
+            icon={<ClipboardList className="size-4" />}
+            href="/admin/change-requests"
           />
         </div>
       </section>

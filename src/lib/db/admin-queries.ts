@@ -2726,3 +2726,112 @@ export async function getAdminUserNeighbors(currentUserId: string): Promise<{
 
   return { prev: at(idx - 1), next: at(idx + 1) };
 }
+
+export type AdminChangeRequest = {
+  id: string;
+  user_id: string;
+  entity_id: string | null;
+  type: string;
+  details: Record<string, string>;
+  message: string | null;
+  status: "open" | "completed" | "declined";
+  admin_note: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  lender_name: string | null;
+  lender_email: string | null;
+  entity: {
+    display_name: string;
+    email: string | null;
+    entity_type: string | null;
+    business_name: string | null;
+    loan_agreement_title: string | null;
+    address_street: string | null;
+    address_city: string | null;
+    address_state: string | null;
+    address_zip: string | null;
+  } | null;
+  // Current profile name, for "current vs requested" on name changes.
+  current_first_name: string | null;
+  current_last_name: string | null;
+};
+
+const CHANGE_REQUEST_SELECT = `id, user_id, entity_id, type, details, message, status, admin_note,
+  resolved_at, created_at,
+  entity:investor_entities ( display_name, email, entity_type, business_name,
+    loan_agreement_title, address_street, address_city, address_state, address_zip )`;
+
+async function attachRequesters(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: Array<Record<string, unknown>>,
+): Promise<AdminChangeRequest[]> {
+  const ids = Array.from(new Set(rows.map((r) => r.user_id as string)));
+  const people = new Map<
+    string,
+    { first: string | null; last: string | null; email: string | null }
+  >();
+  if (ids.length > 0) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .in("id", ids);
+    for (const p of (data ?? []) as Array<{
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    }>) {
+      people.set(p.id, { first: p.first_name, last: p.last_name, email: p.email });
+    }
+  }
+  return rows.map((r) => {
+    const p = people.get(r.user_id as string);
+    const entity = (Array.isArray(r.entity) ? r.entity[0] : r.entity) as
+      | AdminChangeRequest["entity"]
+      | undefined;
+    return {
+      ...(r as unknown as AdminChangeRequest),
+      details: (r.details ?? {}) as Record<string, string>,
+      entity: entity ?? null,
+      lender_name: p ? `${p.first ?? ""} ${p.last ?? ""}`.trim() || null : null,
+      lender_email: p?.email ?? null,
+      current_first_name: p?.first ?? null,
+      current_last_name: p?.last ?? null,
+    };
+  });
+}
+
+export async function getChangeRequests(
+  status: "open" | "completed" | "declined",
+): Promise<AdminChangeRequest[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("change_requests")
+    .select(CHANGE_REQUEST_SELECT)
+    .eq("status", status)
+    .order("created_at", { ascending: status === "open" });
+  return attachRequesters(supabase, (data ?? []) as Array<Record<string, unknown>>);
+}
+
+export async function getChangeRequestById(
+  id: string,
+): Promise<AdminChangeRequest | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("change_requests")
+    .select(CHANGE_REQUEST_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+  const [row] = await attachRequesters(supabase, [data as Record<string, unknown>]);
+  return row;
+}
+
+export async function getOpenChangeRequestCount(): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("change_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "open");
+  return count ?? 0;
+}
