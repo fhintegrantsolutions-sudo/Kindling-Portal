@@ -11,6 +11,7 @@ export type ChangeRequestType =
   | "la_entity_type"
   | "la_business_name"
   | "add_entity"
+  | "bank_account"
   | "other";
 
 export type FieldDef = {
@@ -157,6 +158,15 @@ export const CHANGE_REQUEST_TYPES: TypeDef[] = [
       },
       { key: "loan_agreement_title", label: "Loan agreement title (if known)" },
     ],
+  },
+  {
+    type: "bank_account",
+    label: "Update bank account information",
+    needsEntity: true,
+    autoApply: false,
+    fields: [],
+    messageRequired: false,
+    help: "We'll send you a link from Melio to complete your banking information. Please don't enter bank account details here.",
   },
   {
     type: "other",
