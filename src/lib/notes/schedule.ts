@@ -176,21 +176,26 @@ export function generateSchedule(input: ScheduleInput): ScheduleResult {
   const fixedPayment = round2(payment);
 
   if (input.ppmtSplit && monthlyRate > 0) {
-    let bal = principal;
+    // Balance is tracked UNROUNDED (principal minus each exact PPMT) and only
+    // rounded for display, like calculator.net and the lender spreadsheets —
+    // so it ends at exactly $0.00 instead of drifting a cent from summing
+    // rounded principal amounts.
+    let exactBal = principal;
     for (let n = 1; n <= termMonths; n++) {
       // PPMT for period n from the unrounded payment.
-      const principalPart = round2(
-        payment / Math.pow(1 + monthlyRate, termMonths - n + 1),
-      );
+      const exactPrincipal =
+        payment / Math.pow(1 + monthlyRate, termMonths - n + 1);
+      const principalPart = round2(exactPrincipal);
       const interestPart = round2(fixedPayment - principalPart);
-      bal = round2(bal - principalPart);
+      exactBal -= exactPrincipal;
+      const shown = round2(exactBal);
       rows.push({
         payment_number: n,
         due_date: addMonths(firstPaymentDate, n - 1),
         principal_amount: principalPart,
         interest_amount: interestPart,
         fee_amount: n === 1 ? feeAmount : 0,
-        ending_balance: bal < 0 ? 0 : bal,
+        ending_balance: n === termMonths || shown <= 0 ? 0 : shown,
       });
     }
     return { ok: true, rows };
