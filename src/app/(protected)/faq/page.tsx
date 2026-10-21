@@ -192,16 +192,24 @@ const SECTIONS: Section[] = [
           <>
             Payments are sent through <strong>Melio</strong>. You&apos;ll
             receive a link from Melio to enter your banking details, and your
-            monthly payments are deposited from there. To change your bank
-            account, go to{" "}
+            monthly payments are deposited from there.
+          </>
+        ),
+      },
+      {
+        q: "How do I update my bank account?",
+        a: (
+          <>
+            Go to{" "}
             <Link
               href="/profile/change-requests?type=bank_account"
               className="underline underline-offset-4"
             >
               Profile → Change requests → Update bank account information
-            </Link>{" "}
-            and we&apos;ll send you a new Melio link. Never enter bank account
-            details in the portal.
+            </Link>
+            , choose the entity and submit. We&apos;ll send you a link from
+            Melio to enter your new banking information. Never enter bank
+            account details in the portal.
           </>
         ),
       },
