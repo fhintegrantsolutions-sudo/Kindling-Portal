@@ -222,11 +222,24 @@ function Stage({
         />
         {label}
       </label>
+      {/* Uncontrolled so typing a date by hand isn't interrupted: while a date
+          is half-typed the browser reports an empty value, which the
+          normalizer would replace with today's date. Commit on blur / Enter
+          instead; remount (key) when the saved date changes from elsewhere,
+          e.g. the auto-filled date when a stage is checked. */}
       <Input
+        key={date ?? "none"}
         type="date"
-        value={date ?? ""}
+        defaultValue={date ?? ""}
         disabled={disabled}
-        onChange={(e) => onDate(e.target.value || null)}
+        onBlur={(e) => {
+          const v = e.currentTarget.value;
+          if (v && v !== date) onDate(v);
+          else if (!v) e.currentTarget.value = date ?? "";
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
         className="w-44"
       />
     </div>
