@@ -8,52 +8,6 @@ type Section = { title: string; items: QA[] };
 
 const SECTIONS: Section[] = [
   {
-    title: "Getting started",
-    items: [
-      {
-        q: "What is Kindling, and who can participate?",
-        a: (
-          <>
-            Kindling gives CoSpark members another way to engage with their
-            financial goals within the CoSpark economy. Lenders participate in
-            notes — loans to borrowers — and receive monthly payments of
-            principal and interest. Kindling is available exclusively to
-            CoSpark members.
-          </>
-        ),
-      },
-      {
-        q: "How do I get access?",
-        a: (
-          <>
-            Submit a request on the{" "}
-            <Link href="/request-access" className="underline underline-offset-4">
-              Request access
-            </Link>{" "}
-            page. Our team reviews it and, once approved, emails you a link to
-            complete your participation details. After your funds clear, you
-            receive an invitation to set up your portal login.
-          </>
-        ),
-      },
-      {
-        q: "I didn't get my setup or invitation email. What should I do?",
-        a: (
-          <>
-            Check your spam or promotions folder first. Setup links expire
-            after 14 days — if yours has expired or never arrived, email us at{" "}
-            <a
-              href="mailto:info@kindling.network"
-              className="underline underline-offset-4"
-            >
-              info@kindling.network
-            </a> and we&apos;ll send a fresh one.
-          </>
-        ),
-      },
-    ],
-  },
-  {
     title: "How notes work",
     items: [
       {
