@@ -30,15 +30,10 @@ export default function LandingPage() {
         </p>
 
         <div className="mt-8">
-          <a
-            href="https://cospark.us/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ size: "lg" })}
-          >
-            Join CoSpark Today
+          <Link href="/request-access" className={buttonVariants({ size: "lg" })}>
+            Join Kindling
             <ArrowRight className="ml-2 size-4" />
-          </a>
+          </Link>
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
           Already a CoSpark member and joined Kindling?{" "}
