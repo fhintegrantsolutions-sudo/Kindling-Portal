@@ -72,7 +72,7 @@ export default async function AdminDashboardPage() {
             icon={<ClipboardList className="size-4" />}
             href={
               stats.awaitingLeadSubmission > 0
-                ? "/admin/access-requests"
+                ? "/admin/access-requests?status=approved"
                 : undefined
             }
           />
@@ -80,6 +80,11 @@ export default async function AdminDashboardPage() {
             label="Converted"
             value={String(stats.convertedLeads)}
             icon={<UserCheck className="size-4" />}
+            href={
+              stats.convertedLeads > 0
+                ? "/admin/access-requests?status=converted"
+                : undefined
+            }
           />
           <Stat
             label="Open change requests"
