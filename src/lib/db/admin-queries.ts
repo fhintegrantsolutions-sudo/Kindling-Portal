@@ -1424,6 +1424,9 @@ export type AccessRequestListItem = {
   referral_code: string | null;
   created_at: string;
   archived_at: string | null;
+  message: string | null;
+  setup_token: string | null;
+  setup_token_expires_at: string | null;
   // Other access requests (any status, archived or not) with the same email.
   other_request_count: number;
   note: { note_id: string; title: string } | null;
@@ -1444,7 +1447,7 @@ export async function getAccessRequests(filter?: {
       `
       id, status, first_name, last_name, email, phone, note_id,
       investment_amount, is_tcc_member, referral_code, created_at,
-      archived_at
+      archived_at, message, setup_token, setup_token_expires_at
       `,
     )
     .order("created_at", { ascending: false });
@@ -1467,6 +1470,9 @@ export async function getAccessRequests(filter?: {
     referral_code: string | null;
     created_at: string;
     archived_at: string | null;
+    message: string | null;
+    setup_token: string | null;
+    setup_token_expires_at: string | null;
   }>;
 
   const noteIds = Array.from(
