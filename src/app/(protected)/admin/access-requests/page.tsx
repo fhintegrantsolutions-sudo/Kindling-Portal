@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getAccessRequests } from "@/lib/db/admin-queries";
+import { getAccessRequests, getNotesForPicker } from "@/lib/db/admin-queries";
+import { AccessRequestBoard } from "./board";
 import { formatCurrency, formatDate, formatNoteLabel } from "@/lib/format";
 import {
   Card,
@@ -18,17 +19,70 @@ type FilterValue =
 export default async function AdminAccessRequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: FilterValue }>;
+  searchParams: Promise<{ status?: FilterValue; view?: "board" | "list" }>;
 }) {
   const sp = await searchParams;
+  // Board is the default; a status link (?status=…) or ?view=list shows the
+  // tabbed list.
+  const view = sp.view ?? (sp.status ? "list" : "board");
   const filter = sp.status ?? "pending";
+
+  const viewToggle = (
+    <div className="flex gap-1 rounded-md border p-0.5 text-sm">
+      {(["board", "list"] as const).map((v) => (
+        <Link
+          key={v}
+          href={v === "board" ? "/admin/access-requests" : "/admin/access-requests?view=list"}
+          className={`rounded px-3 py-1 capitalize ${
+            view === v
+              ? "bg-muted font-medium text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {v}
+        </Link>
+      ))}
+    </div>
+  );
+
+  if (view === "board") {
+    const [all, notes] = await Promise.all([
+      getAccessRequests({ all: true }),
+      getNotesForPicker(),
+    ]);
+    return (
+      <div className="flex w-full flex-col gap-6 p-8">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              Admin · Access requests
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Access requests
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Drag a lead to move it between stages, or use its Move to… menu.
+            </p>
+          </div>
+          {viewToggle}
+        </header>
+        <AccessRequestBoard
+          key={all.map((r) => `${r.id}:${r.status}:${r.archived_at ?? ""}`).join("|")}
+          items={all}
+          notes={notes}
+        />
+      </div>
+    );
+  }
+
   const items = await getAccessRequests(
     filter === "archived" ? { archived: true } : { status: filter },
   );
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-8">
-      <header>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
         <p className="text-xs uppercase tracking-wider text-muted-foreground">
           Admin · Access requests
         </p>
@@ -39,6 +93,8 @@ export default async function AdminAccessRequestsPage({
           Prospective lenders. Approve → email setup link → lead submits →
           participation appears for funding tracking.
         </p>
+        </div>
+        {viewToggle}
       </header>
 
       <nav className="flex flex-wrap gap-1 border-b">
@@ -146,7 +202,7 @@ function FilterTab({
   const active = current === value;
   return (
     <Link
-      href={`/admin/access-requests?status=${value}`}
+      href={`/admin/access-requests?view=list&status=${value}`}
       className={`border-b-2 px-3 py-2 text-sm transition-colors ${
         active
           ? "border-foreground font-medium text-foreground"

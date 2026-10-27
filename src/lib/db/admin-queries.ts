@@ -1434,6 +1434,8 @@ export type AccessRequestListItem = {
 export async function getAccessRequests(filter?: {
   status?: "pending" | "approved" | "rejected" | "converted";
   archived?: boolean;
+  // Every request, archived or not, any status (the kanban board).
+  all?: boolean;
 }): Promise<AccessRequestListItem[]> {
   const supabase = await createClient();
   let q = supabase
@@ -1446,9 +1448,11 @@ export async function getAccessRequests(filter?: {
       `,
     )
     .order("created_at", { ascending: false });
-  if (filter?.archived) q = q.not("archived_at", "is", null);
-  else q = q.is("archived_at", null);
-  if (filter?.status) q = q.eq("status", filter.status);
+  if (!filter?.all) {
+    if (filter?.archived) q = q.not("archived_at", "is", null);
+    else q = q.is("archived_at", null);
+    if (filter?.status) q = q.eq("status", filter.status);
+  }
   const { data } = await q;
   const rows = (data ?? []) as Array<{
     id: string;

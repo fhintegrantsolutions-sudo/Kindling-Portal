@@ -131,3 +131,35 @@ export async function setAccessRequestArchived(
   revalidatePath("/admin");
   return {};
 }
+
+// Board move back to Pending: from Awaiting lead submission (un-approve — the
+// setup link stops working) or from Rejected (reconsider). Converted requests
+// can't move back.
+export async function moveAccessRequestToPending(
+  id: string,
+): Promise<{ error?: string }> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data: ar } = await supabase
+    .from("access_requests")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle();
+  if (!ar) return { error: "Access request not found." };
+  if (ar.status === "converted") {
+    return { error: "Converted requests can't move back to Pending." };
+  }
+  const { error } = await supabase
+    .from("access_requests")
+    .update({
+      status: "pending",
+      setup_token: null,
+      setup_token_expires_at: null,
+    })
+    .eq("id", id);
+  if (error) return { error: error.message };
+  revalidatePath("/admin/access-requests");
+  revalidatePath(`/admin/access-requests/${id}`);
+  revalidatePath("/admin");
+  return {};
+}
