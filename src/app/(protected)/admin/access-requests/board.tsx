@@ -69,61 +69,100 @@ export function AccessRequestBoard({
   const [overCol, setOverCol] = useState<Column | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [approving, setApproving] = useState<AccessRequestListItem | null>(
+  const [approving, setApproving] = useState<AccessRequestListItem[] | null>(
     null,
   );
   const [openId, setOpenId] = useState<string | null>(null);
   const opened = items.find((i) => i.id === openId) ?? null;
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const selectedItems = items.filter((i) => selected.has(i.id));
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
+  // Dragging a selected card moves the whole selection.
   const dragged = items.find((i) => i.id === dragId) ?? null;
+  const dragGroup: AccessRequestListItem[] = dragged
+    ? selected.has(dragged.id) && selected.size > 1
+      ? selectedItems
+      : [dragged]
+    : [];
+  const groupCanMove = (group: AccessRequestListItem[], to: Column) =>
+    group.length > 0 && group.every((r) => canMove(r, to));
 
   const patch = (id: string, p: Partial<AccessRequestListItem>) =>
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...p } : i)));
 
-  const move = (r: AccessRequestListItem, to: Column) => {
-    if (!canMove(r, to)) return;
+  const moveMany = (group: AccessRequestListItem[], to: Column) => {
+    if (!groupCanMove(group, to)) return;
     setError(null);
+    const n = group.length;
+    const who =
+      n === 1 ? `${group[0].first_name} ${group[0].last_name}'s` : `${n}`;
     if (to === "approved") {
-      setApproving(r);
+      setApproving(group);
       return;
     }
     if (
       to === "rejected" &&
-      !confirm(`Reject ${r.first_name} ${r.last_name}'s access request?`)
+      !confirm(
+        n === 1
+          ? `Reject ${who} access request?`
+          : `Reject ${n} access requests?`,
+      )
     ) {
       return;
     }
     if (
       to === "pending" &&
-      r.status === "approved" &&
-      !confirm("Move back to Pending? Their setup link will stop working.")
+      group.some((r) => r.status === "approved") &&
+      !confirm(
+        `Move ${n === 1 ? "this lead" : `${n} leads`} back to Pending? Their setup link${n === 1 ? "" : "s"} will stop working.`,
+      )
     ) {
       return;
     }
-    const before = { status: r.status, archived_at: r.archived_at };
+    const before = new Map(
+      group.map((r) => [r.id, { status: r.status, archived_at: r.archived_at }]),
+    );
     // Optimistic update, then reconcile with the server.
-    if (to === "archived") patch(r.id, { archived_at: new Date().toISOString() });
-    else if (columnOf(r) === "archived") patch(r.id, { archived_at: null });
-    else patch(r.id, { status: to as AccessRequestListItem["status"] });
+    for (const r of group) {
+      if (to === "archived") patch(r.id, { archived_at: new Date().toISOString() });
+      else if (columnOf(r) === "archived") patch(r.id, { archived_at: null });
+      else patch(r.id, { status: to as AccessRequestListItem["status"] });
+    }
+    setSelected(new Set());
 
     startTransition(async () => {
-      let err: string | undefined;
-      try {
-        if (to === "archived") err = (await setAccessRequestArchived(r.id, true)).error;
-        else if (columnOf(r) === "archived")
-          err = (await setAccessRequestArchived(r.id, false)).error;
-        else if (to === "pending") err = (await moveAccessRequestToPending(r.id)).error;
-        else if (to === "rejected") await rejectAccessRequest(r.id);
-      } catch (e) {
-        err = e instanceof Error ? e.message : "Couldn't move the request.";
+      const failures: string[] = [];
+      for (const r of group) {
+        let err: string | undefined;
+        try {
+          if (to === "archived") err = (await setAccessRequestArchived(r.id, true)).error;
+          else if (columnOf(r) === "archived")
+            err = (await setAccessRequestArchived(r.id, false)).error;
+          else if (to === "pending") err = (await moveAccessRequestToPending(r.id)).error;
+          else if (to === "rejected") await rejectAccessRequest(r.id);
+        } catch (e) {
+          err = e instanceof Error ? e.message : "Couldn't move the request.";
+        }
+        if (err) {
+          patch(r.id, before.get(r.id)!);
+          failures.push(`${r.first_name} ${r.last_name}: ${err}`);
+        }
       }
-      if (err) {
-        patch(r.id, before);
-        setError(err);
-      }
+      if (failures.length > 0) setError(failures.join(" · "));
       router.refresh();
     });
   };
+  const move = (r: AccessRequestListItem, to: Column) => moveMany([r], to);
+
+  // Moves available to the whole selection.
+  const bulkTargets = COLUMNS.filter((c) => groupCanMove(selectedItems, c.key));
 
   return (
     <div className="flex flex-col gap-3">
@@ -132,12 +171,49 @@ export function AccessRequestBoard({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
+      {selected.size > 0 ? (
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-3 rounded-lg border bg-card p-2 shadow-sm">
+          <span className="px-1 text-sm font-medium">
+            {selected.size} selected
+          </span>
+          {bulkTargets.length > 0 ? (
+            <select
+              aria-label="Move selected to"
+              value=""
+              disabled={pending}
+              onChange={(e) => {
+                if (e.target.value) moveMany(selectedItems, e.target.value as Column);
+              }}
+              className="h-8 rounded border bg-background px-2 text-sm"
+            >
+              <option value="">Move selected to…</option>
+              {bulkTargets.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.key === "archived" ? "Archive" : t.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              These cards are in different stages — no move fits all of them.
+            </span>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear selection
+          </Button>
+        </div>
+      ) : null}
       <div className="flex gap-3 overflow-x-auto pb-2">
         {COLUMNS.map((col) => {
           const cards = items
             .filter((i) => columnOf(i) === col.key)
             .sort((a, b) => b.created_at.localeCompare(a.created_at));
-          const droppable = dragged ? canMove(dragged, col.key) : false;
+          const droppable = groupCanMove(dragGroup, col.key);
           return (
             <section
               key={col.key}
@@ -150,7 +226,7 @@ export function AccessRequestBoard({
               onDrop={(e) => {
                 e.preventDefault();
                 setOverCol(null);
-                if (dragged) move(dragged, col.key);
+                if (dragGroup.length > 0) moveMany(dragGroup, col.key);
                 setDragId(null);
               }}
               className={`flex w-72 shrink-0 flex-col gap-2 rounded-lg border p-2 transition-colors ${
@@ -165,8 +241,26 @@ export function AccessRequestBoard({
                 <h2 className="text-xs font-semibold uppercase tracking-wider">
                   {col.label}
                 </h2>
-                <span className="text-xs text-muted-foreground">
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
                   {cards.length}
+                  {cards.length > 0 ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select all in ${col.label}`}
+                      className="size-3.5"
+                      checked={cards.every((c) => selected.has(c.id))}
+                      onChange={(e) =>
+                        setSelected((prev) => {
+                          const next = new Set(prev);
+                          for (const c of cards) {
+                            if (e.target.checked) next.add(c.id);
+                            else next.delete(c.id);
+                          }
+                          return next;
+                        })
+                      }
+                    />
+                  ) : null}
                 </span>
               </header>
               {col.hint ? (
@@ -186,6 +280,8 @@ export function AccessRequestBoard({
                     }}
                     onMove={(to) => move(r, to)}
                     onOpen={() => setOpenId(r.id)}
+                    selected={selected.has(r.id)}
+                    onToggleSelect={() => toggleSelect(r.id)}
                     busy={pending}
                   />
                 ))}
@@ -216,11 +312,12 @@ export function AccessRequestBoard({
 
       {approving ? (
         <ApproveDialog
-          request={approving}
+          requests={approving}
           notes={notes}
-          onClose={(approved) => {
-            if (approved) patch(approving.id, { status: "approved" });
+          onClose={(approvedIds) => {
+            for (const id of approvedIds) patch(id, { status: "approved" });
             setApproving(null);
+            setSelected(new Set());
             router.refresh();
           }}
         />
@@ -235,6 +332,8 @@ function Card({
   onDragEnd,
   onMove,
   onOpen,
+  selected,
+  onToggleSelect,
   busy,
 }: {
   r: AccessRequestListItem;
@@ -242,6 +341,8 @@ function Card({
   onDragEnd: () => void;
   onMove: (to: Column) => void;
   onOpen: () => void;
+  selected: boolean;
+  onToggleSelect: () => void;
   busy: boolean;
 }) {
   const targets = COLUMNS.filter((c) => canMove(r, c.key));
@@ -255,17 +356,28 @@ function Card({
       }}
       onDragEnd={onDragEnd}
       onClick={(e) => {
-        // Open the details panel unless the click was on the Move to menu.
-        if ((e.target as HTMLElement).closest("select")) return;
+        // Open the details panel unless the click was on a control.
+        if ((e.target as HTMLElement).closest("select, input")) return;
         onOpen();
       }}
-      className={`cursor-pointer rounded-md border bg-card p-3 text-sm shadow-sm transition-colors hover:border-primary/50 ${
+      className={`cursor-pointer rounded-md border p-3 text-sm shadow-sm transition-colors hover:border-primary/50 ${
+        selected ? "border-primary bg-primary/5" : "bg-card"
+      } ${
         targets.length > 0 ? "active:cursor-grabbing" : ""
       }`}
     >
-      <p className="font-medium">
-        {r.first_name} {r.last_name}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium">
+          {r.first_name} {r.last_name}
+        </p>
+        <input
+          type="checkbox"
+          aria-label={`Select ${r.first_name} ${r.last_name}`}
+          checked={selected}
+          onChange={onToggleSelect}
+          className="mt-0.5 size-4 shrink-0"
+        />
+      </div>
       <p className="truncate text-xs text-muted-foreground">{r.email}</p>
       <p className="mt-1 text-xs">
         {r.note ? formatNoteLabel(r.note.note_id, r.note.title) : "No note yet"}
@@ -423,31 +535,47 @@ function LeadDetails({
   );
 }
 
-// Pending -> Awaiting lead submission: pick the note, generate the setup link.
+// Pending -> Awaiting lead submission: pick the note, generate setup links
+// (one per lead when several are approved together).
 function ApproveDialog({
-  request,
+  requests,
   notes,
   onClose,
 }: {
-  request: AccessRequestListItem;
+  requests: AccessRequestListItem[];
   notes: Note[];
-  onClose: (approved: boolean) => void;
+  onClose: (approvedIds: string[]) => void;
 }) {
   const [noteId, setNoteId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [url, setUrl] = useState<string | null>(null);
+  const [results, setResults] = useState<
+    Array<{ r: AccessRequestListItem; url?: string; error?: string }> | null
+  >(null);
   const [pending, startTransition] = useTransition();
+  const many = requests.length > 1;
+  const title = many
+    ? `Approve ${requests.length} leads`
+    : `Approve ${requests[0].first_name} ${requests[0].last_name}`;
 
   const approve = () => {
     setError(null);
-    const fd = new FormData();
-    fd.set("note_id", noteId);
     startTransition(async () => {
-      const res = await approveAccessRequest(request.id, undefined, fd);
-      if (res.setupUrl) setUrl(res.setupUrl);
-      else setError(res.fieldErrors?.note_id ?? res.error ?? "Couldn't approve.");
+      const out: Array<{ r: AccessRequestListItem; url?: string; error?: string }> = [];
+      for (const r of requests) {
+        const fd = new FormData();
+        fd.set("note_id", noteId);
+        const res = await approveAccessRequest(r.id, undefined, fd);
+        out.push(
+          res.setupUrl
+            ? { r, url: res.setupUrl }
+            : { r, error: res.fieldErrors?.note_id ?? res.error ?? "Couldn't approve." },
+        );
+      }
+      setResults(out);
     });
   };
+
+  const approvedIds = (results ?? []).filter((x) => x.url).map((x) => x.r.id);
 
   return (
     <div
@@ -455,17 +583,32 @@ function ApproveDialog({
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
     >
-      <div className="flex w-full max-w-md flex-col gap-4 rounded-lg border bg-background p-5 shadow-lg">
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-lg border bg-background p-5 shadow-lg">
         <div>
-          <h2 className="text-base font-semibold">
-            Approve {request.first_name} {request.last_name}
-          </h2>
+          <h2 className="text-base font-semibold">{title}</h2>
           <p className="text-sm text-muted-foreground">
-            Pick the note, then approve to generate their setup link.
+            {many
+              ? "Pick the note for all of them, then approve to generate each setup link."
+              : "Pick the note, then approve to generate their setup link."}
           </p>
         </div>
-        {url ? (
-          <CopyLink url={url} />
+        {results ? (
+          <div className="flex flex-col gap-3">
+            {results.map(({ r, url, error: err }) => (
+              <div key={r.id} className="flex flex-col gap-1">
+                {many ? (
+                  <p className="text-sm font-medium">
+                    {r.first_name} {r.last_name}
+                  </p>
+                ) : null}
+                {url ? (
+                  <CopyLink url={url} />
+                ) : (
+                  <p className="text-sm text-destructive">{err}</p>
+                )}
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="flex flex-col gap-2">
             <Label htmlFor="board_note_id">Note</Label>
@@ -486,8 +629,8 @@ function ApproveDialog({
         )}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <div className="flex justify-end gap-2">
-          {url ? (
-            <Button type="button" onClick={() => onClose(true)}>
+          {results ? (
+            <Button type="button" onClick={() => onClose(approvedIds)}>
               Done
             </Button>
           ) : (
@@ -495,13 +638,17 @@ function ApproveDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onClose(false)}
+                onClick={() => onClose([])}
                 disabled={pending}
               >
                 Cancel
               </Button>
               <Button type="button" onClick={approve} disabled={pending || !noteId}>
-                {pending ? "Approving…" : "Approve & generate link"}
+                {pending
+                  ? "Approving…"
+                  : many
+                    ? `Approve ${requests.length} & generate links`
+                    : "Approve & generate link"}
               </Button>
             </>
           )}
