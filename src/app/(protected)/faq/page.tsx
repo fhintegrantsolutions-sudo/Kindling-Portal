@@ -334,7 +334,7 @@ const SECTIONS: Section[] = [
         a: (
           <>
             Yes. 1099s are sent by mid-February. You&apos;ll receive an email
-            from <strong>Zendesk</strong> with your 1099. If it can&apos;t be
+            from <strong>Zenwork xForce</strong> with your 1099. If it can&apos;t be
             delivered electronically, it is mailed to the address on file for
             that entity.
           </>
