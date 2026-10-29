@@ -13,8 +13,8 @@ export default function LandingPage() {
           Make more of your financial opportunities.
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-          Kindling gives CoSpark members another way to engage with their
-          financial goals within the CoSpark economy.
+          Kindling gives private community members another way to engage with their
+          financial goals within the private community.
         </p>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
           As part of a community built around participation and shared
@@ -23,10 +23,10 @@ export default function LandingPage() {
         </p>
 
         <p className="mt-10 font-serif text-xl font-semibold">
-          Kindling. Part of the CoSpark economy.
+          Kindling. Part of a private community.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Available exclusively to CoSpark members.
+          Available exclusively to private community members.
         </p>
 
         <div className="mt-8">
@@ -36,7 +36,7 @@ export default function LandingPage() {
           </Link>
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          Already a CoSpark member and joined Kindling?{" "}
+          Already a private community member and joined Kindling?{" "}
           <Link
             href="/dashboard"
             className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
