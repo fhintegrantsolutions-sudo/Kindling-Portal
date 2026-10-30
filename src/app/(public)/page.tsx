@@ -13,8 +13,8 @@ export default function LandingPage() {
           Make more of your financial opportunities.
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-          Kindling gives private community members another way to engage with their
-          financial goals within the private community.
+          Kindling is part of a private community. It gives members of the
+          community another way to engage with their financial goals.
         </p>
         <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
           As part of a community built around participation and shared
@@ -26,7 +26,7 @@ export default function LandingPage() {
           Kindling. Part of a private community.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Available exclusively to private community members.
+          Available exclusively to members of the community.
         </p>
 
         <div className="mt-8">
@@ -36,7 +36,7 @@ export default function LandingPage() {
           </Link>
         </div>
         <p className="mt-6 text-sm text-muted-foreground">
-          Already a private community member and joined Kindling?{" "}
+          Already a community member and joined Kindling?{" "}
           <Link
             href="/dashboard"
             className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
