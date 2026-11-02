@@ -55,3 +55,6 @@ legacy/node_modules/
 # Real lender data — templates with .example suffix are tracked
 scripts/users.csv
 scripts/participations.csv
+
+# macOS metadata files on the external drive
+._*

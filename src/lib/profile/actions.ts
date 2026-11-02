@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -23,6 +24,7 @@ export async function updateProfile(
   _prev: ProfileFormState | undefined,
   formData: FormData,
 ): Promise<ProfileFormState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const {
     data: { user },

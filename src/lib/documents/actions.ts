@@ -1,5 +1,6 @@
 "use server";
 
+import { isDemo } from "@/lib/demo";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -137,6 +138,9 @@ export async function deleteParticipationDocument(
 export async function getDocumentDownloadUrl(
   documentId: string,
 ): Promise<{ url?: string; error?: string }> {
+  if (await isDemo()) {
+    return { error: "Document downloads are turned off in the demo account." };
+  }
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Not signed in." };
   const admin = createAdminClient();

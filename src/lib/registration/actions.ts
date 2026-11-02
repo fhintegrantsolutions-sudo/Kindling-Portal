@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -27,6 +28,7 @@ export async function updateMyInvestmentAmount(
   _prev: UpdateInvestmentState | undefined,
   formData: FormData,
 ): Promise<UpdateInvestmentState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const {
     data: { user },
@@ -111,6 +113,7 @@ export async function submitRegistration(
   _prev: RegistrationFormState | undefined,
   formData: FormData,
 ): Promise<RegistrationFormState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const {
     data: { user },

@@ -1,27 +1,9 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { getDemo } from "@/lib/demo";
+import { createBaseClient } from "./base";
 
 export async function createClient() {
-  const cookieStore = await cookies();
-
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
-            );
-          } catch {
-            // Called from a Server Component — middleware refreshes the session.
-          }
-        },
-      },
-    },
-  );
+  // A demo login reads the mirrored lender's data through a fetch that masks
+  // their personal details. Every other login gets the plain client.
+  const demo = await getDemo();
+  return createBaseClient(demo?.fetch);
 }

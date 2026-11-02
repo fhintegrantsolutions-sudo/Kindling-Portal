@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -13,6 +14,7 @@ export async function updateMyParticipationNotes(
   participationId: string,
   notes: string,
 ): Promise<{ error?: string }> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const {
     data: { user },

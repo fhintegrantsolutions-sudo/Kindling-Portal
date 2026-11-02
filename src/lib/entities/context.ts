@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { getEffectiveUserId } from "@/lib/demo";
 
 export const CURRENT_ENTITY_COOKIE = "current_entity";
 export const ALL_ENTITIES = "all";
@@ -32,7 +33,7 @@ export async function getCurrentEntityContext(): Promise<EntityContext | null> {
   const { data: rows } = await supabase
     .from("investor_entities")
     .select("id, display_name, is_primary")
-    .eq("owner_user_id", user.id)
+    .eq("owner_user_id", await getEffectiveUserId(user.id))
     .order("is_primary", { ascending: false })
     .order("display_name", { ascending: true });
 

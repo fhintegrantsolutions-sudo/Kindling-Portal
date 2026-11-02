@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -15,6 +16,7 @@ export async function createBeneficiary(
   _prev: BeneficiaryFormState | undefined,
   formData: FormData,
 ): Promise<BeneficiaryFormState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const {
     data: { user },
@@ -59,6 +61,7 @@ export async function updateBeneficiary(
   _prev: BeneficiaryFormState | undefined,
   formData: FormData,
 ): Promise<BeneficiaryFormState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const {
     data: { user },
@@ -106,6 +109,7 @@ export async function updateBeneficiary(
 }
 
 export async function deleteBeneficiary(beneficiaryId: string): Promise<void> {
+  if (await isDemo()) throw new Error(DEMO_MESSAGE);
   const supabase = await createClient();
   const {
     data: { user },
@@ -132,6 +136,7 @@ export async function saveBeneficiaryPercentages(
   _prev: PercentagesState | undefined,
   formData: FormData,
 ): Promise<PercentagesState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const {
     data: { user },

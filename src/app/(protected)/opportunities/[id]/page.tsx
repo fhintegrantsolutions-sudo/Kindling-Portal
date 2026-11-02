@@ -9,6 +9,7 @@ import {
 import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { createClient } from "@/lib/supabase/server";
+import { getEffectiveUserId } from "@/lib/demo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { NoteDetailCard } from "@/components/note-detail-card";
@@ -32,7 +33,7 @@ async function getMyEntityIdentities(): Promise<RegistrationEntity[]> {
     .select(
       "id, display_name, entity_type, business_name, loan_agreement_title, address_street, address_city, address_state, address_zip",
     )
-    .eq("owner_user_id", user.id);
+    .eq("owner_user_id", await getEffectiveUserId(user.id));
 
   return (data ?? []) as RegistrationEntity[];
 }

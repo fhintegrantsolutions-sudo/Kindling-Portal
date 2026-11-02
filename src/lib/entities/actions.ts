@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getEffectiveUserId } from "@/lib/demo";
 import { ALL_ENTITIES, CURRENT_ENTITY_COOKIE } from "@/lib/entities/context";
 
 // Set the lender's current entity context. Accepts a concrete entity id or the
@@ -20,7 +21,7 @@ export async function setCurrentEntity(value: string): Promise<void> {
       .from("investor_entities")
       .select("id")
       .eq("id", value)
-      .eq("owner_user_id", user.id)
+      .eq("owner_user_id", await getEffectiveUserId(user.id))
       .maybeSingle();
     if (!data) throw new Error("Unknown entity");
   }

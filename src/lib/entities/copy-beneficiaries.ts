@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentEntityContext } from "@/lib/entities/context";
@@ -10,6 +11,7 @@ import { getCurrentEntityContext } from "@/lib/entities/context";
 export async function copyBeneficiariesFromEntity(
   sourceEntityId: string,
 ): Promise<{ error?: string; message?: string }> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const supabase = await createClient();
   const ctx = await getCurrentEntityContext();
   if (!ctx || ctx.mode === "all" || !ctx.currentEntityId) {

@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -64,6 +65,7 @@ export async function setNewPassword(
   _prev: AuthFormState | undefined,
   formData: FormData,
 ): Promise<AuthFormState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const password = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
 

@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/dal";
@@ -20,6 +21,7 @@ export async function submitChangeRequest(
   _prev: ChangeRequestFormState | undefined,
   formData: FormData,
 ): Promise<ChangeRequestFormState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const [profile, ctx] = await Promise.all([
     getCurrentProfile(),
     getCurrentEntityContext(),

@@ -1,5 +1,6 @@
 "use server";
 
+import { DEMO_MESSAGE, isDemo } from "@/lib/demo";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/dal";
@@ -38,6 +39,7 @@ export async function saveNoteInterest(
   _prev: InterestActionState | undefined,
   formData: FormData,
 ): Promise<InterestActionState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const entityId = String(formData.get("entity_id") ?? "").trim();
   const rawAmount = String(formData.get("estimated_amount") ?? "")
     .replace(/[$,\s]/g, "")
@@ -85,6 +87,7 @@ export async function withdrawNoteInterest(
   noteUuid: string,
   entityId: string,
 ): Promise<InterestActionState> {
+  if (await isDemo()) return { error: DEMO_MESSAGE };
   const g = await guard(noteUuid, entityId);
   if ("error" in g) return { error: g.error };
 
