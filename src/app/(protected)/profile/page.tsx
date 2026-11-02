@@ -77,15 +77,7 @@ export default async function ProfilePage() {
             <div>
               <h2 className="text-base font-semibold">Loan agreement</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                These details appear on your loan agreements and can&apos;t be
-                changed here. To update them, submit a{" "}
-                <Link
-                  href="/profile/change-requests"
-                  className="font-medium text-foreground underline underline-offset-4"
-                >
-                  change request
-                </Link>
-                .
+                These details appear on your loan agreements.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -105,6 +97,17 @@ export default async function ProfilePage() {
 
         </>
       ) : null}
+
+      <p className="border-t pt-6 text-sm text-muted-foreground">
+        To update any of your profile information, please use the{" "}
+        <Link
+          href="/profile/change-requests"
+          className="font-medium text-foreground underline underline-offset-4"
+        >
+          Change requests
+        </Link>{" "}
+        tab at the top of this page.
+      </p>
     </div>
   );
 }

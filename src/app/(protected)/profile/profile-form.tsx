@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { ExternalLink } from "lucide-react";
@@ -51,18 +50,6 @@ export function ProfileForm({
           label="First name"
           defaultValue={defaults.first_name}
           disabled
-          hint={
-            <>
-              To change your legal name,{" "}
-              <Link
-                href="/profile/change-requests?type=name"
-                className="underline underline-offset-4"
-              >
-                submit a change request
-              </Link>
-              .
-            </>
-          }
         />
         <FieldInput
           name="last_name"
