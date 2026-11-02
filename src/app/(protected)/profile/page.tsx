@@ -103,20 +103,6 @@ export default async function ProfilePage() {
             </div>
           </section>
 
-          {/* W-9 updates now start from Profile → Change requests. */}
-          <section className="flex flex-col gap-2 border-t pt-6">
-            <h2 className="text-base font-semibold">W-9</h2>
-            <p className="text-sm text-muted-foreground">
-              Need to update your W-9? Go to{" "}
-              <Link
-                href="/profile/change-requests?type=w9"
-                className="font-medium text-foreground underline underline-offset-4"
-              >
-                Change requests → Update W-9
-              </Link>
-              .
-            </p>
-          </section>
         </>
       ) : null}
     </div>
