@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { startTransition, useActionState, useMemo, useState } from "react";
 import {
   createNote,
   updateNote,
@@ -204,7 +204,18 @@ export function NoteForm({
   const visibleCount = sortedEntities.filter(entityMatches).length;
 
   return (
-    <form action={formAction} className="flex flex-col gap-6">
+    <form
+      // Submit via onSubmit rather than `action`: a form `action` makes React
+      // reset the form after saving, which snaps controlled checkboxes (Profit
+      // bonus, Private, Service fee) back to their initial checked state even
+      // though the new value was saved.
+      onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+      className="flex flex-col gap-6"
+    >
       <nav className="flex flex-wrap gap-1 border-b">
         {SUB_TABS.map((t) => {
           const active = subTab === t.key;
