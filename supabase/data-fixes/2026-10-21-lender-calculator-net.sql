@@ -1,3 +1,4 @@
+-- SUPERSEDED by 2026-11-02-lender-constant-payment.sql — do not run.
 -- One-time data fix: rewrite recorded lender payouts on AMORTIZED notes to
 -- match the calculator.net amortization calculator (app: generateSchedule
 -- ppmtSplit), the standard every lender figure must match:

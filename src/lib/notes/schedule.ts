@@ -19,10 +19,10 @@ export type ScheduleInput = {
   firstPaymentDate: string; // YYYY-MM-DD
   fee?: number; // one-time fee subtracted from the first payment; default 0
   // Lender convention — matches the calculator.net amortization calculator
-  // (the standard every lender figure must match): principal = PPMT and
-  // interest = IPMT for the month, each from the unrounded payment and
-  // rounded to the cent on its own; the balance is tracked unrounded and ends
-  // at $0.00.
+  // (the standard every lender figure must match): principal = PPMT for the
+  // month from the unrounded payment, rounded to the cent; interest = the
+  // monthly payment minus that principal, so every month totals exactly the
+  // monthly payment; the balance is tracked unrounded and ends at $0.00.
   ppmtSplit?: boolean;
 };
 
@@ -187,9 +187,11 @@ export function generateSchedule(input: ScheduleInput): ScheduleResult {
       const exactPrincipal =
         payment / Math.pow(1 + monthlyRate, termMonths - n + 1);
       const principalPart = round2(exactPrincipal);
-      // IPMT: the unrounded interest for the month, rounded on its own (as
-      // calculator.net shows it) — not payment minus rounded principal.
-      const interestPart = round2(payment - exactPrincipal);
+      // Interest is the payment minus principal, so principal + interest is
+      // always exactly the monthly payment. (Rounding IPMT on its own, as
+      // calculator.net's interest column does, can leave the month a cent
+      // over or under the payment.)
+      const interestPart = round2(fixedPayment - principalPart);
       exactBal -= exactPrincipal;
       const shown = round2(exactBal);
       rows.push({

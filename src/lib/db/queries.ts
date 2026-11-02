@@ -179,12 +179,8 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     } | null;
   }>;
 
-  const {
-    generateLenderSchedule,
-    addMonths,
-    noteFirstPaymentFees,
-    computeMonthlyPayment,
-  } = await import("@/lib/notes/schedule");
+  const { generateLenderSchedule, addMonths, noteFirstPaymentFees } =
+    await import("@/lib/notes/schedule");
   // Month -> principal / interest in integer cents.
   const byMonth = new Map<string, { principal: number; interest: number }>();
   // Distinct notes paying into each month (human note IDs), for the chart detail.
@@ -215,27 +211,12 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     });
     if (!sched.ok) continue;
     const cents = (x: number) => Math.round(x * 100);
-    // Amortized notes pay the same monthly payment every month. calculator.net
-    // rounds principal and interest separately, so they can sum to a cent more
-    // or less than the payment; the chart keeps the payment constant and lets
-    // principal absorb that cent.
-    const amortized = String(n.interest_type) !== "Interest only";
-    const monthly = amortized
-      ? computeMonthlyPayment({
-          principal: Number(r.invested_amount),
-          annualRatePct: Number(n.rate),
-          termMonths: Number(n.term_months),
-          interestType: String(n.interest_type),
-        })
-      : null;
     for (const row of sched.rows) {
       const month = row.due_date.slice(0, 7);
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
-      const interest = cents(row.interest_amount);
-      cur.principal +=
-        monthly !== null ? cents(monthly) - interest : cents(row.principal_amount);
       // The one-time fee reduces the lender's INTEREST only (row 1 only).
-      cur.interest += interest - cents(row.fee_amount);
+      cur.principal += cents(row.principal_amount);
+      cur.interest += cents(row.interest_amount) - cents(row.fee_amount);
       byMonth.set(month, cur);
       const set = notesByMonth.get(month) ?? new Set<string>();
       set.add(n.note_id);

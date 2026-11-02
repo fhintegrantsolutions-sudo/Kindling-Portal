@@ -1,3 +1,4 @@
+-- SUPERSEDED by 2026-11-02-lender-constant-payment.sql — do not run.
 -- APPLY for 2026-10-21-lender-calculator-net.sql. Run the preview (STEP 1 in
 -- that file) first, then run this WHOLE file as-is. Rewrites recorded lender
 -- payouts on amortized notes to match calculator.net (PPMT/IPMT each rounded;
