@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect } from "react";
 import { CheckCircle2 } from "lucide-react";
 import {
   submitAccessRequest,
@@ -16,29 +16,18 @@ import { PhoneInput } from "@/components/phone-input";
 
 export function RequestAccessForm() {
   const searchParams = useSearchParams();
-  const [referralCode, setReferralCode] = useState<string | null>(null);
+  // A referral only counts when the link itself carries ?ref=CODE. The plain
+  // /request-access page never shows or submits a referral.
+  const referralCode = searchParams.get("ref")?.trim() || null;
 
-  // Capture ?ref=CODE on first render; persist to localStorage so a user
-  // who navigates away and comes back keeps the credit. Read from either
-  // the URL or localStorage.
+  // Clear the code older versions of this page remembered in the browser.
   useEffect(() => {
-    const fromUrl = searchParams.get("ref");
-    if (fromUrl) {
-      setReferralCode(fromUrl);
-      try {
-        localStorage.setItem("kindling_ref", fromUrl);
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
     try {
-      const stored = localStorage.getItem("kindling_ref");
-      if (stored) setReferralCode(stored);
+      localStorage.removeItem("kindling_ref");
     } catch {
       /* ignore */
     }
-  }, [searchParams]);
+  }, []);
 
   const [state, action, pending] = useActionState<
     AccessRequestFormState | undefined,
