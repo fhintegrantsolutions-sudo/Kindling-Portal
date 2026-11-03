@@ -10,11 +10,11 @@ export default function RequestAccessPage() {
             Join Kindling
           </h1>
           <p className="text-base text-muted-foreground">
-            Kindling gives CoSpark members another way to engage with their
-            financial goals within the CoSpark economy.
+            Kindling is part of a private community. It gives members of the
+            community another way to engage with their financial goals.
           </p>
           <p className="text-base text-muted-foreground">
-            Kindling is available exclusively to CoSpark members. Tell us a
+            Kindling is available exclusively to members of the community. Tell us a
             little about yourself, and our team will review your request and
             follow up with you about the next steps.
           </p>

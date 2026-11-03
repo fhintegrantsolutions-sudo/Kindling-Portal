@@ -59,7 +59,7 @@ export function RequestAccessForm() {
           </p>
           <p>
             Your request for access has been received. Kindling is available
-            exclusively to CoSpark members, and our team will review your
+            exclusively to members of the community, and our team will review your
             request and follow up with you regarding next steps.
           </p>
           <p>
@@ -120,7 +120,7 @@ export function RequestAccessForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label>Are you a CoSpark member? *</Label>
+        <Label>Are you a member of the community? *</Label>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm">
             <input type="radio" name="is_tcc_member" value="yes" required />
