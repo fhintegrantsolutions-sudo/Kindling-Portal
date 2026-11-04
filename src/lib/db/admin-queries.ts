@@ -2845,3 +2845,100 @@ export async function getOpenChangeRequestCount(): Promise<number> {
     .eq("status", "open");
   return count ?? 0;
 }
+
+export type InterestPaidYear = {
+  year: string;
+  payments: number;
+  principal: number;
+  interest: number;
+  // Same totals split by payee entity, for logins with more than one.
+  entities: { name: string; payments: number; principal: number; interest: number }[];
+};
+
+/**
+ * Recorded payouts to one login, totalled by calendar year of the payment
+ * date — for checking interest paid (e.g. against 1099s). Interest is what was
+ * actually paid out, so a first payment's interest is net of its one-time fee.
+ * Payments dated after today (US Pacific) aren't counted yet, matching the
+ * lender's view.
+ */
+export async function getInterestPaidByYear(
+  userId: string,
+): Promise<InterestPaidYear[]> {
+  const supabase = await createClient();
+  const { data: parts } = await supabase
+    .from("participations")
+    .select("id, entity:investor_entities ( display_name )")
+    .eq("user_id", userId);
+  const entityOf = new Map<string, string>();
+  for (const p of (parts ?? []) as unknown as Array<{
+    id: string;
+    entity: { display_name: string } | null;
+  }>) {
+    entityOf.set(p.id, p.entity?.display_name ?? "No entity");
+  }
+  if (entityOf.size === 0) return [];
+
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+  }).format(new Date()); // YYYY-MM-DD
+
+  const rows: Array<{
+    participation_id: string;
+    principal_amount: string;
+    interest_amount: string;
+    payment: { payment_date: string } | null;
+  }> = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await supabase
+      .from("participation_payment_payouts")
+      .select(
+        "id, participation_id, principal_amount, interest_amount, payment:note_payments ( payment_date )",
+      )
+      .in("participation_id", [...entityOf.keys()])
+      .order("id")
+      .range(from, from + PAGE - 1);
+    const page = (data ?? []) as unknown as typeof rows;
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
+
+  const years = new Map<string, InterestPaidYear>();
+  for (const r of rows) {
+    const date = r.payment?.payment_date;
+    if (!date || date > today) continue;
+    const yearKey = date.slice(0, 4);
+    let y = years.get(yearKey);
+    if (!y) {
+      y = { year: yearKey, payments: 0, principal: 0, interest: 0, entities: [] };
+      years.set(yearKey, y);
+    }
+    const principal = Number(r.principal_amount);
+    const interest = Number(r.interest_amount);
+    y.payments += 1;
+    y.principal += principal;
+    y.interest += interest;
+    const name = entityOf.get(r.participation_id) ?? "No entity";
+    let e = y.entities.find((x) => x.name === name);
+    if (!e) {
+      e = { name, payments: 0, principal: 0, interest: 0 };
+      y.entities.push(e);
+    }
+    e.payments += 1;
+    e.principal += principal;
+    e.interest += interest;
+  }
+
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  return [...years.values()]
+    .sort((a, b) => a.year.localeCompare(b.year))
+    .map((y) => ({
+      ...y,
+      principal: round2(y.principal),
+      interest: round2(y.interest),
+      entities: y.entities
+        .map((e) => ({ ...e, principal: round2(e.principal), interest: round2(e.interest) }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+}

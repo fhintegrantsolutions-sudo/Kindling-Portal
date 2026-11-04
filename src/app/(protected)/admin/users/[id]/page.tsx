@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -6,6 +7,7 @@ import {
   getReferralCodeByUserId,
   getEntitiesForUser,
   getAdminUserNeighbors,
+  getInterestPaidByYear,
   type UserDetail,
 } from "@/lib/db/admin-queries";
 import { verifySession } from "@/lib/dal";
@@ -33,12 +35,14 @@ export default async function AdminUserDetailPage({
   if (!detail) notFound();
 
   const session = await verifySession();
-  const [adminCount, referralCode, entities, neighbors] = await Promise.all([
-    countAdmins(),
-    getReferralCodeByUserId(id),
-    getEntitiesForUser(id),
-    getAdminUserNeighbors(id),
-  ]);
+  const [adminCount, referralCode, entities, neighbors, paidByYear] =
+    await Promise.all([
+      countAdmins(),
+      getReferralCodeByUserId(id),
+      getEntitiesForUser(id),
+      getAdminUserNeighbors(id),
+      getInterestPaidByYear(id),
+    ]);
   const isSelf = session.userId === detail.profile.id;
   const isLastAdmin =
     detail.profile.role === "admin" && adminCount <= 1;
@@ -233,6 +237,68 @@ export default async function AdminUserDetailPage({
               label="Latest note"
               value={latestNoteId ?? "—"}
             />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {paidByYear.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Paid by year</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs text-muted-foreground">
+                  <th className="py-1 font-medium">Year</th>
+                  <th className="py-1 text-right font-medium">Payments</th>
+                  <th className="py-1 text-right font-medium">Principal</th>
+                  <th className="py-1 text-right font-medium">Interest</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paidByYear.map((y) => (
+                  <Fragment key={y.year}>
+                    <tr className="border-b last:border-0">
+                      <td className="py-1.5 font-medium">{y.year}</td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {y.payments}
+                      </td>
+                      <td className="py-1.5 text-right tabular-nums">
+                        {formatCurrency(y.principal)}
+                      </td>
+                      <td className="py-1.5 text-right font-medium tabular-nums">
+                        {formatCurrency(y.interest)}
+                      </td>
+                    </tr>
+                    {y.entities.length > 1
+                      ? y.entities.map((e) => (
+                          <tr
+                            key={e.name}
+                            className="text-xs text-muted-foreground"
+                          >
+                            <td className="py-1 pl-4">{e.name}</td>
+                            <td className="py-1 text-right tabular-nums">
+                              {e.payments}
+                            </td>
+                            <td className="py-1 text-right tabular-nums">
+                              {formatCurrency(e.principal)}
+                            </td>
+                            <td className="py-1 text-right tabular-nums">
+                              {formatCurrency(e.interest)}
+                            </td>
+                          </tr>
+                        ))
+                      : null}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-muted-foreground">
+              Recorded payouts by payment date, through today. Interest is the
+              amount paid out, so a first payment&apos;s interest is after its
+              one-time fee.
+            </p>
           </CardContent>
         </Card>
       ) : null}
