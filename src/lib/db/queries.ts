@@ -727,7 +727,7 @@ export async function getMyScheduleForNote(
   const { data: payouts } = await supabase
     .from("participation_payment_payouts")
     .select(
-      `principal_amount, interest_amount,
+      `principal_amount, interest_amount, paid_date,
        payment:note_payments ( payment_number, payment_date )`,
     )
     .eq("participation_id", participationId);
@@ -738,13 +738,15 @@ export async function getMyScheduleForNote(
   for (const r of (payouts ?? []) as unknown as Array<{
     principal_amount: string;
     interest_amount: string;
+    paid_date: string | null;
     payment: { payment_number: number | null; payment_date: string } | null;
   }>) {
     if (!r.payment || r.payment.payment_number === null) continue;
     receivedByNumber.set(r.payment.payment_number, {
       principal: Number(r.principal_amount),
       interest: Number(r.interest_amount),
-      date: r.payment.payment_date,
+      // A payout sent late to this lender carries its own paid_date.
+      date: r.paid_date ?? r.payment.payment_date,
     });
   }
 

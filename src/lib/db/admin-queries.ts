@@ -2859,6 +2859,7 @@ export type InterestPaidYear = {
  * Recorded payouts to one login, totalled by calendar year of the payment
  * date — for checking interest paid (e.g. against 1099s). Interest is what was
  * actually paid out, so a first payment's interest is net of its one-time fee.
+ * A payout sent late to this lender counts in the year of its own paid_date.
  * Payments dated after today (US Pacific) aren't counted yet, matching the
  * lender's view.
  */
@@ -2887,6 +2888,7 @@ export async function getInterestPaidByYear(
     participation_id: string;
     principal_amount: string;
     interest_amount: string;
+    paid_date: string | null;
     payment: { payment_date: string } | null;
   }> = [];
   const PAGE = 1000;
@@ -2894,7 +2896,7 @@ export async function getInterestPaidByYear(
     const { data } = await supabase
       .from("participation_payment_payouts")
       .select(
-        "id, participation_id, principal_amount, interest_amount, payment:note_payments ( payment_date )",
+        "id, participation_id, principal_amount, interest_amount, paid_date, payment:note_payments ( payment_date )",
       )
       .in("participation_id", [...entityOf.keys()])
       .order("id")
@@ -2906,7 +2908,7 @@ export async function getInterestPaidByYear(
 
   const years = new Map<string, InterestPaidYear>();
   for (const r of rows) {
-    const date = r.payment?.payment_date;
+    const date = r.paid_date ?? r.payment?.payment_date;
     if (!date || date > today) continue;
     const yearKey = date.slice(0, 4);
     let y = years.get(yearKey);
