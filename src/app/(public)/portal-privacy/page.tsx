@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 // Update this whenever the policy text changes.
-const LAST_UPDATED = "August 4, 2026";
+const LAST_UPDATED = "November 14, 2026";
 
 export const metadata = {
   title: "Portal Privacy Policy · Kindling",
@@ -30,7 +30,7 @@ export default function PortalPrivacyPolicyPage() {
             the rights you have. Kindling (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or
             &ldquo;our&rdquo;) is operated by{" "}
             <Placeholder>Legal entity name</Placeholder>,{" "}
-            <Placeholder>business mailing address</Placeholder>.
+            102 S Weber Street, Colorado Springs, CO 80903.
           </p>
           <p className="rounded-md bg-muted/50 p-3 text-muted-foreground">
             Information collected on our public website (for example, the
@@ -227,7 +227,9 @@ export default function PortalPrivacyPolicyPage() {
                 info@kindling.network
               </a>
               <br />
-              <Placeholder>Mailing address</Placeholder>
+              102 S Weber Street
+              <br />
+              Colorado Springs, CO 80903
             </p>
           </Block>
         </div>
