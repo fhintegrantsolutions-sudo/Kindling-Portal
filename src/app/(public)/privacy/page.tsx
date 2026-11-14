@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
             why we collect it, how we use and share it, how long we keep it, and
             the choices you have. Kindling (&ldquo;we,&rdquo; &ldquo;us,&rdquo;
             or &ldquo;our&rdquo;) is operated by{" "}
-            <Placeholder>Legal entity name</Placeholder>,{" "}
+            Kindling LLC,{" "}
             102 S Weber Street, Colorado Springs, CO 80903.
           </p>
           <p className="rounded-md bg-muted/50 p-3 text-muted-foreground">
