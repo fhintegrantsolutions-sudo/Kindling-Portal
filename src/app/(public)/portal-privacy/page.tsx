@@ -261,14 +261,3 @@ function Block({
     </div>
   );
 }
-
-// Bracketed, highlighted text marking a value the site owner must fill in
-// before publishing. Deliberately visible so nothing placeholder ships
-// unnoticed.
-function Placeholder({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded bg-yellow-100 px-1 text-yellow-900">
-      [{children}]
-    </span>
-  );
-}
