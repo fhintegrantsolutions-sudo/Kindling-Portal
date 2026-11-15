@@ -31,19 +31,6 @@ export default function PrivacyPolicyPage() {
             Kindling LLC,{" "}
             102 S Weber Street, Colorado Springs, CO 80903.
           </p>
-          <p className="rounded-md bg-muted/50 p-3 text-muted-foreground">
-            If you have a Kindling investor account, the information collected
-            inside the portal (your investor profile, investments,
-            beneficiaries, and documents) is covered by our separate{" "}
-            <Link
-              href="/portal-privacy"
-              className="font-medium underline underline-offset-4"
-            >
-              Portal Privacy Policy
-            </Link>
-            .
-          </p>
-
           <Block title="1. Information we collect">
             <p className="font-medium text-foreground">
               Information you provide to us
