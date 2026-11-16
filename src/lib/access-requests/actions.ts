@@ -16,6 +16,8 @@ export async function submitAccessRequest(
   formData: FormData,
 ): Promise<AccessRequestFormState> {
   const tcc = String(formData.get("is_tcc_member") ?? "");
+  // Optional opt-in to text messages; never required to submit.
+  const smsConsent = formData.get("sms_consent") === "yes";
   const fields = {
     first_name: toProperCase(String(formData.get("first_name") ?? "")),
     last_name: toProperCase(String(formData.get("last_name") ?? "")),
@@ -24,6 +26,8 @@ export async function submitAccessRequest(
     is_tcc_member: tcc === "yes",
     message: String(formData.get("message") ?? "").trim() || null,
     referral_code: String(formData.get("referral_code") ?? "").trim() || null,
+    sms_consent: smsConsent,
+    sms_consent_at: smsConsent ? new Date().toISOString() : null,
   };
 
   const fieldErrors: Record<string, string> = {};
@@ -57,6 +61,7 @@ export async function submitAccessRequest(
     first_name: fields.first_name,
     last_name: fields.last_name,
     phone: fields.phone,
+    sms_consent: fields.sms_consent,
   });
 
   return { success: true };

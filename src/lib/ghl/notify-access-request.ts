@@ -7,6 +7,7 @@ export type AccessRequestNotification = {
   first_name: string;
   last_name: string;
   phone: string;
+  sms_consent: boolean;
 };
 
 // Best-effort GoHighLevel notification when someone submits the public
@@ -27,7 +28,12 @@ export async function notifyAccessRequestSubmitted(
     if (!contactId) return;
 
     // Additive endpoint — upsert would replace the contact's whole tag array.
-    await ghlAddContactTags(contactId, ["kindling lead"]);
+    // "sms consent" marks contacts who opted in to texts on the form, so GHL
+    // workflows can text only them.
+    await ghlAddContactTags(
+      contactId,
+      payload.sms_consent ? ["kindling lead", "sms consent"] : ["kindling lead"],
+    );
 
     const name =
       `${payload.first_name} ${payload.last_name}`.trim() || payload.email;

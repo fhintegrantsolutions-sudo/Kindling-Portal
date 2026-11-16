@@ -42,8 +42,9 @@ export default function PrivacyPolicyPage() {
                 <span className="font-medium">Access requests &amp; contact:</span>{" "}
                 when you fill out the request-access form, we collect your name,
                 email address, phone number, any message you send, a referral
-                code if you have one, and whether you&rsquo;re an existing
-                community member.
+                code if you have one, whether you&rsquo;re an existing
+                community member, and whether you agree to receive text
+                messages.
               </li>
             </ul>
 
@@ -75,6 +76,10 @@ export default function PrivacyPolicyPage() {
                 Send you emails about Kindling, including updates and marketing
                 communications (see &ldquo;Email communications&rdquo; below)
               </li>
+              <li>
+                Send you text messages, if you agreed to receive them (see
+                &ldquo;Text messages&rdquo; below)
+              </li>
               <li>Operate, maintain, and secure the Site</li>
               <li>Understand how the Site is used and improve it</li>
               <li>Measure the effectiveness of our advertising</li>
@@ -102,7 +107,28 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="4. Cookies, analytics & advertising">
+          <Block title="4. Text messages">
+            <p>
+              If you check the box on our request-access form agreeing to
+              receive text messages, Kindling may send texts to the phone number
+              you provided about your request, updates, and offers. Consent to
+              texts is optional and is not a condition of requesting access.
+            </p>
+            <p>
+              Message frequency varies. Message and data rates may apply. Reply
+              STOP to any message to opt out, or HELP for help. You can also
+              contact us at info@kindling.network.
+            </p>
+            <p className="font-medium text-foreground">
+              We do not sell, rent, or share your mobile phone number or text
+              messaging consent with third parties or affiliates for their
+              marketing or promotional purposes. Text messaging opt-in data and
+              consent are not shared with any third parties, except service
+              providers that send messages on our behalf.
+            </p>
+          </Block>
+
+          <Block title="5. Cookies, analytics & advertising">
             <p>
               We use cookies and similar technologies to operate the Site,
               remember your preferences, understand how visitors use the Site,
@@ -138,7 +164,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="5. How we share your information">
+          <Block title="6. How we share your information">
             <p>We share information only as needed to operate the Site:</p>
             <ul className="ml-5 mt-2 list-disc space-y-1">
               <li>
@@ -147,7 +173,7 @@ export default function PrivacyPolicyPage() {
                 provider (Vercel), our database provider (Supabase), and our
                 customer-relationship and messaging provider (GoHighLevel /
                 LeadConnector), which we use to follow up on your access request
-                and send emails.
+                and send emails and text messages.
               </li>
               <li>
                 <span className="font-medium">
@@ -172,7 +198,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="6. How long we keep it">
+          <Block title="7. How long we keep it">
             <p>
               We keep the information you submit through the Site for as long as
               needed to respond to your request and for our legitimate business
@@ -182,7 +208,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="7. Your privacy rights">
+          <Block title="8. Your privacy rights">
             <p>
               You may request to access, correct, or delete the information you
               submitted through the Site by contacting us at{" "}
@@ -206,7 +232,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="8. Data security">
+          <Block title="9. Data security">
             <p>
               We use administrative, technical, and physical safeguards designed
               to protect your information, including encryption in transit. No
@@ -215,7 +241,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="9. Third-party links">
+          <Block title="10. Third-party links">
             <p>
               The Site may link to other websites, such as social media and
               scheduling services. We are not responsible for their privacy
@@ -223,7 +249,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="10. Children's privacy">
+          <Block title="11. Children's privacy">
             <p>
               The Site is intended for adults (18+) and is not directed to
               children. We do not knowingly collect personal information from
@@ -232,7 +258,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="11. International visitors">
+          <Block title="12. International visitors">
             <p>
               If you visit the Site from outside the United States, your
               information may be transferred to and processed in the United
@@ -241,7 +267,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="12. Do Not Track">
+          <Block title="13. Do Not Track">
             <p>
               Some browsers send &ldquo;Do Not Track&rdquo; signals. Because
               there is no common industry standard for them, the Site may not
@@ -249,7 +275,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="13. Changes to this policy">
+          <Block title="14. Changes to this policy">
             <p>
               We may update this Privacy Policy from time to time. We&rsquo;ll
               post the updated version here and revise the &ldquo;Last
@@ -258,7 +284,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="14. Contact us">
+          <Block title="15. Contact us">
             <p>
               Questions or requests about this Privacy Policy? Contact us at:
             </p>

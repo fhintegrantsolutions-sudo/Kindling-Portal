@@ -1549,6 +1549,8 @@ export type AccessRequestDetail = {
   is_tcc_member: boolean;
   message: string | null;
   referral_code: string | null;
+  sms_consent: boolean;
+  sms_consent_at: string | null;
   note_id: string | null;
   investment_amount: string | null;
   setup_token: string | null;

@@ -206,6 +206,16 @@ export default async function AdminAccessRequestDetailPage({
           <CoSparkToggle requestId={r.id} isMember={r.is_tcc_member} />
           <Field label="Referral code" value={r.referral_code ?? "—"} />
           <Field
+            label="Text messages"
+            value={
+              r.sms_consent
+                ? r.sms_consent_at
+                  ? `Agreed ${formatDate(r.sms_consent_at)}`
+                  : "Agreed"
+                : "Not agreed"
+            }
+          />
+          <Field
             label="Note assigned"
             value={r.note ? formatNoteLabel(r.note.note_id, r.note.title) : "—"}
           />

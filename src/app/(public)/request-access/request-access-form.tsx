@@ -125,6 +125,26 @@ export function RequestAccessForm() {
         ) : null}
       </div>
 
+      <label className="flex items-start gap-2 text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          name="sms_consent"
+          value="yes"
+          className="mt-0.5"
+        />
+        <span>
+          Optional: I agree to receive text messages from Kindling about my
+          request, updates, and offers at the phone number above. Message
+          frequency varies. Message and data rates may apply. Reply STOP to opt
+          out or HELP for help. Consent is not a condition of submitting this
+          form. See our{" "}
+          <Link href="/privacy" className="underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          .
+        </span>
+      </label>
+
       {referralCode ? (
         <p className="text-xs text-muted-foreground">
           Referred by code <span className="font-mono">{referralCode}</span>
