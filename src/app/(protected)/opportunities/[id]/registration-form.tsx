@@ -270,7 +270,7 @@ export function RegistrationForm({
       </section>
 
       <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-        After you submit, an admin will follow up with wire / check / ACH
+        After you submit, an admin will follow up with wire or check
         instructions for your funds. We do not store any banking details in
         the portal.
       </div>

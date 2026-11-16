@@ -273,7 +273,7 @@ export function SetupForm({
       </div>
 
       <div className="mt-2 rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
-        After you submit, we&apos;ll follow up with wire / check / ACH
+        After you submit, we&apos;ll follow up with wire or check
         instructions. We do <em>not</em> store any banking information in this
         portal.
       </div>

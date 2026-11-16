@@ -107,7 +107,7 @@ export default async function OpportunityDetailPage({
       {registered === "1" ? (
         <Alert>
           <AlertDescription>
-            Registration submitted. Send your funds per the wire / check / ACH
+            Registration submitted. Send your funds per the wire or check
             instructions provided. Your participation appears in your
             portfolio in awaiting-funding state and will flip to active once
             funds clear.
