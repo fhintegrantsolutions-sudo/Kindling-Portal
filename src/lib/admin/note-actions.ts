@@ -63,6 +63,7 @@ export async function createNote(
   }
 
   await syncVisibility(supabase, data.id as string, fields);
+  await syncAdminNotes(supabase, data.id as string, fields.admin_notes);
 
   // Best-effort: provision the note's GHL tags ("k26003" + "lead k26003") so
   // they exist in the tag library from the moment the note is created.
@@ -103,6 +104,7 @@ export async function updateNote(
   }
 
   await syncVisibility(supabase, noteUuid, fields);
+  await syncAdminNotes(supabase, noteUuid, fields.admin_notes);
 
   revalidatePath("/admin/notes");
   // Revalidate the whole note layout subtree (Overview + Settings/Schedule/
@@ -128,9 +130,11 @@ export async function updateNoteAdminNotes(
 
   const trimmed = adminNotes.trim();
   const { error } = await supabase
-    .from("notes")
-    .update({ admin_notes: trimmed || null })
-    .eq("id", noteUuid);
+    .from("note_admin_notes")
+    .upsert(
+      { note_id: noteUuid, body: trimmed || null },
+      { onConflict: "note_id" },
+    );
   if (error) return { error: error.message };
 
   revalidatePath("/admin/notes/[id]", "layout");
@@ -219,6 +223,27 @@ async function syncVisibility(
     .insert(rows);
   if (insertErr) {
     throw new Error(`Failed to set visibility: ${insertErr.message}`);
+  }
+}
+
+/**
+ * Write the note's internal admin notes. They live in the admin-only
+ * note_admin_notes table, not on notes: lenders can read whole notes rows
+ * through RLS, so internal text must not sit there.
+ */
+async function syncAdminNotes(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  noteUuid: string,
+  adminNotes: string | null,
+) {
+  const { error } = await supabase
+    .from("note_admin_notes")
+    .upsert(
+      { note_id: noteUuid, body: adminNotes },
+      { onConflict: "note_id" },
+    );
+  if (error) {
+    throw new Error(`Failed to save admin notes: ${error.message}`);
   }
 }
 
@@ -417,7 +442,6 @@ async function buildInsert(
     min_investment: fields.min_investment,
     target_raise: fields.target_raise,
     description: fields.description,
-    admin_notes: fields.admin_notes,
     status: fields.status,
     client_status: fields.client_status,
   };

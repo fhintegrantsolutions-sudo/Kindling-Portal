@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/dal";
 import { countAdmins } from "@/lib/db/admin-queries";
-import { normalizeEmail, toProperCase } from "@/lib/text";
+import { isValidEmail, normalizeEmail, toProperCase } from "@/lib/text";
 
 export type DeleteUserState = { error?: string };
 
@@ -122,7 +122,7 @@ export async function changeLoginEmail(
 
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   if (!email) return { error: "Enter an email address." };
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+  if (!isValidEmail(email))
     return { error: "Enter a valid email address." };
 
   const admin = createAdminClient();
@@ -201,7 +201,7 @@ export async function createUser(
   if (!first_name) fieldErrors.first_name = "Required";
   if (!last_name) fieldErrors.last_name = "Required";
   if (!email) fieldErrors.email = "Required";
-  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
+  else if (!isValidEmail(email))
     fieldErrors.email = "Enter a valid email";
   if (role !== "admin" && role !== "lender" && role !== "participations_admin")
     fieldErrors.role = "Invalid role";

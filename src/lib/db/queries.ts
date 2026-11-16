@@ -405,7 +405,7 @@ export async function getOpportunities() {
       funding_end_date,
       description,
       is_private,
-      borrower:borrowers (
+      borrower:borrower_names (
         business_name
       )
       `,
@@ -510,7 +510,7 @@ export async function getNoteByNoteId(noteId: string) {
       maturity_date, funding_start_date, funding_end_date,
       first_payment_date, monthly_payment, target_raise, min_investment,
       description, has_profit_bonus,
-      borrower:borrowers ( business_name )
+      borrower:borrower_names ( business_name )
       `,
     )
     .eq("note_id", noteId)

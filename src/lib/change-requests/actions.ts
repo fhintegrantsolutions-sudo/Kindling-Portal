@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
-import { normalizeEmail } from "@/lib/text";
+import { isValidEmail, normalizeEmail } from "@/lib/text";
 import { notifyChangeRequest } from "@/lib/ghl/notify-change-request";
 import { isMessageRequired, typeDef } from "./types";
 
@@ -47,7 +47,7 @@ export async function submitChangeRequest(
     let v = String(formData.get(f.key) ?? "").trim();
     if (f.type === "email" && v) {
       v = normalizeEmail(v);
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) {
+      if (!isValidEmail(v)) {
         fieldErrors[f.key] = "Enter a valid email address.";
       }
     }

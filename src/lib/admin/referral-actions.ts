@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/dal";
-import { normalizeEmail, toProperCase } from "@/lib/text";
+import { isValidEmail, normalizeEmail, toProperCase } from "@/lib/text";
 import { formatPhone, phoneDigits } from "@/lib/phone";
 
 const CODE_LEN = 6;
@@ -162,7 +162,7 @@ function validatePartnerFields(f: PartnerFields): Record<string, string> {
   if (!f.first_name) errors.first_name = "Required";
   if (!f.last_name) errors.last_name = "Required";
   if (!f.email) errors.email = "Required";
-  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email))
+  else if (!isValidEmail(f.email))
     errors.email = "Enter a valid email";
   if (!f.phone) errors.phone = "Required";
   else if (phoneDigits(f.phone).length !== 10)

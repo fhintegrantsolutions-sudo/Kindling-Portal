@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
-import { normalizeEmail, toProperCase } from "@/lib/text";
+import { isValidEmail, normalizeEmail, toProperCase } from "@/lib/text";
 import { formatPhone, phoneDigits } from "@/lib/phone";
 import { formatZip, isValidZip, normalizeState } from "@/lib/address";
 
@@ -82,7 +82,7 @@ function validate(fields: Fields): Record<string, string> {
   if (!fields.business_name) errors.business_name = "Required";
   if (!fields.first_name) errors.first_name = "Required";
   if (!fields.email) errors.email = "Required";
-  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.email))
+  else if (!isValidEmail(fields.email))
     errors.email = "Enter a valid email";
   if (!fields.phone) errors.phone = "Required";
   else if (phoneDigits(fields.phone).length !== 10)

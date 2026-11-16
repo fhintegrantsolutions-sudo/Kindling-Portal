@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
+import { isValidEmail } from "@/lib/text";
 
 export type EntityFormState = {
   error?: string;
@@ -45,12 +46,9 @@ function parseFields(formData: FormData) {
   };
 }
 
-/** Same shape check the public access-request form uses. */
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
 /** Empty (→ null) is allowed; anything present must look like an email. */
 function invalidEmail(email: string | null): boolean {
-  return email !== null && !EMAIL_RE.test(email);
+  return email !== null && !isValidEmail(email);
 }
 
 /**

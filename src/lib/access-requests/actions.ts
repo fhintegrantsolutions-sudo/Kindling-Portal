@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { normalizeEmail, toProperCase } from "@/lib/text";
+import { isValidEmail, normalizeEmail, toProperCase } from "@/lib/text";
 import { formatPhone, phoneDigits } from "@/lib/phone";
 import { notifyAccessRequestSubmitted } from "@/lib/ghl/notify-access-request";
 
@@ -34,7 +34,7 @@ export async function submitAccessRequest(
   if (!fields.first_name) fieldErrors.first_name = "Required";
   if (!fields.last_name) fieldErrors.last_name = "Required";
   if (!fields.email) fieldErrors.email = "Required";
-  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.email))
+  else if (!isValidEmail(fields.email))
     fieldErrors.email = "Enter a valid email address";
   if (!fields.phone) fieldErrors.phone = "Required";
   else if (phoneDigits(fields.phone).length !== 10)

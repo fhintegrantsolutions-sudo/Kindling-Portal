@@ -1,7 +1,13 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, requireParticipationsAccess } from "@/lib/dal";
 import { noteFirstPaymentFees } from "@/lib/notes/schedule";
+
+// Every exported reader checks the caller's role itself: requireAdmin(), or
+// requireParticipationsAccess() for the data the scoped participations_admin
+// role may see. Layouts are not an authorization boundary (an RSC request can
+// render a page segment without its parent layouts), so don't drop these.
 
 // Note statuses that count as active (funded, paying lenders).
 const ACTIVE_NOTE_STATUSES = ["Funded", "Active"];
@@ -34,6 +40,7 @@ export type StateUserCount = {
 };
 
 export async function getUsersByState(): Promise<StateUserCount[]> {
+  await requireAdmin();
   const supabase = await createClient();
 
   // Only count users who have at least one cleared participation on a live note
@@ -92,6 +99,7 @@ export type UpcomingNoteRow = {
 // Notes whose funding window hasn't opened yet (funding_start_date in the
 // future), not archived and not cancelled/completed — soonest first.
 export async function getUpcomingNotes(): Promise<UpcomingNoteRow[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
@@ -166,6 +174,7 @@ export type NoteInterestRow = {
 export async function getNoteInterests(
   noteUuid: string,
 ): Promise<NoteInterestRow[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("note_interests")
@@ -229,6 +238,7 @@ export type NoteParticipationRow = {
 // notes (e.g. a Funded sub-note with no participations). Cleared invested =
 // actual money in. Returns null if there's no such note.
 export async function getLatestNoteParticipations(): Promise<NoteParticipationRow | null> {
+  await requireAdmin();
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data: candidates } = await supabase
@@ -282,6 +292,7 @@ export async function getLatestNoteParticipations(): Promise<NoteParticipationRo
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
+  await requireAdmin();
   const supabase = await createClient();
 
   const [
@@ -411,6 +422,7 @@ export type RegistrationListItem = {
 };
 
 export async function getRegistrations() {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("note_registrations")
@@ -477,6 +489,7 @@ export type AdminParticipationListItem = {
 export async function getParticipations(filter?: {
   fundingState?: "awaiting_funding" | "received" | "deposited" | "cleared" | "awaiting_invite";
 }) {
+  await requireParticipationsAccess();
   const supabase = await createClient();
   let q = supabase
     .from("participations")
@@ -648,6 +661,7 @@ export type AdminParticipationDetail = {
 };
 
 export async function getParticipationById(id: string) {
+  await requireParticipationsAccess();
   const supabase = await createClient();
   const { data: p } = await supabase
     .from("participations")
@@ -707,6 +721,7 @@ export async function getParticipationById(id: string) {
 export async function getRegistrationById(
   id: string,
 ): Promise<RegistrationDetail | null> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("note_registrations")
@@ -823,6 +838,7 @@ export type UserCounts = {
 };
 
 export async function getUserCounts(): Promise<UserCounts> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data: profs } = await supabase
     .from("profiles")
@@ -855,6 +871,7 @@ export async function getUsers(filter?: {
   role?: "admin" | "lender";
   q?: string;
 }): Promise<UserListItem[]> {
+  await requireAdmin();
   const supabase = await createClient();
   let q = supabase
     .from("profiles")
@@ -912,6 +929,7 @@ export type DuplicateGroup = {
  * duplicates. Blank names are skipped; only groups of 2+ are returned.
  */
 export async function getPossibleDuplicateLogins(): Promise<DuplicateGroup[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
@@ -1026,6 +1044,7 @@ export type UserDetail = {
 };
 
 export async function getUserById(userId: string): Promise<UserDetail | null> {
+  await requireAdmin();
   const supabase = await createClient();
 
   const [profileRes, entityRes, partsRes, bensRes] = await Promise.all([
@@ -1219,6 +1238,7 @@ export type ReferralCodeListItem = {
 };
 
 export async function getAllReferralCodes(): Promise<ReferralCodeListItem[]> {
+  await requireAdmin();
   const supabase = await createClient();
 
   const [codesRes, statsRes, profilesRes, refsRes] = await Promise.all([
@@ -1298,6 +1318,7 @@ export type ReferralPartnerDetail = {
 export async function getReferralPartnerDetail(
   userId: string,
 ): Promise<ReferralPartnerDetail> {
+  await requireAdmin();
   const supabase = await createClient();
   const [profRes, codeRes, refsRes] = await Promise.all([
     supabase
@@ -1362,6 +1383,7 @@ export type ExternalReferralPartner = {
 export async function getExternalReferralPartners(): Promise<
   ExternalReferralPartner[]
 > {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("referral_partners")
@@ -1385,6 +1407,7 @@ export type AdminReferralCodeForUser = {
 export async function getReferralCodeByUserId(
   userId: string,
 ): Promise<AdminReferralCodeForUser | null> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data: code } = await supabase
     .from("referral_codes")
@@ -1440,6 +1463,7 @@ export async function getAccessRequests(filter?: {
   // Every request, archived or not, any status (the kanban board).
   all?: boolean;
 }): Promise<AccessRequestListItem[]> {
+  await requireAdmin();
   const supabase = await createClient();
   let q = supabase
     .from("access_requests")
@@ -1525,6 +1549,7 @@ export async function getRelatedAccessRequests(
   id: string,
   email: string,
 ): Promise<RelatedAccessRequest[]> {
+  await requireAdmin();
   const trimmed = email.trim();
   if (!trimmed) return [];
   const supabase = await createClient();
@@ -1564,6 +1589,7 @@ export type AccessRequestDetail = {
 export async function getAccessRequestById(
   id: string,
 ): Promise<AccessRequestDetail | null> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("access_requests")
@@ -1599,6 +1625,7 @@ export type NotePickerOption = {
 };
 
 export async function getNotesForPicker(): Promise<NotePickerOption[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("notes")
@@ -1613,6 +1640,7 @@ export type BorrowerPickerOption = {
 };
 
 export async function getBorrowersForPicker(): Promise<BorrowerPickerOption[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("borrowers")
@@ -1635,6 +1663,7 @@ export type AdminBorrowerListItem = {
 };
 
 export async function getAdminBorrowers(): Promise<AdminBorrowerListItem[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("borrowers")
@@ -1666,6 +1695,7 @@ export type AdminBorrowerDetail = {
 export async function getAdminBorrowerById(
   id: string,
 ): Promise<AdminBorrowerDetail | null> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("borrowers")
@@ -1686,6 +1716,7 @@ export type BorrowerNoteRow = {
 export async function getNotesForBorrower(
   borrowerId: string,
 ): Promise<BorrowerNoteRow[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("notes")
@@ -1702,6 +1733,7 @@ export type LenderPickerOption = {
 };
 
 export async function getLendersForPicker(): Promise<LenderPickerOption[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
@@ -1735,6 +1767,7 @@ export type EntityPickerOption = {
 // There is no FK between `profiles` and `investor_entities` (the FK points at
 // auth.users), so PostgREST cannot embed them — join in JS.
 export async function getEntitiesForPicker(): Promise<EntityPickerOption[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data: entities } = await supabase
     .from("investor_entities")
@@ -1784,6 +1817,7 @@ export async function getEntitiesForPicker(): Promise<EntityPickerOption[]> {
 export async function getNoteVisibility(
   noteUuid: string,
 ): Promise<string[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("note_visibility")
@@ -1812,6 +1846,7 @@ export async function getAdminNotes(opts?: {
   sort?: "asc" | "desc";
   q?: string;
 }): Promise<AdminNoteListItem[]> {
+  await requireAdmin();
   const supabase = await createClient();
   let q = supabase
     .from("notes")
@@ -1906,13 +1941,29 @@ export type AdminNoteDetail = {
 export async function getAdminNoteById(
   id: string,
 ): Promise<AdminNoteDetail | null> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("notes")
     .select("*")
     .eq("id", id)
     .maybeSingle();
-  return data as unknown as AdminNoteDetail | null;
+  if (!data) return null;
+  // Admin notes live in the admin-only note_admin_notes table (notes rows are
+  // lender-readable). Fail loudly rather than show a blank that a later save
+  // of the note form would write back over the real text.
+  const { data: adminNotes, error: adminNotesErr } = await supabase
+    .from("note_admin_notes")
+    .select("body")
+    .eq("note_id", id)
+    .maybeSingle();
+  if (adminNotesErr) {
+    throw new Error(`Failed to load admin notes: ${adminNotesErr.message}`);
+  }
+  return {
+    ...data,
+    admin_notes: (adminNotes?.body as string | null | undefined) ?? null,
+  } as unknown as AdminNoteDetail;
 }
 
 export type LedgerRow = {
@@ -1943,6 +1994,7 @@ export async function getLedgerForMonth(
   yearMonth: string,
   borrowerId?: string | null,
 ): Promise<LedgerRow[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { generateSchedule } = await import("@/lib/notes/schedule");
 
@@ -2111,6 +2163,7 @@ export async function getBonusLedgerForMonth(
   yearMonth: string,
   borrowerId?: string | null,
 ): Promise<BonusLedgerRow[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const monthStart = `${yearMonth}-01`;
   const monthEnd = nextMonthStart(yearMonth);
@@ -2213,6 +2266,7 @@ function nextMonthStart(yearMonth: string): string {
 }
 
 export async function countAdmins(): Promise<number> {
+  await requireAdmin();
   const supabase = await createClient();
   const { count } = await supabase
     .from("profiles")
@@ -2238,6 +2292,7 @@ export type FundedParticipantRow = {
 export async function getFundedParticipantsForNote(
   noteUuid: string,
 ): Promise<FundedParticipantRow[]> {
+  await requireParticipationsAccess();
   const supabase = await createClient();
   const { data: note } = await supabase
     .from("notes")
@@ -2358,6 +2413,7 @@ export type AdminBonusRow = {
 export async function getNoteBonuses(
   noteUuid: string,
 ): Promise<AdminBonusRow[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data: bonuses } = await supabase
     .from("note_bonuses")
@@ -2479,6 +2535,7 @@ export type AdminNotePaymentRow = {
 export async function getNotePayments(
   noteUuid: string,
 ): Promise<AdminNotePaymentRow[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data: payments } = await supabase
     .from("note_payments")
@@ -2592,6 +2649,7 @@ export async function getAdminNoteNeighbors(currentNoteId: string): Promise<{
   prev: { id: string; note_id: string } | null;
   next: { id: string; note_id: string } | null;
 }> {
+  await requireAdmin();
   const supabase = await createClient();
   const [prev, next] = await Promise.all([
     supabase
@@ -2623,6 +2681,7 @@ export async function getAdminNoteNeighbors(currentNoteId: string): Promise<{
 export async function getNoteFundingArchiveSummary(
   noteUuid: string,
 ): Promise<{ total: number; uncleared: number }> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("participations")
@@ -2663,6 +2722,7 @@ export type AdminEntity = {
 export async function getEntitiesForUser(
   userId: string,
 ): Promise<AdminEntity[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data: ents } = await supabase
     .from("investor_entities")
@@ -2713,6 +2773,7 @@ export async function getAdminUserNeighbors(currentUserId: string): Promise<{
   prev: UserNeighbor;
   next: UserNeighbor;
 }> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
@@ -2816,6 +2877,7 @@ async function attachRequesters(
 export async function getChangeRequests(
   status: "open" | "completed" | "declined",
 ): Promise<AdminChangeRequest[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("change_requests")
@@ -2828,6 +2890,7 @@ export async function getChangeRequests(
 export async function getChangeRequestById(
   id: string,
 ): Promise<AdminChangeRequest | null> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data } = await supabase
     .from("change_requests")
@@ -2840,6 +2903,7 @@ export async function getChangeRequestById(
 }
 
 export async function getOpenChangeRequestCount(): Promise<number> {
+  await requireAdmin();
   const supabase = await createClient();
   const { count } = await supabase
     .from("change_requests")
@@ -2868,6 +2932,7 @@ export type InterestPaidYear = {
 export async function getInterestPaidByYear(
   userId: string,
 ): Promise<InterestPaidYear[]> {
+  await requireAdmin();
   const supabase = await createClient();
   const { data: parts } = await supabase
     .from("participations")
