@@ -194,7 +194,7 @@ export async function createUser(
   const last_name = toProperCase(String(formData.get("last_name") ?? ""));
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const phone = String(formData.get("phone") ?? "").trim() || null;
-  const role = String(formData.get("role") ?? "admin");
+  const role = String(formData.get("role") ?? "lender");
   const send_invite = formData.get("send_invite") === "on";
 
   const fieldErrors: Record<string, string> = {};

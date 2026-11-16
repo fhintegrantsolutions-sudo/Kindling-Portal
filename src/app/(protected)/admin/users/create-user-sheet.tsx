@@ -81,14 +81,14 @@ export function CreateUserSheet() {
             <select
               id="role"
               name="role"
-              defaultValue="admin"
+              defaultValue="lender"
               className="h-8 rounded-md border bg-background px-2 text-sm"
             >
-              <option value="admin">Admin (full access)</option>
+              <option value="lender">Lender</option>
               <option value="participations_admin">
                 Participations admin (view & edit participations only)
               </option>
-              <option value="lender">Lender</option>
+              <option value="admin">Admin (full access)</option>
             </select>
             {fe.role ? (
               <p className="text-xs text-destructive">{fe.role}</p>
