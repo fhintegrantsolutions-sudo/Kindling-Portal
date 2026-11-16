@@ -137,10 +137,21 @@ export function RequestAccessForm() {
         </Alert>
       ) : null}
 
-      <div>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Submitting…" : "Request access"}
-        </Button>
+      <div className="flex flex-col gap-3">
+        <div>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Submitting…" : "Request access"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          By submitting this form, you agree to receive emails from Kindling,
+          including updates and marketing communications. You can unsubscribe at
+          any time. See our{" "}
+          <Link href="/privacy" className="underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </div>
     </form>
   );
