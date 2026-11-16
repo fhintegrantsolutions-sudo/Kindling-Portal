@@ -6,7 +6,7 @@ import { join } from "node:path";
 // Next auto-wires this into og:image + twitter:image for the whole app.
 export const runtime = "nodejs";
 export const alt =
-  "Kindling — the operating platform behind a modern note experience";
+  "Kindling — make more of your financial opportunities";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -47,7 +47,7 @@ export default function OpengraphImage() {
             lineHeight: 1.3,
           }}
         >
-          The operating platform behind a modern note experience
+          Make more of your financial opportunities.
         </div>
         <div
           style={{

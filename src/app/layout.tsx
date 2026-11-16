@@ -14,7 +14,7 @@ const libreBaskerville = Libre_Baskerville({
 });
 
 const SITE_DESCRIPTION =
-  "The operating platform behind a modern note experience — secure administration for private promissory notes.";
+  "Make more of your financial opportunities. Kindling is part of a private community, giving members another way to engage with their financial goals.";
 
 export const metadata: Metadata = {
   // Makes the auto-generated opengraph-image URL absolute in link previews.
