@@ -134,7 +134,8 @@ function PaymentDetailsForm({
           <option value="">—</option>
           <option value="check">Check</option>
           <option value="wire">Wire</option>
-          <option value="ach">ACH</option>
+          {/* ACH is no longer offered; kept only so older records still display. */}
+          {method === "ach" ? <option value="ach">ACH</option> : null}
           <option value="other">Other</option>
         </select>
       </div>
