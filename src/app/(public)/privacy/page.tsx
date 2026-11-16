@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 // Update this whenever the policy text changes.
-const LAST_UPDATED = "November 14, 2026";
+const LAST_UPDATED = "November 15, 2026";
 
 export const metadata = {
   title: "Privacy Policy · Kindling",
@@ -22,14 +22,16 @@ export default function PrivacyPolicyPage() {
 
         <div className="mt-8 flex flex-col gap-8 text-sm leading-relaxed text-foreground/90">
           <p>
-            This Privacy Policy applies to the public Kindling website and the
-            CoSpark community pages (the &ldquo;Site&rdquo;). It explains what
-            information we collect when you visit the Site or request access,
-            why we collect it, how we use and share it, how long we keep it, and
-            the choices you have. Kindling (&ldquo;we,&rdquo; &ldquo;us,&rdquo;
-            or &ldquo;our&rdquo;) is operated by{" "}
-            Kindling LLC,{" "}
-            102 S Weber Street, Colorado Springs, CO 80903.
+            This Privacy Policy applies to the public Kindling website (the
+            &ldquo;Site&rdquo;). It explains what information we collect when
+            you visit the Site or request access, why we collect it, how we use
+            and share it, how long we keep it, and the choices you have.
+            Kindling (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;)
+            is operated by Kindling LLC, 102 S Weber Street, Colorado Springs, CO
+            80903.
+          </p>
+          <p>
+            By using the Site, you agree to the terms of this Privacy Policy.
           </p>
           <Block title="1. Information we collect">
             <p className="font-medium text-foreground">
@@ -50,12 +52,14 @@ export default function PrivacyPolicyPage() {
             </p>
             <ul className="ml-5 list-disc space-y-1">
               <li>
-                Log and device data, including IP address, browser and device
-                information, pages viewed, and timestamps.
+                Log and device data, including IP address, browser type and
+                version, device and operating system information, pages viewed,
+                the referring website, time spent on pages, and the date and
+                time of your visit.
               </li>
               <li>
-                Cookies and similar technologies used to operate the Site (see
-                &ldquo;Cookies &amp; analytics&rdquo; below).
+                Cookies, pixels, and similar technologies (see &ldquo;Cookies,
+                analytics &amp; advertising&rdquo; below).
               </li>
             </ul>
             <p className="mt-3 text-muted-foreground">
@@ -67,8 +71,13 @@ export default function PrivacyPolicyPage() {
           <Block title="2. Why we collect it and how we use it">
             <ul className="ml-5 list-disc space-y-1">
               <li>Respond to your access request and contact you about it</li>
+              <li>
+                Send you emails about Kindling, including updates and marketing
+                communications (see &ldquo;Email communications&rdquo; below)
+              </li>
               <li>Operate, maintain, and secure the Site</li>
               <li>Understand how the Site is used and improve it</li>
+              <li>Measure the effectiveness of our advertising</li>
               <li>
                 Comply with legal obligations and prevent fraud, abuse, and
                 security issues
@@ -79,17 +88,57 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="3. Cookies & analytics">
+          <Block title="3. Email communications">
             <p>
-              We use cookies and similar technologies to operate the Site and
-              remember your preferences. We may use limited analytics to
-              understand how the Site is used and to improve it
-              <Placeholder> name your analytics provider here, if any</Placeholder>
-              . You can control cookies through your browser settings.
+              If you request access or otherwise give us your email address, you
+              may receive emails from Kindling, including follow-up about your
+              request, educational content, updates about Kindling, and
+              marketing communications.
+            </p>
+            <p>
+              You can unsubscribe from marketing emails at any time by clicking
+              the unsubscribe link in any of them. We may still send you
+              non-marketing messages, such as replies to your request.
             </p>
           </Block>
 
-          <Block title="4. How we share your information">
+          <Block title="4. Cookies, analytics & advertising">
+            <p>
+              We use cookies and similar technologies to operate the Site,
+              remember your preferences, understand how visitors use the Site,
+              and measure and improve our advertising. We may use services such
+              as:
+            </p>
+            <ul className="ml-5 list-disc space-y-1">
+              <li>Google Analytics</li>
+              <li>Google Tag Manager</li>
+              <li>Meta (Facebook) Pixel</li>
+              <li>Other analytics or advertising platforms</li>
+            </ul>
+            <p>
+              These tools may collect information about your use of the Site,
+              your browser, device identifiers, and your interactions with our
+              ads. You can control or disable cookies through your browser
+              settings, and you can opt out of many forms of ad tracking through
+              your browser or industry opt-out tools, such as{" "}
+              <a
+                href="https://tools.google.com/dlpage/gaoptout"
+                className="font-medium underline underline-offset-4"
+              >
+                Google&rsquo;s Analytics opt-out
+              </a>{" "}
+              and{" "}
+              <a
+                href="https://optout.aboutads.info"
+                className="font-medium underline underline-offset-4"
+              >
+                the Digital Advertising Alliance
+              </a>
+              .
+            </p>
+          </Block>
+
+          <Block title="5. How we share your information">
             <p>We share information only as needed to operate the Site:</p>
             <ul className="ml-5 mt-2 list-disc space-y-1">
               <li>
@@ -97,7 +146,15 @@ export default function PrivacyPolicyPage() {
                 process data on our behalf under contract, including our hosting
                 provider (Vercel), our database provider (Supabase), and our
                 customer-relationship and messaging provider (GoHighLevel /
-                LeadConnector), which we use to follow up on your access request.
+                LeadConnector), which we use to follow up on your access request
+                and send emails.
+              </li>
+              <li>
+                <span className="font-medium">
+                  Analytics and advertising providers
+                </span>
+                , such as Google and Meta, as described in &ldquo;Cookies,
+                analytics &amp; advertising&rdquo; above.
               </li>
               <li>
                 <span className="font-medium">Legal &amp; regulatory</span>{" "}
@@ -115,7 +172,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="5. How long we keep it">
+          <Block title="6. How long we keep it">
             <p>
               We keep the information you submit through the Site for as long as
               needed to respond to your request and for our legitimate business
@@ -125,7 +182,7 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="6. Accessing or deleting your information">
+          <Block title="7. Your privacy rights">
             <p>
               You may request to access, correct, or delete the information you
               submitted through the Site by contacting us at{" "}
@@ -139,9 +196,17 @@ export default function PrivacyPolicyPage() {
               where you live, you may have additional rights, such as to request
               a copy of your data or to object to certain processing.
             </p>
+            <p>
+              <span className="font-medium">California residents</span> may have
+              rights under the California Consumer Privacy Act (CCPA), including
+              the right to know what personal information we collect, to access
+              it, to correct inaccurate information, to request its deletion, and
+              to opt out of certain sharing of it. To exercise these rights,
+              contact us using the details below.
+            </p>
           </Block>
 
-          <Block title="7. Data security">
+          <Block title="8. Data security">
             <p>
               We use administrative, technical, and physical safeguards designed
               to protect your information, including encryption in transit. No
@@ -150,28 +215,55 @@ export default function PrivacyPolicyPage() {
             </p>
           </Block>
 
-          <Block title="8. Children's privacy">
+          <Block title="9. Third-party links">
+            <p>
+              The Site may link to other websites, such as social media and
+              scheduling services. We are not responsible for their privacy
+              practices, and we encourage you to review their privacy policies.
+            </p>
+          </Block>
+
+          <Block title="10. Children's privacy">
             <p>
               The Site is intended for adults (18+) and is not directed to
               children. We do not knowingly collect personal information from
-              children.
+              children. If we learn that we have, we will take steps to delete
+              it.
             </p>
           </Block>
 
-          <Block title="9. Changes to this policy">
+          <Block title="11. International visitors">
+            <p>
+              If you visit the Site from outside the United States, your
+              information may be transferred to and processed in the United
+              States, where privacy laws may differ from those where you live.
+              By using the Site, you consent to that transfer.
+            </p>
+          </Block>
+
+          <Block title="12. Do Not Track">
+            <p>
+              Some browsers send &ldquo;Do Not Track&rdquo; signals. Because
+              there is no common industry standard for them, the Site may not
+              respond to these signals.
+            </p>
+          </Block>
+
+          <Block title="13. Changes to this policy">
             <p>
               We may update this Privacy Policy from time to time. We&rsquo;ll
               post the updated version here and revise the &ldquo;Last
-              updated&rdquo; date at the top.
+              updated&rdquo; date at the top. Changes take effect when posted,
+              and your continued use of the Site means you accept them.
             </p>
           </Block>
 
-          <Block title="10. Contact us">
+          <Block title="14. Contact us">
             <p>
               Questions or requests about this Privacy Policy? Contact us at:
             </p>
             <p className="mt-2">
-              Kindling
+              Kindling LLC
               <br />
               Email:{" "}
               <a
@@ -213,16 +305,5 @@ function Block({
       <h2 className="font-serif text-xl font-semibold">{title}</h2>
       {children}
     </div>
-  );
-}
-
-// Bracketed, highlighted text marking a value the site owner must fill in
-// before publishing. Deliberately visible so nothing placeholder ships
-// unnoticed.
-function Placeholder({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded bg-yellow-100 px-1 text-yellow-900">
-      [{children}]
-    </span>
   );
 }
