@@ -8,6 +8,7 @@ import {
   generateSchedule,
   noteFirstPaymentFees,
 } from "@/lib/notes/schedule";
+import { isPaymentInRange, paymentRangeOf } from "@/lib/notes/position-range";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -55,13 +56,17 @@ async function computePayouts(
 
   const { data: participants, error: pErr } = await supabase
     .from("participations")
-    .select("id, invested_amount")
+    .select("id, invested_amount, first_payment_number, last_payment_number")
     .eq("note_id", noteUuid)
     .eq("funding_cleared", true);
   if (pErr) throw new Error(pErr.message);
 
+  // Only positions whose payment range includes this payment: a position
+  // transferred mid-note is paid by exactly one of the two lenders.
   const rows = (participants ?? []).filter(
-    (p) => Number(p.invested_amount ?? 0) > 0,
+    (p) =>
+      Number(p.invested_amount ?? 0) > 0 &&
+      isPaymentInRange(paymentRangeOf(p), paymentNumber),
   );
   if (rows.length === 0) {
     throw new Error("No funded participations on this note yet.");

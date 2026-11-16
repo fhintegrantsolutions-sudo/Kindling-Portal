@@ -11,6 +11,11 @@ import {
 import { getParticipations } from "@/lib/db/admin-queries";
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
+  describePaymentRange,
+  isTransferredOut,
+  paymentRangeOf,
+} from "@/lib/notes/position-range";
+import {
   Card,
   CardContent,
   CardHeader,
@@ -108,8 +113,10 @@ export default async function AdminParticipationsPage({
     archived: archived.length,
   };
 
+  // A position transferred out is held by the incoming lender now — count
+  // the transferred position once.
   const clearedInvested = active
-    .filter((p) => p.funding_cleared)
+    .filter((p) => p.funding_cleared && !isTransferredOut(paymentRangeOf(p)))
     .reduce((sum, p) => sum + Number(p.invested_amount), 0);
 
   return (
@@ -230,6 +237,12 @@ export default async function AdminParticipationsPage({
                     value={titleCase(p.funding_type)}
                   />
                   <Field label="Status" value={p.status} />
+                  <PaymentRangeField
+                    label={describePaymentRange(
+                      paymentRangeOf(p),
+                      p.note?.term_months ?? null,
+                    )}
+                  />
                 </CardContent>
               </Card>
             </Link>
@@ -334,4 +347,9 @@ function Field({ label, value }: { label: string; value: string }) {
       <p className="text-sm font-medium">{value}</p>
     </div>
   );
+}
+
+// The position's payment range, only when it isn't the whole note.
+function PaymentRangeField({ label }: { label: string | null }) {
+  return label ? <Field label="Payments" value={label} /> : null;
 }

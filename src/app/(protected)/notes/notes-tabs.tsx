@@ -5,6 +5,13 @@ import Link from "next/link";
 import type { ParticipationWithNote } from "@/lib/db/queries";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  isTransferredIn,
+  isTransferredOut,
+  paymentRangeOf,
+  rangePaymentCount,
+  TRANSFERRED_STATUS,
+} from "@/lib/notes/position-range";
 
 type Bucket = "active" | "pending" | "closed";
 
@@ -12,8 +19,10 @@ type Bucket = "active" | "pending" | "closed";
 // lifecycle. Only an "Open" note still accepts funding, so an unfunded position
 // is "Pending" (can still fund) while the note is Open, and "Closed" (lapsed)
 // once it isn't. A funded position on a live note (Open/Funded) is "Active";
-// anything on a Completed/Defaulted/Cancelled note is "Closed".
+// anything on a Completed/Defaulted/Cancelled note is "Closed", as is a
+// position transferred out to another lender (it receives nothing further).
 function bucketOf(p: ParticipationWithNote): Bucket {
+  if (isTransferredOut(paymentRangeOf(p))) return "closed";
   const s = p.note?.status;
   const live = s === "Open" || s === "Funded";
   if (p.funding_received && live) return "active";
@@ -45,7 +54,7 @@ const TABS: { key: Bucket; label: string; description: string }[] = [
     key: "closed",
     label: "Closed",
     description:
-      "The funding window closed before these were funded, or the note has finished. No action is needed.",
+      "The funding window closed before these were funded, the note has finished, or the position was transferred. No action is needed.",
   },
 ];
 
@@ -111,6 +120,8 @@ export function NotesTabs({
             // Link to this exact position, so a note held through two
             // entities opens the right one.
             const href = note ? `/notes/${note.note_id}?p=${p.id}` : "#";
+            const range = paymentRangeOf(p);
+            const transferredIn = isTransferredIn(range);
             return (
               <Link
                 key={p.id}
@@ -132,14 +143,18 @@ export function NotesTabs({
                         ) : null}
                       </div>
                       <span className="rounded-full border px-2 py-0.5 text-xs">
-                        {note?.status}
+                        {isTransferredOut(range)
+                          ? TRANSFERRED_STATUS
+                          : note?.status}
                       </span>
                     </div>
                   </CardHeader>
                   <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                     <Field
-                      label="Invested"
-                      value={formatCurrency(p.invested_amount)}
+                      label={transferredIn ? "Starting balance" : "Invested"}
+                      value={formatCurrency(
+                        transferredIn ? p.starting_balance : p.invested_amount,
+                      )}
                     />
                     <Field
                       label="Rate"
@@ -147,7 +162,11 @@ export function NotesTabs({
                     />
                     <Field
                       label="Term"
-                      value={note ? `${note.term_months} mo` : "—"}
+                      value={
+                        note
+                          ? `${rangePaymentCount(range, Number(note.term_months))} mo`
+                          : "—"
+                      }
                     />
                     <Field label="Funding" value={fundingLabel(p, bucket)} />
                   </CardContent>

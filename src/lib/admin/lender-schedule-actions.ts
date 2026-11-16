@@ -10,6 +10,8 @@ export type LenderSchedulePdfData = {
   noteTitle: string;
   lenderName: string;
   invested: string;
+  startingBalance: number;
+  paymentCount: number;
   annualRatePct: number;
   termMonths: number;
   interestType: string;
@@ -84,10 +86,16 @@ export async function getLenderSchedulePdfData(
       noteTitle: row.note.title,
       lenderName,
       invested: String(row.invested_amount),
+      startingBalance: schedule.starting_balance,
+      paymentCount: schedule.total_payments,
       annualRatePct: Number(row.note.rate ?? 0),
       termMonths: Number(row.note.term_months ?? 0),
       interestType: String(row.note.interest_type ?? ""),
-      startDate: row.note.first_payment_date ?? null,
+      // A position transferred in mid-note starts at its first payment.
+      startDate:
+        schedule.first_payment_number > 1
+          ? (schedule.rows[0]?.due_date ?? null)
+          : (row.note.first_payment_date ?? null),
       oneTimeFee: schedule.one_time_fee,
     },
   };

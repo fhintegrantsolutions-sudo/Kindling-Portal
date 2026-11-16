@@ -22,6 +22,7 @@ import {
 } from "@/components/annual-summary-table";
 import { rollupByYear } from "@/lib/notes/annual-summary";
 import { computeMonthlyPayment } from "@/lib/notes/schedule";
+import { TRANSFERRED_STATUS } from "@/lib/notes/position-range";
 import { getCurrentProfile } from "@/lib/dal";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { DownloadScheduleButton } from "./download-schedule-button";
@@ -102,6 +103,15 @@ export default async function MyNoteDetailPage({
         })
       : null;
   const cosparkFee = schedule.ok ? schedule.cospark_fee : 0;
+  // A position transferred in mid-note starts at a later payment with the
+  // schedule's balance at that point; one transferred out stops after its last
+  // payment (rows are already limited to the position's range).
+  const transferredIn = schedule.ok && schedule.first_payment_number > 1;
+  const transferredOut = schedule.ok && schedule.transferred_out;
+  const totalPayments = schedule.ok ? schedule.total_payments : 0;
+  const paymentsLeft = transferredOut
+    ? 0
+    : Math.max(0, totalPayments - receivedRows.length);
 
   // Calendar-year rollup of this participation's schedule. Each year is tagged
   // from received_date: Paid = every payment that year received, In progress =
@@ -197,20 +207,30 @@ export default async function MyNoteDetailPage({
           ) : null}
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <div>
-            <p className="text-xs text-muted-foreground">Invested</p>
-            <EditInvestedAmount
-              participationId={participation.id}
-              invested={participation.invested_amount}
-              minInvestment={note.min_investment}
-              fundingReceived={Boolean(participation.funding_received)}
+          {transferredIn && schedule.ok ? (
+            <Field
+              label="Starting balance"
+              value={formatCurrency(schedule.starting_balance)}
             />
-          </div>
+          ) : (
+            <div>
+              <p className="text-xs text-muted-foreground">Invested</p>
+              <EditInvestedAmount
+                participationId={participation.id}
+                invested={participation.invested_amount}
+                minInvestment={note.min_investment}
+                fundingReceived={Boolean(participation.funding_received)}
+              />
+            </div>
+          )}
           <Field
             label="Monthly payment"
             value={monthlyPayment !== null ? formatCurrency(monthlyPayment) : "—"}
           />
-          <Field label="Status" value={participation.status} />
+          <Field
+            label="Status"
+            value={transferredOut ? TRANSFERRED_STATUS : participation.status}
+          />
           <Field
             label="Funding"
             value={
@@ -241,10 +261,16 @@ export default async function MyNoteDetailPage({
                 noteTitle={note.title}
                 lenderName={lenderName}
                 invested={participation.invested_amount}
+                startingBalance={schedule.starting_balance}
+                paymentCount={schedule.total_payments}
                 annualRatePct={Number(note.rate ?? 0)}
                 termMonths={Number(note.term_months ?? 0)}
                 interestType={String(note.interest_type ?? "")}
-                startDate={note.first_payment_date ?? null}
+                startDate={
+                  transferredIn
+                    ? (scheduleRows[0]?.due_date ?? null)
+                    : (note.first_payment_date ?? null)
+                }
                 oneTimeFee={totalFee}
               />
             ) : null}
@@ -280,9 +306,22 @@ export default async function MyNoteDetailPage({
                 ) : null}
                 <Field
                   label="Payments left"
-                  value={`${scheduleRows.length - receivedRows.length} of ${scheduleRows.length}`}
+                  value={`${paymentsLeft} of ${totalPayments}`}
                 />
               </div>
+              {transferredIn ? (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Your position starts with payment #
+                  {schedule.first_payment_number} at a balance of{" "}
+                  {formatCurrency(schedule.starting_balance)}.
+                </p>
+              ) : null}
+              {transferredOut ? (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  This position was transferred after payment #
+                  {schedule.last_payment_number}.
+                </p>
+              ) : null}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>

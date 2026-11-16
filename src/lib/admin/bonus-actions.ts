@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/dal";
+import { isTransferredOut, paymentRangeOf } from "@/lib/notes/position-range";
 
 export type BonusFormState = {
   error?: string;
@@ -80,16 +81,22 @@ export async function createBonus(
 
   const distributable = Math.round((gross - retained) * 100) / 100;
 
-  // Snapshot eligible participations: funded only.
+  // Snapshot eligible participations: funded only, and not transferred out (a
+  // transferred position's bonus share goes to the lender who took it over,
+  // whose share basis is the same invested_amount).
   const { data: participants, error: pErr } = await supabase
     .from("participations")
-    .select("id, invested_amount, funding_cleared")
+    .select(
+      "id, invested_amount, funding_cleared, first_payment_number, last_payment_number",
+    )
     .eq("note_id", noteUuid)
     .eq("funding_cleared", true);
   if (pErr) return { error: pErr.message };
 
   const rows = (participants ?? []).filter(
-    (p) => Number(p.invested_amount ?? 0) > 0,
+    (p) =>
+      Number(p.invested_amount ?? 0) > 0 &&
+      !isTransferredOut(paymentRangeOf(p)),
   );
   if (rows.length === 0) {
     return {
@@ -180,12 +187,15 @@ export async function markBonusReceived(
 
   const { data: participants, error: pErr } = await supabase
     .from("participations")
-    .select("id, invested_amount")
+    .select("id, invested_amount, first_payment_number, last_payment_number")
     .eq("note_id", bonus.note_id)
     .eq("funding_cleared", true);
   if (pErr) return { error: pErr.message };
+  // Positions transferred out don't share in bonuses (see createBonus).
   const rows = (participants ?? []).filter(
-    (p) => Number(p.invested_amount ?? 0) > 0,
+    (p) =>
+      Number(p.invested_amount ?? 0) > 0 &&
+      !isTransferredOut(paymentRangeOf(p)),
   );
   if (rows.length === 0) {
     return { error: "No funded participations to distribute to." };

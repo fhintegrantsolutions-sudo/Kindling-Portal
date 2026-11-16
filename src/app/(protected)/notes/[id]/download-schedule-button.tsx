@@ -12,7 +12,14 @@ export type LenderSchedulePdfInput = {
   noteId: string;
   noteTitle: string;
   lenderName: string;
+  // The schedule basis: drives the scheduled payment (same for every row).
   invested: string;
+  // The position's loan amount and payment count — invested / full term for a
+  // position from payment #1; for one transferred in mid-note, the schedule
+  // balance before its first payment and the number of payments it receives.
+  // startDate is then that first payment's due date.
+  startingBalance: number;
+  paymentCount: number;
   annualRatePct: number;
   termMonths: number;
   interestType: string;
@@ -42,6 +49,8 @@ export function downloadLenderSchedulePdf({
   noteTitle,
   lenderName,
   invested,
+  startingBalance,
+  paymentCount,
   annualRatePct,
   termMonths,
   interestType,
@@ -72,7 +81,10 @@ export function downloadLenderSchedulePdf({
   // ============ Two-column summary ============
   // Left: lender's inputs that drive the schedule. Right: derived values.
   const invDollars = Number(invested);
-  const years = termMonths > 0 ? termMonths / 12 : 0;
+  const numPayments = paymentCount || termMonths || rows.length;
+  const years = numPayments > 0 ? numPayments / 12 : 0;
+  // Amortized over the note's full term on the invested basis, so a
+  // transferred-in position shows the same payment as every row.
   const scheduled = computeMonthlyPayment({
     principal: invDollars,
     annualRatePct,
@@ -80,7 +92,7 @@ export function downloadLenderSchedulePdf({
     interestType,
   });
   const leftRows: Array<[string, string]> = [
-    ["Loan amount", formatCurrency(invDollars)],
+    ["Loan amount", formatCurrency(startingBalance)],
     ["Annual interest rate", formatPercent(annualRatePct)],
     ["Loan period in years", years % 1 === 0 ? String(years) : years.toFixed(2)],
     ["Number of payments per year", "12"],
@@ -88,7 +100,7 @@ export function downloadLenderSchedulePdf({
   ];
   const rightRows: Array<[string, string]> = [
     ["Scheduled payment", scheduled === null ? "—" : formatCurrency(scheduled)],
-    ["Scheduled number of payments", String(termMonths || rows.length)],
+    ["Scheduled number of payments", String(numPayments)],
     ...(oneTimeFee > 0
       ? ([
           ["One-time fee", formatCurrency(oneTimeFee)],
@@ -200,10 +212,11 @@ export function downloadLenderSchedulePdf({
 
   // ============ Detailed schedule ============
   // Walk the rows once to build beginning balances + a running cumulative
-  // interest. Beginning balance of payment 1 is the lender's invested
-  // amount; for payment N it's the previous row's ending balance.
+  // interest. Beginning balance of the first row is the position's starting
+  // balance (invested, or the balance at transfer); for later rows it's the
+  // previous row's ending balance.
   let cumulativeInterest = 0;
-  let beginningBalance = invDollars;
+  let beginningBalance = startingBalance;
   const body: string[][] = rows.map((r) => {
     const begin = beginningBalance;
     const end = r.my_balance;

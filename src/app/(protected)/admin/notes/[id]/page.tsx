@@ -48,7 +48,10 @@ export default async function NoteOverviewPage({
     interestType: note.interest_type,
   });
 
-  const totalInvested = participants.reduce(
+  // A position transferred out is listed for history but counted only once,
+  // through the incoming lender's position.
+  const heldParticipants = participants.filter((p) => !p.transferred_out);
+  const totalInvested = heldParticipants.reduce(
     (s, p) => s + Number(p.invested_amount),
     0,
   );
@@ -116,7 +119,7 @@ export default async function NoteOverviewPage({
           />
           <Stat
             label="Funded"
-            value={`${formatCurrency(totalInvested)} · ${participants.length} lender${participants.length === 1 ? "" : "s"}`}
+            value={`${formatCurrency(totalInvested)} · ${heldParticipants.length} lender${heldParticipants.length === 1 ? "" : "s"}`}
           />
           <Stat
             label="Next payment"
@@ -181,6 +184,14 @@ export default async function NoteOverviewPage({
                       {p.lender_name && p.lender_email ? (
                         <p className="truncate text-xs text-muted-foreground">
                           {p.lender_email}
+                        </p>
+                      ) : null}
+                      {p.range_label ? (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {p.range_label}
+                          {p.starting_balance !== null
+                            ? ` · starting balance ${formatCurrency(p.starting_balance)}`
+                            : ""}
                         </p>
                       ) : null}
                     </div>

@@ -18,6 +18,12 @@ export type ParticipationWithNote = {
   funding_deposited: boolean;
   funding_cleared: boolean;
   created_at: string;
+  // Payment range (see src/lib/notes/position-range.ts) and the position's
+  // starting balance: invested_amount, or for a position transferred in
+  // mid-note the schedule balance before its first payment.
+  first_payment_number: number;
+  last_payment_number: number | null;
+  starting_balance: number;
   // The investor entity holding this position.
   entity: { id: string; display_name: string } | null;
   note: {
@@ -31,6 +37,7 @@ export type ParticipationWithNote = {
     project_type: string;
     status: string;
     maturity_date: string | null;
+    first_payment_date: string | null;
   } | null;
 };
 
@@ -79,6 +86,8 @@ export async function getMyParticipations() {
       funding_deposited,
       funding_cleared,
       created_at,
+      first_payment_number,
+      last_payment_number,
       entity:investor_entities ( id, display_name ),
       note:notes (
         id,
@@ -90,14 +99,31 @@ export async function getMyParticipations() {
         interest_type,
         project_type,
         status,
-        maturity_date
+        maturity_date,
+        first_payment_date
       )
       `,
     )
     .in("entity_id", ctx.entityIds)
     .order("created_at", { ascending: false });
 
-  return (data ?? []) as unknown as ParticipationWithNote[];
+  const { paymentRangeOf, positionStartingBalanceForTerms } = await import(
+    "@/lib/notes/position-range"
+  );
+  return ((data ?? []) as unknown as Array<
+    Omit<ParticipationWithNote, "starting_balance">
+  >).map((p) => {
+    const range = paymentRangeOf(p);
+    const invested = Number(p.invested_amount ?? 0);
+    return {
+      ...p,
+      first_payment_number: range.first,
+      last_payment_number: range.last,
+      starting_balance: p.note
+        ? positionStartingBalanceForTerms(range, invested, p.note)
+        : invested,
+    };
+  });
 }
 
 export type MonthlyCashflowPoint = {
@@ -157,7 +183,7 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     .from("participations")
     .select(
       `
-      invested_amount, funding_cleared,
+      invested_amount, funding_cleared, first_payment_number, last_payment_number,
       note:notes ( note_id, principal, rate, term_months, interest_type, first_payment_date, fee, cospark_fee )
       `,
     )
@@ -167,6 +193,8 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
   const rows = (data ?? []) as unknown as Array<{
     invested_amount: string;
     funding_cleared: boolean;
+    first_payment_number: number | null;
+    last_payment_number: number | null;
     note: {
       note_id: string;
       principal: string | null;
@@ -181,6 +209,9 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
 
   const { generateLenderSchedule, addMonths, noteFirstPaymentFees } =
     await import("@/lib/notes/schedule");
+  const { paymentRangeOf, rowsInRange } = await import(
+    "@/lib/notes/position-range"
+  );
   // Month -> principal / interest in integer cents.
   const byMonth = new Map<string, { principal: number; interest: number }>();
   // Distinct notes paying into each month (human note IDs), for the chart detail.
@@ -211,7 +242,8 @@ export async function getMyMonthlyCashflow(): Promise<MonthlyCashflowPoint[]> {
     });
     if (!sched.ok) continue;
     const cents = (x: number) => Math.round(x * 100);
-    for (const row of sched.rows) {
+    // Only the payments this position receives (its payment range).
+    for (const row of rowsInRange(sched.rows, paymentRangeOf(r))) {
       const month = row.due_date.slice(0, 7);
       const cur = byMonth.get(month) ?? { principal: 0, interest: 0 };
       // The one-time fee reduces the lender's INTEREST only (row 1 only).
@@ -262,7 +294,8 @@ export async function getMyTotalMonthlyPayment(): Promise<number> {
     .from("participations")
     .select(
       `id, note_id, invested_amount, funding_cleared,
-       note:notes ( principal, rate, term_months, interest_type )`,
+       first_payment_number, last_payment_number,
+       note:notes ( principal, rate, term_months, interest_type, first_payment_date )`,
     )
     .in("entity_id", ctx.entityIds)
     .eq("funding_cleared", true);
@@ -272,20 +305,43 @@ export async function getMyTotalMonthlyPayment(): Promise<number> {
     note_id: string;
     invested_amount: string;
     funding_cleared: boolean;
+    first_payment_number: number | null;
+    last_payment_number: number | null;
     note: {
       principal: string | number | null;
       rate: string | number | null;
       term_months: number | null;
       interest_type: string;
+      first_payment_date: string | null;
     } | null;
   }>;
   if (rows.length === 0) return 0;
 
   // Each participation's monthly payment is its own amortization (invested
   // amount at the note's rate and term), matching the lender's schedule.
-  const { computeMonthlyPayment } = await import("@/lib/notes/schedule");
+  const { computeMonthlyPayment, addMonths } = await import(
+    "@/lib/notes/schedule"
+  );
+  const { paymentRangeOf, isTransferredOut } = await import(
+    "@/lib/notes/position-range"
+  );
+  // US Pacific, like the schedule's received/pending flip.
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+  }).format(new Date()); // YYYY-MM-DD
   let total = 0;
   for (const r of rows) {
+    // A position transferred out stops counting once its last payment's due
+    // date has passed (the incoming lender's position carries it from there).
+    const range = paymentRangeOf(r);
+    if (
+      isTransferredOut(range) &&
+      range.last !== null &&
+      (!r.note?.first_payment_date ||
+        addMonths(r.note.first_payment_date, range.last - 1) < today)
+    ) {
+      continue;
+    }
     const n = r.note;
     if (
       !n ||
@@ -604,8 +660,8 @@ export type EntityTotal = {
 };
 
 // Invested total + position count per entity, for the dashboard's "All entities"
-// breakdown. Counts only Active + funding-cleared rows, matching the dashboard's
-// definition of deployed capital.
+// breakdown. Counts only Active + funding-cleared rows that haven't been
+// transferred out, matching the dashboard's definition of deployed capital.
 export async function getMyTotalsByEntity(): Promise<EntityTotal[]> {
   const supabase = await createClient();
   const ctx = await getCurrentEntityContext();
@@ -613,19 +669,41 @@ export async function getMyTotalsByEntity(): Promise<EntityTotal[]> {
 
   const { data } = await supabase
     .from("participations")
-    .select("invested_amount, entity_id, status, funding_cleared")
+    .select(
+      `invested_amount, entity_id, status, funding_cleared,
+       first_payment_number, last_payment_number,
+       note:notes ( rate, term_months, interest_type, first_payment_date )`,
+    )
     .in("entity_id", ctx.entityIds)
     .eq("status", "Active")
-    .eq("funding_cleared", true);
+    .eq("funding_cleared", true)
+    // A position transferred out is closed — the incoming lender holds it now.
+    .is("last_payment_number", null);
+
+  const { paymentRangeOf, positionStartingBalanceForTerms } = await import(
+    "@/lib/notes/position-range"
+  );
 
   const byId = new Map<string, { invested: number; positions: number }>();
-  for (const r of (data ?? []) as Array<{
+  for (const r of (data ?? []) as unknown as Array<{
     invested_amount: string;
     entity_id: string | null;
+    first_payment_number: number | null;
+    last_payment_number: number | null;
+    note: {
+      rate: string | number | null;
+      term_months: number | null;
+      interest_type: string | null;
+      first_payment_date: string | null;
+    } | null;
   }>) {
     if (!r.entity_id) continue;
     const cur = byId.get(r.entity_id) ?? { invested: 0, positions: 0 };
-    cur.invested += Number(r.invested_amount ?? 0);
+    // A transferred-in position counts at its starting balance.
+    const invested = Number(r.invested_amount ?? 0);
+    cur.invested += r.note
+      ? positionStartingBalanceForTerms(paymentRangeOf(r), invested, r.note)
+      : invested;
     cur.positions += 1;
     byId.set(r.entity_id, cur);
   }
@@ -656,11 +734,22 @@ export type MyScheduleRow = {
 export type MyScheduleResult =
   | {
       ok: true;
+      // Only the payments this position receives (its payment range).
       rows: MyScheduleRow[];
       // This lender's share of all first-payment deductions, and its split.
+      // 0 when the range excludes payment #1 (a transferred-in position).
       one_time_fee: number;
       service_fee: number;
       cospark_fee: number;
+      // The position's payment range and what it implies (see
+      // src/lib/notes/position-range.ts). starting_balance is invested_amount
+      // for a position from #1, else the schedule balance before its first
+      // payment; total_payments is the number of payments in the range.
+      first_payment_number: number;
+      last_payment_number: number | null;
+      starting_balance: number;
+      total_payments: number;
+      transferred_out: boolean;
     }
   | { ok: false; reason: string };
 
@@ -693,7 +782,9 @@ export async function getMyScheduleForNote(
 
   const { data: me } = await supabase
     .from("participations")
-    .select("id, invested_amount, funding_cleared")
+    .select(
+      "id, invested_amount, funding_cleared, first_payment_number, last_payment_number",
+    )
     .eq("id", participationId)
     .maybeSingle();
   if (
@@ -707,6 +798,15 @@ export async function getMyScheduleForNote(
     };
   }
   const invested = Number(me.invested_amount);
+  const {
+    paymentRangeOf,
+    isPaymentInRange,
+    isTransferredOut,
+    positionStartingBalance,
+    rangePaymentCount,
+    rowsInRange,
+  } = await import("@/lib/notes/position-range");
+  const range = paymentRangeOf(me);
 
   // The lender's OWN amortization (their invested amount at the note's rate
   // and term), not a slice of the note's schedule — see generateLenderSchedule.
@@ -761,7 +861,9 @@ export async function getMyScheduleForNote(
   const receivedFor = (row: { payment_number: number; due_date: string }) =>
     row.due_date <= today ? receivedByNumber.get(row.payment_number) : undefined;
 
-  const rows: MyScheduleRow[] = result.rows.map((row) => {
+  // Only the payments this position receives — a transferred-in position
+  // starts mid-schedule, a transferred-out one stops after its last payment.
+  const rows: MyScheduleRow[] = rowsInRange(result.rows, range).map((row) => {
     const got = receivedFor(row);
     const myInterest = got ? got.interest : row.interest_amount;
     let myPrincipal: number;
@@ -790,7 +892,9 @@ export async function getMyScheduleForNote(
 
   // The lender's one-time fee, independent of whether the first payment has
   // been received — so it can be shown after it's baked into the payout.
-  const oneTimeFee = result.feeShare ?? 0;
+  // The fee rides on payment #1 only, so a position whose range starts later
+  // carries none.
+  const oneTimeFee = isPaymentInRange(range, 1) ? (result.feeShare ?? 0) : 0;
 
   // Split it into its parts for display; the CoSpark part takes the remainder
   // so the two always sum to one_time_fee.
@@ -810,6 +914,11 @@ export async function getMyScheduleForNote(
     one_time_fee: oneTimeFee,
     service_fee: serviceFee,
     cospark_fee: cosparkFee,
+    first_payment_number: range.first,
+    last_payment_number: range.last,
+    starting_balance: positionStartingBalance(range, invested, result.rows),
+    total_payments: rangePaymentCount(range, Number(note.term_months)),
+    transferred_out: isTransferredOut(range),
   };
 }
 

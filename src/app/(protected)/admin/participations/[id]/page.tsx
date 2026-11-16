@@ -161,6 +161,15 @@ export default async function AdminParticipationDetailPage({
                   label="Fee (one-time)"
                   value={share.fee > 0 ? formatCurrency(share.fee) : "—"}
                 />
+                {share.range_label ? (
+                  <Field label="Payments" value={share.range_label} />
+                ) : null}
+                {share.starting_balance !== null ? (
+                  <Field
+                    label="Starting balance"
+                    value={formatCurrency(share.starting_balance)}
+                  />
+                ) : null}
               </>
             ) : null}
           </CardContent>

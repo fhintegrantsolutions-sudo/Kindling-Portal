@@ -53,8 +53,11 @@ export default async function AdminUserDetailPage({
   // (newest first) — so head=last note invested, tail=first note invested.
   // Count unique notes since a lender could in theory hold multiple
   // participations on the same note.
+  // A position transferred out to another lender is no longer held, so it's
+  // left out of the invested totals (it carries no monthly payment either).
   const totalInvested = detail.participations.reduce(
-    (sum, row) => sum + Number(row.invested_amount ?? 0),
+    (sum, row) =>
+      sum + (row.transferred_out ? 0 : Number(row.invested_amount ?? 0)),
     0,
   );
   const totalMonthly = detail.participations.reduce(
@@ -114,7 +117,9 @@ export default async function AdminUserDetailPage({
         rows: [],
       });
     }
-    entityGroups[i].invested += Number(row.invested_amount ?? 0);
+    if (!row.transferred_out) {
+      entityGroups[i].invested += Number(row.invested_amount ?? 0);
+    }
     entityGroups[i].monthly += row.monthly_payment ?? 0;
     entityGroups[i].firstMonth += firstMonthOf(row);
     if (row.first_payment) entityGroups[i].hasFirstPayment = true;
@@ -349,6 +354,10 @@ export default async function AdminUserDetailPage({
                         <p className="text-xs text-muted-foreground">
                           {formatCurrency(row.invested_amount)} · {label} ·{" "}
                           {row.status}
+                          {row.range_label ? ` · ${row.range_label}` : ""}
+                          {row.starting_balance !== null
+                            ? ` · starting balance ${formatCurrency(row.starting_balance)}`
+                            : ""}
                           {row.monthly_payment !== null
                             ? row.first_payment
                               ? ` · ${formatCurrency(row.first_payment.amount)} first payment (${formatDate(row.first_payment.date)}, after one-time fee), then ${formatCurrency(row.monthly_payment)}/mo`

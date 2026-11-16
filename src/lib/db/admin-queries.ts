@@ -3,6 +3,14 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, requireParticipationsAccess } from "@/lib/dal";
 import { noteFirstPaymentFees } from "@/lib/notes/schedule";
+import {
+  describePaymentRange,
+  isPaymentInRange,
+  isTransferredIn,
+  isTransferredOut,
+  paymentRangeOf,
+  positionStartingBalanceForTerms,
+} from "@/lib/notes/position-range";
 
 // Every exported reader checks the caller's role itself: requireAdmin(), or
 // requireParticipationsAccess() for the data the scoped participations_admin
@@ -48,12 +56,20 @@ export async function getUsersByState(): Promise<StateUserCount[]> {
   // represent capital deployed and shouldn't show on the heat map.
   const { data: activeParts } = await supabase
     .from("participations")
-    .select("user_id, note:notes!inner(status)")
+    .select(
+      "user_id, first_payment_number, last_payment_number, note:notes!inner(status)",
+    )
     .eq("funding_cleared", true)
     .in("note.status", ["Open", "Funded"]);
 
+  // A position transferred out to another lender is no longer deployed.
   const activeUserIds = new Set(
-    ((activeParts ?? []) as Array<{ user_id: string | null }>)
+    ((activeParts ?? []) as Array<{
+      user_id: string | null;
+      first_payment_number: number | null;
+      last_payment_number: number | null;
+    }>)
+      .filter((p) => !isTransferredOut(paymentRangeOf(p)))
       .map((p) => p.user_id)
       .filter(Boolean) as string[],
   );
@@ -364,12 +380,16 @@ export async function getAdminStats(): Promise<AdminStats> {
       .from("participations")
       .select("*", { count: "exact", head: true })
       .eq("status", "Active")
-      .eq("funding_cleared", true),
+      .eq("funding_cleared", true)
+      // Transferred-out positions (status should already be "Transferred")
+      // are held by the incoming lender now — never count both.
+      .is("last_payment_number", null),
     supabase
       .from("participations")
       .select("invested_amount")
       .eq("status", "Active")
-      .eq("funding_cleared", true),
+      .eq("funding_cleared", true)
+      .is("last_payment_number", null),
     // Active notes = funded and being serviced. The lifecycle status for that
     // is "Funded" (older notes may still say "Active").
     supabase
@@ -475,10 +495,14 @@ export type AdminParticipationListItem = {
   funding_cleared: boolean;
   funding_type: string | null;
   created_at: string;
+  // Payment range (src/lib/notes/position-range.ts).
+  first_payment_number: number;
+  last_payment_number: number | null;
   note: {
     note_id: string;
     title: string;
     funding_archived_at: string | null;
+    term_months: number | null;
   } | null;
   lender_name: string | null;
   lender_email: string | null;
@@ -497,8 +521,8 @@ export async function getParticipations(filter?: {
       `
       id, user_id, access_request_id, invested_amount, status,
       funding_received, funding_deposited, funding_cleared,
-      funding_type, created_at,
-      note:notes ( note_id, title, funding_archived_at ),
+      funding_type, created_at, first_payment_number, last_payment_number,
+      note:notes ( note_id, title, funding_archived_at, term_months ),
       entity:investor_entities ( business_name )
       `,
     )
@@ -1024,6 +1048,13 @@ export type UserParticipationRow = {
   // Until the note's first payment date, the first payment is reduced by the
   // lender's one-time fee share. null once that date has passed or no fee.
   first_payment: { amount: number; date: string } | null;
+  // Payment range annotation (e.g. "Transferred after #9") when the position
+  // doesn't cover the whole note, and whether it was transferred out (then it
+  // carries no monthly payment and is left out of the user's totals).
+  range_label: string | null;
+  transferred_out: boolean;
+  // For a position transferred in mid-note: its starting balance. null otherwise.
+  starting_balance: number | null;
 };
 
 export type UserBeneficiary = {
@@ -1064,6 +1095,7 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       .select(
         `id, note_id, invested_amount, status,
          funding_received, funding_deposited, funding_cleared,
+         first_payment_number, last_payment_number,
          entity:investor_entities ( id, display_name ),
          note:notes ( id, note_id, title, principal, rate, term_months,
                       interest_type, first_payment_date, fee, cospark_fee )`,
@@ -1090,6 +1122,8 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
     funding_received: boolean;
     funding_deposited: boolean;
     funding_cleared: boolean;
+    first_payment_number: number | null;
+    last_payment_number: number | null;
     entity: { id: string; display_name: string } | null;
     note: {
       id: string;
@@ -1114,13 +1148,19 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
   if (noteIds.length > 0) {
     const { data: allParts } = await supabase
       .from("participations")
-      .select("note_id, invested_amount, funding_cleared")
+      .select(
+        "note_id, invested_amount, funding_cleared, first_payment_number, last_payment_number",
+      )
       .in("note_id", noteIds)
       .eq("funding_cleared", true);
     for (const p of (allParts ?? []) as Array<{
       note_id: string;
       invested_amount: string;
+      first_payment_number: number | null;
+      last_payment_number: number | null;
     }>) {
+      // A transferred position is counted once (the incoming lender's row).
+      if (isTransferredOut(paymentRangeOf(p))) continue;
       const inv = Number(p.invested_amount);
       if (!Number.isFinite(inv)) continue;
       totalsByNote.set(p.note_id, (totalsByNote.get(p.note_id) ?? 0) + inv);
@@ -1139,7 +1179,10 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
     let monthly: number | null = null;
     const n = r.note;
     const total = totalsByNote.get(r.note_id);
+    const range = paymentRangeOf(r);
+    const transferredOut = isTransferredOut(range);
     if (
+      !transferredOut &&
       r.funding_cleared &&
       n &&
       n.principal !== null &&
@@ -1157,7 +1200,12 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
       });
     }
     let firstPayment: UserParticipationRow["first_payment"] = null;
-    if (monthly !== null && n?.first_payment_date && n.first_payment_date >= today) {
+    if (
+      monthly !== null &&
+      isPaymentInRange(range, 1) &&
+      n?.first_payment_date &&
+      n.first_payment_date >= today
+    ) {
       const feeShare = lenderFeeShare(
         noteFirstPaymentFees(n),
         Number(r.invested_amount),
@@ -1183,6 +1231,16 @@ export async function getUserById(userId: string): Promise<UserDetail | null> {
         : null,
       monthly_payment: monthly,
       first_payment: firstPayment,
+      range_label: describePaymentRange(range, n?.term_months ?? null),
+      transferred_out: transferredOut,
+      starting_balance:
+        isTransferredIn(range) && n
+          ? positionStartingBalanceForTerms(
+              range,
+              Number(r.invested_amount),
+              n,
+            )
+          : null,
     };
   });
 
@@ -2285,8 +2343,16 @@ export type FundedParticipantRow = {
   share_pct: number;
   monthly_payment: number | null;
   // This lender's pro-rata share of the note's one-time fee (0 when the note
-  // has no fee). Same distribution basis as monthly_payment.
+  // has no fee, or the position doesn't include payment #1).
   fee: number;
+  // Payment range annotation when the position doesn't cover the whole note
+  // (e.g. "Transferred after #9"). A transferred-out position is listed for
+  // history but has share_pct 0 and no monthly payment, and callers leave it
+  // out of note totals so a transferred position is never counted twice.
+  range_label: string | null;
+  transferred_out: boolean;
+  // For a position transferred in mid-note: its starting balance. null otherwise.
+  starting_balance: number | null;
 };
 
 export async function getFundedParticipantsForNote(
@@ -2296,7 +2362,9 @@ export async function getFundedParticipantsForNote(
   const supabase = await createClient();
   const { data: note } = await supabase
     .from("notes")
-    .select("principal, rate, term_months, interest_type, fee, cospark_fee")
+    .select(
+      "principal, rate, term_months, interest_type, first_payment_date, fee, cospark_fee",
+    )
     .eq("id", noteUuid)
     .maybeSingle();
   // business_name comes from the entity holding the position; name/email stay
@@ -2304,7 +2372,7 @@ export async function getFundedParticipantsForNote(
   const { data: parts } = await supabase
     .from("participations")
     .select(
-      "id, user_id, invested_amount, entity:investor_entities ( business_name )",
+      "id, user_id, invested_amount, first_payment_number, last_payment_number, entity:investor_entities ( business_name )",
     )
     .eq("note_id", noteUuid)
     .eq("funding_cleared", true);
@@ -2313,6 +2381,8 @@ export async function getFundedParticipantsForNote(
     id: string;
     user_id: string | null;
     invested_amount: string;
+    first_payment_number: number | null;
+    last_payment_number: number | null;
     entity: { business_name: string | null } | null;
   }>;
   if (rows.length === 0) return [];
@@ -2344,7 +2414,15 @@ export async function getFundedParticipantsForNote(
     }
   }
 
-  const total = rows.reduce((s, r) => s + Number(r.invested_amount ?? 0), 0);
+  // Share basis excludes positions transferred out (the incoming lender's
+  // position carries the same invested_amount).
+  const total = rows.reduce(
+    (s, r) =>
+      isTransferredOut(paymentRangeOf(r))
+        ? s
+        : s + Number(r.invested_amount ?? 0),
+    0,
+  );
   const noteFee = note ? noteFirstPaymentFees(note) : 0;
 
   const { computeMonthlyPayment, lenderFeeShare } = await import(
@@ -2356,10 +2434,12 @@ export async function getFundedParticipantsForNote(
     .map((r) => {
       const profile = r.user_id ? profileMap.get(r.user_id) : null;
       const invested = Number(r.invested_amount ?? 0);
+      const range = paymentRangeOf(r);
+      const transferredOut = isTransferredOut(range);
       // Same figures the lender sees: their own amortization and their
       // fee share (fees x invested / note principal).
       const monthly =
-        note && note.rate !== null && note.term_months
+        !transferredOut && note && note.rate !== null && note.term_months
           ? computeMonthlyPayment({
               principal: invested,
               annualRatePct: Number(note.rate),
@@ -2367,7 +2447,9 @@ export async function getFundedParticipantsForNote(
               interestType: String(note.interest_type),
             })
           : null;
-      const fee = lenderFeeShare(noteFee, invested, notePrincipal);
+      const fee = isPaymentInRange(range, 1)
+        ? lenderFeeShare(noteFee, invested, notePrincipal)
+        : 0;
       return {
         participation_id: r.id,
         user_id: r.user_id,
@@ -2375,9 +2457,16 @@ export async function getFundedParticipantsForNote(
         lender_email: profile?.email ?? null,
         business_name: r.entity?.business_name ?? null,
         invested_amount: r.invested_amount,
-        share_pct: total > 0 ? (invested / total) * 100 : 0,
+        share_pct:
+          !transferredOut && total > 0 ? (invested / total) * 100 : 0,
         monthly_payment: monthly,
         fee,
+        range_label: describePaymentRange(range, note?.term_months ?? null),
+        transferred_out: transferredOut,
+        starting_balance:
+          isTransferredIn(range) && note
+            ? positionStartingBalanceForTerms(range, invested, note)
+            : null,
       };
     })
     .sort((a, b) => {

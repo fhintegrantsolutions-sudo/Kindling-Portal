@@ -7,7 +7,12 @@
 --   * interest-only notes pay monthly interest, plus principal in the final month;
 --   * payment #1 is reduced by the lender's one-time fee share
 --     (service fee + CoSpark membership) x invested / note principal.
--- Only cleared, Active participations are included.
+-- Only cleared, Active participations are included -- plus positions closed
+-- by a transfer ('Transferred' with a last_payment_number), so a past month
+-- still shows the lender who held the position then. Each position is paid
+-- only for payment numbers within its range (first_payment_number ..
+-- last_payment_number, or the end of the note), so a position transferred
+-- mid-note is paid by exactly one lender each month.
 --
 -- Change the month on the line marked  <-- MONTH  and run. Compare the
 -- "total" column with the vendor list.
@@ -19,6 +24,8 @@ parts as (
   select
     pa.id,
     pa.invested_amount                                   as inv,
+    pa.first_payment_number                              as first_k,
+    pa.last_payment_number                               as last_k,
     n.note_id,
     n.rate / 100.0 / 12                                  as r,
     n.term_months                                        as term,
@@ -42,7 +49,8 @@ parts as (
   left join public.investor_entities e on e.id = pa.entity_id
   left join public.profiles pr on pr.id = coalesce(e.owner_user_id, pa.user_id)
   where pa.funding_cleared
-    and pa.status = 'Active'
+    and (pa.status = 'Active'
+         or (pa.status = 'Transferred' and pa.last_payment_number is not null))
     and pa.invested_amount > 0
     and n.rate is not null
     and n.term_months > 0
@@ -66,6 +74,7 @@ amounts as (
     - case when k = 1 then fee_share else 0 end as amount
   from due
   where k between 1 and term
+    and k between first_k and coalesce(last_k, term)
 )
 select
   payee,

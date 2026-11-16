@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/queries";
 import { getCurrentEntityContext } from "@/lib/entities/context";
 import { formatCurrency } from "@/lib/format";
+import { isTransferredOut, paymentRangeOf } from "@/lib/notes/position-range";
 import {
   Card,
   CardContent,
@@ -41,11 +42,16 @@ export default async function DashboardPage() {
 
   // "Active" = the row is Active AND the funding has cleared — un-cleared
   // participations are still pending and shouldn't count as deployed capital.
+  // A position transferred out to another lender is closed, not active.
   const active = participations.filter(
-    (p) => p.status === "Active" && p.funding_cleared,
+    (p) =>
+      p.status === "Active" &&
+      p.funding_cleared &&
+      !isTransferredOut(paymentRangeOf(p)),
   );
+  // A position transferred in mid-note counts at its starting balance.
   const totalInvested = active.reduce(
-    (sum, p) => sum + Number(p.invested_amount ?? 0),
+    (sum, p) => sum + Number(p.starting_balance ?? 0),
     0,
   );
   const noteCount = new Set(active.map((p) => p.note_id)).size;
